@@ -45,6 +45,7 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthException
 import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.ApiException
 import org.json.JSONObject
@@ -53,7 +54,6 @@ import com.isabgroup.pimsg.R
 import com.isabgroup.pimsg.ui.PiColors
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import java.util.concurrent.TimeUnit
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 
 private fun detectDialCode(context: Context): Pair<String, Int> {
@@ -148,6 +148,11 @@ fun AuthScreen(onSignedIn: () -> Unit) {
             } catch (e: Exception) {
                 auth.signOut()
                 error = when (e) {
+                    is FirebaseAuthException -> if (e.errorCode == "ERROR_OPERATION_NOT_ALLOWED") {
+                        "Ative o fornecedor Anónimo em Firebase Authentication para permitir o registo por número sem SMS."
+                    } else {
+                        "Não foi possível iniciar o registo. Verifique a configuração do Firebase."
+                    }
                     is ApiException -> when (e.code) {
                         409 -> "Este número já está associado a outra conta."
                         429 -> "Muitas contas foram criadas nesta rede. Tente mais tarde."
