@@ -1,7 +1,7 @@
 
 import { pushToUsers } from "./push.js";
 
-const PLAY_URL = "https://play.google.com/store/apps/details?id=com.isabgroup.pimsg";
+const PLAY_URL = "https://play.google.com/store/apps/details?id=com.pimsg.isabstudio";
 const LEGAL_VERSION = "1.0";
 const LEGAL_DATE = "26 de novembro de 2026";
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -160,7 +160,7 @@ export async function handlePublic(request, env) {
         relation: ["delegate_permission/common.handle_all_urls"],
         target: {
           namespace: "android_app",
-          package_name: "com.isabgroup.pimsg",
+          package_name: "com.pimsg.isabstudio",
           sha256_cert_fingerprints: [fingerprint],
         },
       }]), {
