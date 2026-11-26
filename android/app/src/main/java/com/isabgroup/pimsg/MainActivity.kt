@@ -25,7 +25,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.android.installreferrer.api.InstallReferrerClient
-import com.android.installreferrer.api.InstallReferrerResponse
 import com.android.installreferrer.api.InstallReferrerStateListener
 import com.google.firebase.auth.FirebaseAuth
 import com.isabgroup.pimsg.auth.AuthScreen
@@ -91,10 +90,10 @@ class MainActivity : ComponentActivity() {
             client.startConnection(object : InstallReferrerStateListener {
                 override fun onInstallReferrerSetupFinished(responseCode: Int) {
                     try {
-                        if (responseCode == InstallReferrerResponse.OK) {
+                        if (responseCode == InstallReferrerClient.InstallReferrerResponse.OK) {
                             prefs.edit().putBoolean("referrer_processed", true).apply()
                         }
-                        if (responseCode == InstallReferrerResponse.OK && pendingPiLink == null) {
+                        if (responseCode == InstallReferrerClient.InstallReferrerResponse.OK && pendingPiLink == null) {
                             val raw = client.installReferrer.installReferrer
                             val query = Uri.parse("https://referrer.invalid/?$raw")
                             val type = query.getQueryParameter("pimsg_type")
