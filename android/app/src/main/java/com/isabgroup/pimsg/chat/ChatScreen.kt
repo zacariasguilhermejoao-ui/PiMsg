@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -62,6 +63,7 @@ import com.isabgroup.pimsg.data.Api
 import org.json.JSONObject
 import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiIcons
+import com.isabgroup.pimsg.ui.playClick
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
@@ -84,8 +86,8 @@ fun ChatScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val cr = context.contentResolver
+    val view = LocalView.current
     var text by remember { mutableStateOf("") }
-    // Conteudo partilhado de outra app: texto vai para o campo; foto/video/audio enviam-se
     LaunchedEffect(pendingShare) {
         val share = pendingShare ?: return@LaunchedEffect
         if (!share.text.isNullOrBlank() && text.isEmpty()) {
@@ -131,7 +133,6 @@ fun ChatScreen(
             IconButton(onClick = { optionsOpen = true }) { Icon(PiIcons.More, "Mais opções", tint = PiColors.White) }
         }
 
-        // Mensagens: sem selecao de texto
         DisableSelection {
             LazyColumn(
                 Modifier.weight(1f).fillMaxWidth(),
@@ -151,7 +152,7 @@ fun ChatScreen(
         }
 
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.Bottom) {
-            IconButton(onClick = { attachOpen = true }, enabled = !state.busy) {
+            IconButton(onClick = { view.playClick(); attachOpen = true }, enabled = !state.busy) {
                 Icon(PiIcons.Plus, "Anexar", tint = PiColors.White)
             }
             Box(
@@ -175,6 +176,7 @@ fun ChatScreen(
             Box(
                 Modifier.size(46.dp).clip(CircleShape).background(PiColors.White)
                     .clickable(enabled = text.isNotBlank() && !state.busy) {
+                        view.playClick()
                         vm.sendText(text)
                         text = ""
                         onShareConsumed()
@@ -292,7 +294,6 @@ private fun ImageBody(m: Message, vm: ChatViewModel, fg: Color) {
     val id = m.mediaId
     val bmp = id?.let { vm.images[it] }
     if (bmp != null) {
-        // Sem zoom: só mostra a foto
         Image(bmp.asImageBitmap(), null, Modifier.widthIn(max = 260.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.FillWidth)
     } else {
         Column(
