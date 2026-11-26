@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.util.Locale
 
 data class Message(
     val id: String,
@@ -24,6 +25,7 @@ data class Message(
     val body: String?,
     val mediaId: String?,
     val createdAt: Long,
+    val sourceLang: String?,
 )
 
 data class ChatState(
@@ -44,6 +46,8 @@ class ChatViewModel(private val convId: String) : ViewModel() {
 
     // Fotos so sao descarregadas quando o utilizador toca nelas.
     val images = mutableStateMapOf<String, Bitmap>()
+    val translations = mutableStateMapOf<String, String>()
+    private val translationRequested = mutableSetOf<String>()
 
     private var lastNewestId: String? = null
 
@@ -56,9 +60,10 @@ class ChatViewModel(private val convId: String) : ViewModel() {
             val arr = Api.get("/v1/chats/$convId/messages?limit=60").getJSONArray("messages")
             val list = (0 until arr.length()).map { i ->
                 val o = arr.getJSONObject(i)
-                Message(o.getString("id"), o.getString("sender_id"), o.getString("kind"), o.str("body"), o.str("media_id"), o.getLong("created_at"))
+                Message(o.getString("id"), o.getString("sender_id"), o.getString("kind"), o.str("body"), o.str("media_id"), o.getLong("created_at"), o.str("source_lang"))
             }
             _state.update { it.copy(messages = list, loading = false) }
+            translateIncoming(list)
             val newest = list.firstOrNull()?.id
             if (newest != null && newest != lastNewestId) {
                 lastNewestId = newest
@@ -69,11 +74,31 @@ class ChatViewModel(private val convId: String) : ViewModel() {
         }
     }
 
+    private fun translateIncoming(messages: List<Message>) {
+        val target = Locale.getDefault().language.lowercase(Locale.ROOT)
+        if (target.length !in 2..3) return
+        messages.asSequence()
+            .filter { it.kind == "text" && it.senderId != _state.value.myId && !it.body.isNullOrBlank() }
+            .filter { it.sourceLang != null && it.sourceLang != target && !translations.containsKey(it.id) }
+            .filter { translationRequested.add(it.id) }
+            .forEach { message ->
+                viewModelScope.launch {
+                    try {
+                        val result = Api.translate(message.body.orEmpty(), message.sourceLang!!, target)
+                        val translated = result.optString("translated_text")
+                        if (translated.isNotBlank()) translations[message.id] = translated
+                    } catch (_: Exception) {
+                        // A falha de traducao nao impede a leitura da mensagem original.
+                    }
+                }
+            }
+    }
+
     fun sendText(text: String) {
         val body = text.trim()
         if (body.isEmpty()) return
         viewModelScope.launch {
-            post(JSONObject().put("kind", "text").put("body", body))
+            post(JSONObject().put("kind", "text").put("body", body).put("source_lang", Locale.getDefault().language.lowercase(Locale.ROOT)))
         }
     }
 
