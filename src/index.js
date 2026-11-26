@@ -1,5 +1,6 @@
 
 import { handleChat } from "./chat.js";
+import { handleBots } from "./bots.js";
 import { handleExtra } from "./extra.js";
 import { handlePublic } from "./pages.js";
 
@@ -251,6 +252,9 @@ async function handle(request, env) {
     ).bind(crypto.randomUUID(), me.id, "delete", "app", "pending", now, now + 14 * 86400000).run();
     return json({ ok: true, scheduled_for: now + 14 * 86400000 });
   }
+
+  const botResponse = await handleBots(request, env, me, path, method);
+  if (botResponse) return botResponse;
 
   const extraResponse = await handleExtra(request, env, me, path, method);
   if (extraResponse) return extraResponse;
