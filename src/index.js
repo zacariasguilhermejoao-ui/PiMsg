@@ -2,6 +2,7 @@
 // Login: token de ID do Firebase (Google ou numero com SMS confirmado).
 
 import { handleChat } from "./chat.js";
+import { handleTranslate } from "./translate.js";
 
 const JWKS_URL = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -206,6 +207,8 @@ async function handle(request, env) {
     ).bind(crypto.randomUUID(), me.id, "delete", "app", "pending", now, now + 14 * 86400000).run();
     return json({ ok: true, scheduled_for: now + 14 * 86400000 });
   }
+
+  if (path === "/v1/translate" && method === "POST") return handleTranslate(request, env);
 
   const chatResponse = await handleChat(request, env, me, path, method);
   if (chatResponse) return chatResponse;
