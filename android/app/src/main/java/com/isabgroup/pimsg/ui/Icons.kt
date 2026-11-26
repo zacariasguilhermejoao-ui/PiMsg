@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathBuilder
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
 // Icones vetoriais proprios, brancos por defeito. A cor final vem do parametro tint do Icon.
@@ -53,5 +54,14 @@ object PiIcons {
     val Close = icon("Close") {
         moveTo(6f, 6f); lineTo(18f, 18f)
         moveTo(18f, 6f); lineTo(6f, 18f)
+    }
+
+    val More = icon("More") {
+        moveTo(12f, 5f)
+        arcToRelative(1f, 1f, 0f, true, true, 0f, 0.01f)
+        moveTo(12f, 12f)
+        arcToRelative(1f, 1f, 0f, true, true, 0f, 0.01f)
+        moveTo(12f, 19f)
+        arcToRelative(1f, 1f, 0f, true, true, 0f, 0.01f)
     }
 }
