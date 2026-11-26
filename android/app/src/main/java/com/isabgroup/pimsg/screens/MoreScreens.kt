@@ -4,7 +4,11 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.clip
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -59,21 +63,56 @@ fun ProfileScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var loading by remember { mutableStateOf(true) }
+    var saving by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var bio by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     var showPhone by remember { mutableStateOf(false) }
     var phoneVerified by remember { mutableStateOf(false) }
+    var avatarKey by remember { mutableStateOf<String?>(null) }
+    var avatarBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var instagram by remember { mutableStateOf("") }
+    var facebook by remember { mutableStateOf("") }
+    var tiktok by remember { mutableStateOf("") }
+    var youtube by remember { mutableStateOf("") }
+    var website by remember { mutableStateOf("") }
     var msg by remember { mutableStateOf<String?>(null) }
+    val imagePicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) scope.launch {
+            try {
+                msg = "A enviar fotografia..."
+                val uploaded = com.isabgroup.pimsg.data.uploadUri(context.contentResolver, uri)
+                Api.patch("/v1/me/media", JSONObject().put("avatar_media_id", uploaded.id))
+                avatarKey = uploaded.id
+                val downloaded = Api.download("/v1/media/${uploaded.id}")
+                avatarBitmap = android.graphics.BitmapFactory.decodeByteArray(downloaded.bytes, 0, downloaded.bytes.size)
+                msg = "Fotografia atualizada."
+            } catch (e: Exception) { msg = "Não foi possível atualizar a fotografia." }
+        }
+    }
 
     LaunchedEffect(Unit) {
         try {
             val j = Api.get("/v1/me")
-            name = j.getString("name")
+            name = j.optString("name")
             bio = j.strOrNull("bio").orEmpty()
             code = j.strOrNull("code").orEmpty()
             showPhone = j.optBoolean("show_phone")
             phoneVerified = j.optBoolean("phone_verified")
+            avatarKey = j.strOrNull("avatar_key")
+            instagram = j.strOrNull("instagram_url").orEmpty()
+            facebook = j.strOrNull("facebook_url").orEmpty()
+            tiktok = j.strOrNull("tiktok_url").orEmpty()
+            youtube = j.strOrNull("youtube_url").orEmpty()
+            website = j.strOrNull("website_url").orEmpty()
+            avatarKey?.let { key ->
+                try {
+                    val d = Api.download("/v1/media/$key")
+                    avatarBitmap = android.graphics.BitmapFactory.decodeByteArray(d.bytes, 0, d.bytes.size)
+                } catch (_: Exception) { }
+            }
         } catch (e: Exception) {
             msg = "Não foi possível carregar o perfil."
         }
@@ -82,13 +121,83 @@ fun ProfileScreen(onBack: () -> Unit) {
 
     ScreenFrame("Perfil", onBack) {
         if (loading) return@ScreenFrame
-        OutlinedTextField(value = name, onValueChange = { name = it.take(60) }, label = { Text("Nome") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(value = bio, onValueChange = { bio = it.take(300) }, label = { Text("Apresentação") }, minLines = 3, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .height(116.dp)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier
+                        .height(108.dp)
+                        .fillMaxWidth(0.34f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (avatarBitmap != null) {
+                        androidx.compose.foundation.Image(
+                            bitmap = avatarBitmap!!.asImageBitmap(),
+                            contentDescription = "Fotografia do perfil",
+                            modifier = Modifier
+                                .height(104.dp)
+                                .clip(androidx.compose.foundation.shape.CircleShape),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        )
+                    } else {
+                        androidx.compose.foundation.layout.Box(
+                            modifier = Modifier
+                                .height(104.dp)
+                                .fillMaxWidth()
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(PiColors.SurfaceHigh),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            androidx.compose.material3.Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Outlined.Person,
+                                contentDescription = "Avatar padrão",
+                                tint = PiColors.Gray,
+                                modifier = Modifier.height(54.dp),
+                            )
+                        }
+                    }
+                }
+            }
+            PiButton("Alterar fotografia", { imagePicker.launch("image/*") }, primary = false)
+            if (avatarKey != null) {
+                TextButton(onClick = {
+                    scope.launch {
+                        try {
+                            Api.patch("/v1/me/media", JSONObject().put("avatar_media_id", JSONObject.NULL))
+                            avatarKey = null
+                            avatarBitmap = null
+                            msg = "Fotografia removida."
+                        } catch (e: Exception) { msg = "Não foi possível remover a fotografia." }
+                    }
+                }) { Text("Remover fotografia", color = PiColors.Danger) }
+            }
+        }
 
-        Section("O meu código")
+        Section("Informações pessoais")
+        OutlinedTextField(value = name, onValueChange = { name = it.take(60) }, label = { Text("Nome") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(value = bio, onValueChange = { bio = it.take(300) }, label = { Text("Biografia / apresentação") }, minLines = 3, supportingText = { Text("${bio.length}/300") }, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+
+        Section("Redes sociais e website")
+        Text("Adicione os seus perfis. Só serão apresentados no seu perfil público quando preencher os campos.", color = PiColors.TextSecondary, fontSize = 13.sp)
+        OutlinedTextField(value = instagram, onValueChange = { instagram = it.take(200) }, label = { Text("Instagram (URL)") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = facebook, onValueChange = { facebook = it.take(200) }, label = { Text("Facebook (URL)") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = tiktok, onValueChange = { tiktok = it.take(200) }, label = { Text("TikTok (URL)") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = youtube, onValueChange = { youtube = it.take(200) }, label = { Text("YouTube (URL)") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = website, onValueChange = { website = it.take(200) }, label = { Text("Website") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+
+        Section("O meu código PiMsg")
         Text(code, color = PiColors.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp)
-        Text("Quem tiver este código encontra-o na pesquisa. Ao gerar um novo, o anterior deixa de valer.", color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(vertical = 8.dp))
+        Text("Partilhe este código para que outras pessoas o encontrem no PiMsg.", color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(vertical = 8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             PiButton("Copiar", { copy(context, "codigo", code); msg = "Código copiado." }, Modifier.weight(1f), primary = false)
             PiButton("Gerar novo", {
@@ -115,14 +224,25 @@ fun ProfileScreen(onBack: () -> Unit) {
         }
 
         Spacer(Modifier.height(24.dp))
-        PiButton("Guardar", {
+        PiButton("Guardar alterações", {
             scope.launch {
+                saving = true
                 try {
-                    Api.patch("/v1/me", JSONObject().put("name", name).put("bio", bio).put("show_phone", showPhone))
-                    msg = "Perfil guardado."
-                } catch (e: Exception) { msg = "Não foi possível guardar." }
+                    val body = JSONObject()
+                        .put("name", name)
+                        .put("bio", bio)
+                        .put("show_phone", showPhone)
+                        .put("instagram_url", instagram.trim())
+                        .put("facebook_url", facebook.trim())
+                        .put("tiktok_url", tiktok.trim())
+                        .put("youtube_url", youtube.trim())
+                        .put("website_url", website.trim())
+                    Api.patch("/v1/me", body)
+                    msg = "Perfil guardado com sucesso."
+                } catch (e: Exception) { msg = "Não foi possível guardar. Verifique as ligações e tente novamente." }
+                saving = false
             }
-        }, enabled = name.isNotBlank())
+        }, enabled = name.isNotBlank() && !saving)
         msg?.let { Text(it, color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp)) }
         Spacer(Modifier.height(24.dp))
     }
