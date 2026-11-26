@@ -94,10 +94,9 @@ jobs:
               raise SystemExit("google-services.json has no Android client for com.pimsg.isabstudio")
           oauth_clients = app_client.get("oauth_client", [])
           has_web_client = any(str(client.get("client_type")) == "3" for client in oauth_clients)
-          if has_web_client:
-              print("Firebase JSON contains the PiMsg Android client and a Web OAuth client.")
-          else:
-              print("::warning::Firebase JSON has no Web OAuth client (client_type 3). Google sign-in needs a Web OAuth client in Firebase and an updated GOOGLE_SERVICES_JSON secret.")
+          if not has_web_client:
+              raise SystemExit("google-services.json has no Web OAuth client (client_type 3). Enable/configure Google sign-in in Firebase, download the updated file, and replace GOOGLE_SERVICES_JSON.")
+          print("Firebase JSON contains the PiMsg Android client and a Web OAuth client.")
           PY
 
       - name: Prepare Android signing keystore
