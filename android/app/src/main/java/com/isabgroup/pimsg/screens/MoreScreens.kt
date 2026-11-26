@@ -516,7 +516,15 @@ fun PlansScreen(onBack: () -> Unit) {
                 val date = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(expiresAt!!))
                 Text("Válido até $date", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
             }
-            if (current != "free") Text("Estado: $status", color = PiColors.TextSecondary, fontSize = 12.sp)
+            if (current != "free") {
+                val statusLabel = when (status) {
+                    "active" -> "Ativo"
+                    "grace" -> "Em período de tolerância"
+                    "on_hold" -> "Suspenso pela Google Play"
+                    else -> "Estado da subscrição indisponível"
+                }
+                Text("Estado: $statusLabel", color = PiColors.TextSecondary, fontSize = 12.sp)
+            }
         }
         Spacer(Modifier.height(18.dp))
         Text("FREE", color = PiColors.Gray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
