@@ -211,7 +211,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
         ) { Text("Continuar com número", fontSize = 16.sp) }
         Spacer(Modifier.height(8.dp))
         Text(
-            "O número não será confirmado por SMS e ficará marcado como não verificado.",
+            "O número não será confirmado. Sem associar Google, não poderá recuperar a conta após reinstalar a app ou trocar de aparelho.",
             color = PiColors.Gray, fontSize = 11.sp,
         )
 
