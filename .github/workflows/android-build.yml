@@ -68,6 +68,40 @@ jobs:
           set -euo pipefail
           gradle --version
 
+      - name: Prepare Firebase configuration
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "::error::Missing repository secret GOOGLE_SERVICES_JSON."
+            exit 1
+          fi
+          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          test -s android/app/google-services.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          config = json.loads(Path("android/app/google-services.json").read_text())
+          clients = config.get("client", [])
+          expected = "com.pimsg.isabstudio"
+          if not any(
+              client.get("client_info", {}).get("android_client_info", {}).get("package_name") == expected
+              for client in clients
+          ):
+              raise SystemExit("google-services.json has no Android client for com.pimsg.isabstudio")
+          print("Firebase JSON is valid and contains the PiMsg Android application ID.")
+          PY
+
+      - name: Preflight release compilation, resources and R8
+        run: |
+          set -euo pipefail
+          gradle -p android --no-daemon \
+            :app:compileReleaseKotlin \
+            :app:processReleaseResources \
+            :app:minifyReleaseWithR8
+
       - name: Prepare Android signing keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -114,38 +148,16 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          # Listing the selected alias validates the store password and alias.
-          # Do not pipe through grep: JDK output formatting differs across releases.
-          keytool -list -v \
+          # Validate the keystore password separately from the private-key password.
+          keytool -list \
             -keystore "$ANDROID_KEYSTORE_PATH" \
-            -alias "$ANDROID_KEY_ALIAS" \
-            -storepass:env ANDROID_KEYSTORE_PASSWORD
-
-      - name: Prepare Firebase configuration
-        env:
-          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-        run: |
-          set -euo pipefail
-          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
-            echo "::error::Missing repository secret GOOGLE_SERVICES_JSON."
+            -storepass:env ANDROID_KEYSTORE_PASSWORD \
+            > "$RUNNER_TEMP/keystore-list.txt"
+          if ! grep -Fq -- "$ANDROID_KEY_ALIAS" "$RUNNER_TEMP/keystore-list.txt"; then
+            echo "::error::ANDROID_KEY_ALIAS was not found in the decoded keystore. Check the alias secret."
             exit 1
           fi
-          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
-          test -s android/app/google-services.json
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-
-          config = json.loads(Path("android/app/google-services.json").read_text())
-          clients = config.get("client", [])
-          expected = "com.pimsg.isabstudio"
-          if not any(
-              client.get("client_info", {}).get("android_client_info", {}).get("package_name") == expected
-              for client in clients
-          ):
-              raise SystemExit("google-services.json has no Android client for com.pimsg.isabstudio")
-          print("Firebase JSON is valid and contains the PiMsg Android application ID.")
-          PY
+          echo "Keystore password and alias validated. The private-key password will be tested during release signing."
 
       - name: Build signed release APK and AAB
         env:
