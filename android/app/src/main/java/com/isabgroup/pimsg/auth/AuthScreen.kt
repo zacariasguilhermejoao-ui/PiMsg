@@ -8,7 +8,6 @@ import java.util.Locale
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,9 +34,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -78,15 +74,11 @@ private fun detectDialCode(context: Context): Pair<String, Int> {
 
 @Composable
 private fun GoogleMark() {
-    Canvas(Modifier.size(21.dp)) {
-        val width = size.minDimension * 0.22f
-        val stroke = Stroke(width = width, cap = StrokeCap.Butt)
-        drawArc(Color(0xFF4285F4), -45f, 90f, false, style = stroke)
-        drawArc(Color(0xFFEA4335), 45f, 90f, false, style = stroke)
-        drawArc(Color(0xFFFBBC05), 135f, 90f, false, style = stroke)
-        drawArc(Color(0xFF34A853), 225f, 90f, false, style = stroke)
-        drawLine(Color(0xFF4285F4), Offset(size.width * 0.50f, size.height * 0.50f), Offset(size.width * 0.96f, size.height * 0.50f), width)
-    }
+    Image(
+        painter = painterResource(R.drawable.google_g),
+        contentDescription = "Google",
+        modifier = Modifier.size(20.dp),
+    )
 }
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
@@ -101,7 +93,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
     val scope = rememberCoroutineScope()
     val auth = remember { FirebaseAuth.getInstance() }
 
-    val (detectedRegion, dialCode) = remember(context) { detectDialCode(context) }
+    val dialCode = remember(context) { detectDialCode(context).second }
     var phone by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     var verificationId by remember { mutableStateOf<String?>(null) }
@@ -234,11 +226,6 @@ fun AuthScreen(onSignedIn: () -> Unit) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 modifier = Modifier.fillMaxWidth(), colors = fieldColors,
             )
-            if (dialCode == 0) {
-                Text("Não foi possível detetar o país. Ative o cartão SIM ou defina a região do telemóvel.", color = PiColors.Danger, fontSize = 12.sp)
-            } else {
-                Text("País detetado automaticamente: $detectedRegion", color = PiColors.Gray, fontSize = 12.sp, modifier = Modifier.align(Alignment.Start).padding(top = 6.dp))
-            }
             Spacer(Modifier.height(12.dp))
             Button(
                 onClick = ::sendCode, enabled = !busy,
