@@ -1,4 +1,3 @@
-// PiMsg - paginas publicas: convites de grupo, links de utilizador e documentos legais
 
 import { pushToUsers } from "./push.js";
 

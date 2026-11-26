@@ -1,7 +1,8 @@
-// PiMsg - conversas, mensagens, grupos, limites e ficheiros
 
-const FREE_CONTACT_LIMIT = 30;   // pessoas que o utilizador Free pode iniciar
-const FREE_DAILY_MESSAGES = 30;  // mensagens por dia no plano Free
+import { pushToUsers } from "./push.js";
+
+const FREE_CONTACT_LIMIT = 30;
+const FREE_DAILY_MESSAGES = 30;
 const MAX_MEDIA_BYTES = 50 * 1024 * 1024;
 const KINDS = ["text", "image", "video", "audio", "music", "file"];
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -44,7 +45,6 @@ async function isBlockedBetween(env, a, b) {
   return !!r;
 }
 
-// Decide se o utilizador pode enviar mais uma mensagem e devolve as instrucoes de contagem.
 async function planSend(env, me, now) {
   if (await isPro(env, me.id, now)) return { ok: true, stmts: [] };
   const day = localDay(me.timezone);
@@ -74,11 +74,10 @@ export async function handleChat(request, env, me, path, method) {
   const url = new URL(request.url);
   const now = Date.now();
 
-  // ---- Lista de conversas: tab = all | new | favorites | groups ----
   if (path === "/v1/chats" && method === "GET") {
     const tab = url.searchParams.get("tab") || "all";
     const rows = await env.DB.prepare(
-      `SELECT c.id, c.type, c.name, c.avatar_key, c.last_message_at, cm.is_favorite, cm.is_muted,
+      `SELECT c.id, c.type, c.name, c.avatar_key, c.invite_code, c.last_message_at, cm.is_favorite, cm.is_muted,
         u.id AS other_id, u.display_name AS other_name, u.avatar_key AS other_avatar, u.ring_color AS other_ring,
         (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.created_at > cm.last_read_at
            AND m.sender_id <> ?1 AND m.deleted_at IS NULL) AS unread,
@@ -97,7 +96,6 @@ export async function handleChat(request, env, me, path, method) {
     return json({ chats: list });
   }
 
-  // ---- Abrir ou criar conversa direta ----
   if (path === "/v1/chats/direct" && method === "POST") {
     const b = await request.json().catch(() => ({}));
     const otherId = String(b.user_id || "");
@@ -111,7 +109,6 @@ export async function handleChat(request, env, me, path, method) {
       "SELECT id FROM conversations WHERE type = 'direct' AND user_a_id = ? AND user_b_id = ?"
     ).bind(a, bId).first();
     if (existing) {
-      // volta a ativar a conversa se o utilizador tinha saido
       await env.DB.prepare("UPDATE conversation_members SET left_at = NULL WHERE conversation_id = ? AND user_id = ?")
         .bind(existing.id, me.id).run();
       return json({ id: existing.id });
@@ -128,9 +125,11 @@ export async function handleChat(request, env, me, path, method) {
     }
 
     let linkId = null;
+    let linkSubject = null;
     if (b.link_id) {
-      const l = await env.DB.prepare("SELECT id FROM contact_links WHERE id = ? AND user_id = ?").bind(b.link_id, otherId).first();
+      const l = await env.DB.prepare("SELECT id, subject FROM contact_links WHERE id = ? AND user_id = ?").bind(b.link_id, otherId).first();
       linkId = l ? l.id : null;
+      linkSubject = l ? l.subject : null;
     }
     const id = crypto.randomUUID();
     await env.DB.batch([
@@ -143,11 +142,21 @@ export async function handleChat(request, env, me, path, method) {
       env.DB.prepare(
         "INSERT INTO conversation_members (conversation_id, user_id, is_initiator, joined_at) VALUES (?,?,0,?)"
       ).bind(id, otherId, now),
+      ...(linkSubject
+        ? [
+            env.DB.prepare("INSERT INTO messages (id, conversation_id, sender_id, kind, body, created_at) VALUES (?,?,?,'system',?,?)")
+              .bind(crypto.randomUUID(), id, me.id, "Interessado em: " + linkSubject, now),
+            env.DB.prepare("UPDATE conversations SET last_message_at = ? WHERE id = ?").bind(now, id),
+          ]
+        : []),
+      ...(b.request_code && linkId
+        ? [env.DB.prepare("UPDATE contact_requests SET status = 'used', visitor_user_id = ? WHERE request_code = ? AND link_id = ?")
+            .bind(me.id, String(b.request_code).toUpperCase(), linkId)]
+        : []),
     ]);
     return json({ id }, 201);
   }
 
-  // ---- Grupos ----
   if (path === "/v1/groups" && method === "POST") {
     const b = await request.json().catch(() => ({}));
     const name = typeof b.name === "string" ? b.name.trim().slice(0, 60) : "";
@@ -165,7 +174,6 @@ export async function handleChat(request, env, me, path, method) {
     return json({ id, invite_code: invite }, 201);
   }
 
-  // Pre-visualizacao do grupo pelo codigo (usada na pesquisa e na pagina do link)
   const preview = path.match(/^\/v1\/groups\/preview\/([A-Za-z0-9]+)$/);
   if (preview && method === "GET") {
     const g = await env.DB.prepare(
@@ -236,6 +244,7 @@ export async function handleChat(request, env, me, path, method) {
         env.DB.prepare("UPDATE conversation_members SET last_read_at = ? WHERE conversation_id = ? AND user_id = ?").bind(now, convId, me.id),
         ...plan.stmts,
       ]);
+      await notifyMessage(env, me, convId, kind, body);
       return json({ id, created_at: now }, 201);
     }
 
@@ -259,7 +268,6 @@ export async function handleChat(request, env, me, path, method) {
     }
   }
 
-  // ---- Ficheiros (R2). Nunca sao descarregados automaticamente: o app pede quando o utilizador toca. ----
   if (path === "/v1/media" && method === "PUT") {
     const size = Number(request.headers.get("content-length"));
     if (!size || size > MAX_MEDIA_BYTES) return fail(413, "ficheiro invalido ou demasiado grande");
@@ -284,6 +292,16 @@ export async function handleChat(request, env, me, path, method) {
       ).bind(m.id, me.id).first();
       allowed = !!r;
     }
+    if (!allowed) {
+      const s = await env.DB.prepare(
+        `SELECT 1 AS ok FROM stories s WHERE s.media_id = ?1 AND s.expires_at > ?2 AND s.user_id IN (
+           SELECT CASE WHEN c.user_a_id = ?3 THEN c.user_b_id ELSE c.user_a_id END
+           FROM conversations c JOIN conversation_members cm ON cm.conversation_id = c.id
+           WHERE c.type = 'direct' AND cm.user_id = ?3 AND cm.left_at IS NULL) LIMIT 1`
+      ).bind(m.id, now, me.id).first();
+      const p = await env.DB.prepare("SELECT 1 AS ok FROM users WHERE avatar_key = ?1 OR intro_video_key = ?1 LIMIT 1").bind(m.id).first();
+      allowed = !!(s || p);
+    }
     if (!allowed) return fail(403, "sem acesso");
     const obj = await env.MEDIA.get(m.r2_key);
     if (!obj) return fail(404, "ficheiro nao encontrado");
@@ -293,4 +311,27 @@ export async function handleChat(request, env, me, path, method) {
   }
 
   return null;
+}
+
+async function notifyMessage(env, me, convId, kind, body) {
+  try {
+    const r = await env.DB.prepare(
+      `SELECT cm.user_id, c.type, c.name FROM conversation_members cm JOIN conversations c ON c.id = cm.conversation_id
+       WHERE cm.conversation_id = ?1 AND cm.left_at IS NULL AND cm.user_id <> ?2 AND cm.is_muted = 0
+       AND cm.user_id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = ?2) LIMIT 100`
+    ).bind(convId, me.id).all();
+    if (!r.results.length) return;
+    const labels = { image: "Foto", video: "Vídeo", audio: "Áudio", music: "Música", file: "Ficheiro" };
+    const preview = kind === "text" ? (body || "").slice(0, 120) : labels[kind] || "Nova mensagem";
+    const group = r.results[0].type === "group";
+    await pushToUsers(
+      env,
+      r.results.map((x) => x.user_id),
+      group ? r.results[0].name : me.display_name,
+      group ? `${me.display_name}: ${preview}` : preview,
+      { type: "message", conversation_id: convId }
+    );
+  } catch (err) {
+    console.error(JSON.stringify({ msg: "notificacao falhou", error: String(err) }));
+  }
 }
