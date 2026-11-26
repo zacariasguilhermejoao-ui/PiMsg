@@ -11,7 +11,7 @@ const code = (n) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) =>
 const jsonRes = (data, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
 
-const CSS = `:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}main{max-width:680px;margin:0 auto;padding:32px 22px 64px}.brand{font-weight:700;font-size:30px;letter-spacing:-.5px;margin-bottom:28px}h1{font-size:26px;line-height:1.25;margin:0 0 10px}h2{font-size:18px;margin:28px 0 6px}p,li{color:#c9c9ce}ol,ul{padding-left:22px}a{color:#fff}.card{background:#17171a;border-radius:18px;padding:22px;margin:20px 0}.code{font:700 30px/1.2 ui-monospace,monospace;letter-spacing:4px;text-align:center;padding:16px;background:#232327;border-radius:14px;margin:14px 0}.btn{display:block;width:100%;text-align:center;border:0;border-radius:28px;padding:15px 20px;font:600 16px system-ui,sans-serif;text-decoration:none;cursor:pointer;margin-top:12px}.w{background:#fff;color:#000}.g{background:#232327;color:#fff}input{width:100%;background:#000;color:#fff;border:1px solid #3a3a3f;border-radius:14px;padding:14px;font:16px system-ui,sans-serif}.muted{color:#8e8e93;font-size:14px}.err{color:#e5484d}footer{margin-top:40px;font-size:14px;color:#8e8e93}footer a{color:#8e8e93;margin-right:14px;display:inline-block}`;
+const CSS = `:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}main{max-width:680px;margin:0 auto;padding:32px 22px 64px}.brand{font-weight:700;font-size:30px;letter-spacing:-.5px;margin-bottom:28px}h1{font-size:26px;line-height:1.25;margin:0 0 10px}h2{font-size:18px;margin:28px 0 6px}p,li{color:#c9c9ce}ol,ul{padding-left:22px}a{color:#fff}.card{background:#17171a;border-radius:18px;padding:22px;margin:20px 0}.code{font:700 30px/1.2 ui-monospace,monospace;letter-spacing:4px;text-align:center;padding:16px;background:#232327;border-radius:14px;margin:14px 0}.btn{display:block;width:100%;text-align:center;border:0;border-radius:28px;padding:15px 20px;font:600 16px system-ui,sans-serif;text-decoration:none;cursor:pointer;margin-top:12px}.w{background:#fff;color:#000}.g{background:#232327;color:#fff}input{width:100%;background:#000;color:#fff;border:1px solid #3a3a3f;border-radius:14px;padding:14px;font:16px system-ui,sans-serif}.muted{color:#8e8e93;font-size:14px}.err{color:#e5484d}footer{margin-top:40px;font-size:14px;color:#8e8e93}footer a{color:#8e8e93;margin-right:14px;display:inline-block}.profile{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;margin:8px 0 22px}.avatar{width:104px;height:104px;border-radius:50%;object-fit:cover;background:#232327}.link-photo{width:100%;max-height:300px;object-fit:cover;border-radius:16px;margin:14px 0}`;
 
 function html(title, body, status = 200) {
   const page = `<!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} | PiMsg</title><style>${CSS}</style></head><body><main><div class="brand">PiMsg</div>${body}<footer><a href="/terms">Termos de uso</a><a href="/privacy">Privacidade</a><a href="/refund">Reembolso</a><a href="/community">Regras da comunidade</a><a href="/support">Suporte</a><a href="/delete-account">Apagar conta</a><p>ISAB Group</p></footer></main></body></html>`;
@@ -20,7 +20,7 @@ function html(title, body, status = 200) {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-cache",
-      "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+      "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
       "x-content-type-options": "nosniff",
       "referrer-policy": "no-referrer",
     },
@@ -111,12 +111,15 @@ async function groupPage(env, groupCode) {
 
 async function linkPage(env, slug) {
   const l = await env.DB.prepare(
-    `SELECT l.subject, l.intro_text, u.display_name FROM contact_links l JOIN users u ON u.id = l.user_id
+    `SELECT l.subject, l.intro_text, l.image_media_id, u.display_name, u.avatar_key, u.ring_color
+     FROM contact_links l JOIN users u ON u.id = l.user_id
      WHERE l.slug = ? AND l.is_active = 1 AND u.status = 'active'`
   ).bind(slug).first();
   if (!l) return html("Link não encontrado", `<h1>Link não encontrado</h1><p>Este link já não está ativo.</p>`, 404);
   await env.DB.prepare("UPDATE contact_links SET opens_count = opens_count + 1 WHERE slug = ?").bind(slug).run();
-  return html(l.display_name, `<h1>Converse com ${esc(l.display_name)}</h1><p>Assunto: <b>${esc(l.subject)}</b></p>${l.intro_text ? `<p>${esc(l.intro_text)}</p>` : ""}<div class="card" id="box"><p>Escreva o seu nome para gerar o código de conversa.</p><input id="n" placeholder="O seu nome" maxlength="60" autocomplete="name"><button class="btn w" id="go">Gerar código</button><p id="e" class="err"></p></div><h2>Como falar</h2>${steps}${COPY_JS}<script>document.getElementById('go').onclick=function(){var n=document.getElementById('n').value.trim(),e=document.getElementById('e');if(n.length<2){e.textContent='Escreva o seu nome.';return}fetch('/u/${slug}/request',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:n})}).then(function(r){return r.json()}).then(function(j){if(!j.code){e.textContent=j.error||'Não foi possível gerar o código.';return}document.getElementById('box').innerHTML='<p>O seu código de conversa</p><div class="code" id="cd">'+j.code+'</div><button class="btn g" onclick="copyCode(\\'cd\\',this)">Copiar código</button><a class="btn w" href="${PLAY_URL}&referrer='+encodeURIComponent('pimsg_type=contact&pimsg_code='+j.code)+'">Baixar na Play Store</a><p class="muted">O código vale por 7 dias.</p>'}).catch(function(){e.textContent='Não foi possível gerar o código.'})}</script>`);
+  const avatar = l.avatar_key ? `<img class="avatar" src="/public-media/${encodeURIComponent(l.avatar_key)}" alt="Fotografia de ${esc(l.display_name)}">` : "";
+  const photo = l.image_media_id ? `<img class="link-photo" src="/public-media/${encodeURIComponent(l.image_media_id)}" alt="Imagem de ${esc(l.subject)}">` : "";
+  return html(l.display_name, `<div class="profile">${avatar}<h1>Converse com ${esc(l.display_name)}</h1></div><p>Assunto: <b>${esc(l.subject)}</b></p>${photo}${l.intro_text ? `<p>${esc(l.intro_text)}</p>` : ""}<div class="card" id="box"><p>Escreva o seu nome para gerar o código de conversa.</p><input id="n" placeholder="O seu nome" maxlength="60" autocomplete="name"><button class="btn w" id="go">Gerar código</button><p id="e" class="err"></p></div><h2>Como falar</h2>${steps}${COPY_JS}<script>document.getElementById('go').onclick=function(){var n=document.getElementById('n').value.trim(),e=document.getElementById('e');if(n.length<2){e.textContent='Escreva o seu nome.';return}fetch('/u/${slug}/request',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:n})}).then(function(r){return r.json()}).then(function(j){if(!j.code){e.textContent=j.error||'Não foi possível gerar o código.';return}document.getElementById('box').innerHTML='<p>O seu código de conversa</p><div class="code" id="cd">'+j.code+'</div><button class="btn g" onclick="copyCode(\\'cd\\',this)">Copiar código</button><a class="btn w" href="${PLAY_URL}&referrer='+encodeURIComponent('pimsg_type=contact&pimsg_code='+j.code)+'">Baixar na Play Store</a><p class="muted">O código vale por 7 dias.</p>'}).catch(function(){e.textContent='Não foi possível gerar o código.'})}</script>`);
 }
 
 async function requestCode(request, env, slug) {
@@ -158,6 +161,24 @@ export async function handlePublic(request, env) {
   const method = request.method;
 
   if (method === "GET") {
+    const publicMedia = path.match(/^\\/public-media\\/([A-Za-z0-9-]+)$/);
+    if (publicMedia) {
+      const media = await env.DB.prepare(
+        `SELECT m.r2_key, m.mime FROM media m
+         WHERE m.id = ? AND (
+           EXISTS (SELECT 1 FROM users u WHERE u.avatar_key = m.id AND u.status = 'active')
+           OR EXISTS (SELECT 1 FROM contact_links l WHERE l.image_media_id = m.id AND l.is_active = 1)
+         )`
+      ).bind(publicMedia[1]).first();
+      if (!media || !String(media.mime).startsWith("image/")) return new Response("Imagem nao encontrada", { status: 404 });
+      const object = await env.MEDIA.get(media.r2_key);
+      if (!object) return new Response("Imagem nao encontrada", { status: 404 });
+      return new Response(object.body, { headers: {
+        "content-type": media.mime,
+        "cache-control": "public, max-age=3600",
+        "x-content-type-options": "nosniff",
+      }});
+    }
     if (path === "/.well-known/assetlinks.json") {
       const rawFingerprint = String(env.ANDROID_SHA256_CERT_FINGERPRINT || "").replace(/:/g, "").toUpperCase();
       if (!/^[A-F0-9]{64}$/.test(rawFingerprint)) {
