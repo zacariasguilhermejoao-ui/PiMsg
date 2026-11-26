@@ -123,15 +123,11 @@ class HomeViewModel : ViewModel() {
     fun openRequestCode(code: String, onOpen: (String, UserItem) -> Unit) {
         viewModelScope.launch {
             try {
-                val arr = Api.get("/v1/search?q=${Api.encode(code)}").getJSONArray("users")
-                if (arr.length() == 0) {
-                    _state.update { it.copy(notice = "Este link expirou ou já não está disponível.") }
-                    return@launch
-                }
-                val o = arr.getJSONObject(0)
+                val result = Api.get("/v1/links/requests/${Api.encode(code.uppercase())}")
+                val o = result.getJSONObject("user")
                 val user = UserItem(
                     o.getString("id"), o.getString("name"), o.str("ring_color"),
-                    o.str("link_id"), o.str("request_code"), o.str("link_subject"),
+                    result.getString("link_id"), result.getString("request_code"), result.str("subject"),
                 )
                 openDirect(user) { id -> onOpen(id, user) }
             } catch (e: Exception) {
