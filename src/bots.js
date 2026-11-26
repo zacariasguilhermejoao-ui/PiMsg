@@ -32,7 +32,7 @@ export async function handleBots(request, env, me, path, method) {
         id: "pi-ai",
         name: "Pi AI",
         description: "Assistente para perguntas, escrita, ideias e explicações.",
-        available: true,
+        available: !!env.AI,
       }],
     });
   }
