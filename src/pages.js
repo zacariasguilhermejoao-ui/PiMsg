@@ -147,6 +147,26 @@ export async function handlePublic(request, env) {
   const method = request.method;
 
   if (method === "GET") {
+    if (path === "/.well-known/assetlinks.json") {
+      const rawFingerprint = String(env.ANDROID_SHA256_CERT_FINGERPRINT || "").replace(/:/g, "").toUpperCase();
+      if (!/^[A-F0-9]{64}$/.test(rawFingerprint)) {
+        return new Response("Android App Links ainda não foi configurado.", {
+          status: 503,
+          headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
+        });
+      }
+      const fingerprint = rawFingerprint.match(/.{2}/g).join(":");
+      return new Response(JSON.stringify([{
+        relation: ["delegate_permission/common.handle_all_urls"],
+        target: {
+          namespace: "android_app",
+          package_name: "com.isabgroup.pimsg",
+          sha256_cert_fingerprints: [fingerprint],
+        },
+      }]), {
+        headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+      });
+    }
     if (path === "/") {
       return html("PiMsg", `<h1>Converse e venda sem risco de perder a sua conta</h1><p>O PiMsg é um app de mensagens feito para facilitar a vida de quem negocia pelo telemóvel.</p><a class="btn w" href="${PLAY_URL}">Baixar na Play Store</a>`);
     }
