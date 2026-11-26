@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -27,23 +29,38 @@ import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiIcons
 import kotlinx.coroutines.launch
 
-private val items = listOf(
-    "Perfil",
-    "Definições",
-    "Contas bloqueadas",
-    "Termos de uso",
-    "Política de privacidade",
-    "Política de reembolso",
+private data class MenuEntry(val key: String, val label: String)
+
+private val main = listOf(
+    MenuEntry("profile", "Perfil"),
+    MenuEntry("links", "Meus links"),
+    MenuEntry("newstory", "Novo story"),
+    MenuEntry("newgroup", "Novo grupo"),
+    MenuEntry("settings", "Definições"),
+)
+private val legal = listOf(
+    MenuEntry("terms", "Termos de uso"),
+    MenuEntry("privacy", "Política de privacidade"),
+    MenuEntry("refund", "Política de reembolso"),
+    MenuEntry("support", "Suporte"),
 )
 
-// Menu lateral em folha: fecha ao arrastar para baixo ou ao tocar no X.
+// Menu em folha: fecha ao arrastar para baixo ou ao tocar no X. O item escolhido e entregue depois de fechar.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MenuSheet(onDismiss: () -> Unit, onSignOut: () -> Unit) {
+fun MenuSheet(hasMyStory: Boolean, onDismiss: () -> Unit, onItem: (String) -> Unit) {
     val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     fun close(after: () -> Unit = {}) {
         scope.launch { state.hide() }.invokeOnCompletion { onDismiss(); after() }
+    }
+
+    @Composable
+    fun Entry(entry: MenuEntry, color: androidx.compose.ui.graphics.Color = PiColors.White) {
+        Text(
+            entry.label, color = color, fontSize = 17.sp,
+            modifier = Modifier.fillMaxWidth().clickable { close { onItem(entry.key) } }.padding(horizontal = 24.dp, vertical = 14.dp),
+        )
     }
 
     ModalBottomSheet(
@@ -52,7 +69,7 @@ fun MenuSheet(onDismiss: () -> Unit, onSignOut: () -> Unit) {
         containerColor = PiColors.Surface,
         dragHandle = { BottomSheetDefaults.DragHandle(color = PiColors.GrayDark) },
     ) {
-        Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState())) {
             Row(
                 Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -64,20 +81,11 @@ fun MenuSheet(onDismiss: () -> Unit, onSignOut: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(8.dp))
-            items.forEach { label ->
-                Text(
-                    label,
-                    color = PiColors.White,
-                    fontSize = 17.sp,
-                    modifier = Modifier.fillMaxWidth().clickable { }.padding(horizontal = 24.dp, vertical = 15.dp),
-                )
-            }
-            Text(
-                "Sair",
-                color = PiColors.Gray,
-                fontSize = 17.sp,
-                modifier = Modifier.fillMaxWidth().clickable { close(onSignOut) }.padding(horizontal = 24.dp, vertical = 15.dp),
-            )
+            if (hasMyStory) Entry(MenuEntry("mystory", "Ver o meu story"))
+            main.forEach { Entry(it) }
+            Spacer(Modifier.height(8.dp))
+            legal.forEach { Entry(it, PiColors.TextSecondary) }
+            Entry(MenuEntry("signout", "Sair"), PiColors.Gray)
             Spacer(Modifier.height(16.dp))
         }
     }
