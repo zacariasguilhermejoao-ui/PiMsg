@@ -161,15 +161,15 @@ export async function handlePublic(request, env) {
   const method = request.method;
 
   if (method === "GET") {
-    const publicMedia = path.match(/^\\/public-media\\/([A-Za-z0-9-]+)$/);
-    if (publicMedia) {
+    const publicMediaId = path.startsWith("/public-media/") ? path.slice("/public-media/".length) : "";
+    if (/^[A-Za-z0-9-]+$/.test(publicMediaId)) {
       const media = await env.DB.prepare(
         `SELECT m.r2_key, m.mime FROM media m
          WHERE m.id = ? AND (
            EXISTS (SELECT 1 FROM users u WHERE u.avatar_key = m.id AND u.status = 'active')
            OR EXISTS (SELECT 1 FROM contact_links l WHERE l.image_media_id = m.id AND l.is_active = 1)
          )`
-      ).bind(publicMedia[1]).first();
+      ).bind(publicMediaId).first();
       if (!media || !String(media.mime).startsWith("image/")) return new Response("Imagem nao encontrada", { status: 404 });
       const object = await env.MEDIA.get(media.r2_key);
       if (!object) return new Response("Imagem nao encontrada", { status: 404 });
