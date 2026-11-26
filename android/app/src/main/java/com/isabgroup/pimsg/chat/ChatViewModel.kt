@@ -87,8 +87,13 @@ class ChatViewModel(private val convId: String) : ViewModel() {
                         val result = Api.translate(message.body.orEmpty(), message.sourceLang!!, target)
                         val translated = result.optString("translated_text")
                         if (translated.isNotBlank()) translations[message.id] = translated
-                    } catch (_: Exception) {
-                        // A falha de traducao nao impede a leitura da mensagem original.
+                    } catch (e: Exception) {
+                        if (e is ApiException && e.code == 402 && e.reason == "pro_required") {
+                            _state.update { it.copy(error = "A tradução automática é exclusiva do plano Pro.") }
+                        } else if (e is ApiException && e.code == 429 && e.reason == "translation_daily_limit") {
+                            _state.update { it.copy(error = "Atingiste o limite diário de traduções do plano Pro.") }
+                        }
+                        // A mensagem original continua sempre disponível.
                     }
                 }
             }
