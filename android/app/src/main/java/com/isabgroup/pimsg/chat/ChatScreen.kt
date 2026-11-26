@@ -148,7 +148,7 @@ fun ChatScreen(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                items(state.messages, key = { it.id }) { m -> Bubble(m, mine = m.senderId == state.myId, vm = vm) }
+                items(state.messages, key = { it.id }) { m -> Bubble(m, mine = m.pending || m.senderId == state.myId, vm = vm) }
             }
         }
 
