@@ -34,6 +34,7 @@ private data class MenuEntry(val key: String, val label: String)
 private val main = listOf(
     MenuEntry("profile", "Perfil"),
     MenuEntry("links", "Meus links"),
+    MenuEntry("bot", "PiBot"),
     MenuEntry("newstory", "Novo story"),
     MenuEntry("newgroup", "Novo grupo"),
     MenuEntry("settings", "Definições"),
