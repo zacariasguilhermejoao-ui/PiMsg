@@ -1,6 +1,7 @@
 package com.isabgroup.pimsg
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -23,6 +24,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.android.installreferrer.api.InstallReferrerClient
+import com.android.installreferrer.api.InstallReferrerResponse
+import com.android.installreferrer.api.InstallReferrerStateListener
 import com.google.firebase.auth.FirebaseAuth
 import com.isabgroup.pimsg.auth.AuthScreen
 import com.isabgroup.pimsg.chat.ChatRef
@@ -37,7 +41,74 @@ import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiMsgTheme
 import kotlinx.coroutines.delay
 
+data class PendingPiLink(val type: String, val value: String)
+
 class MainActivity : ComponentActivity() {
+
+    var pendingPiLink by mutableStateOf<PendingPiLink?>(null)
+        private set
+
+    private fun savePiLink(link: PendingPiLink) {
+        pendingPiLink = link
+        getSharedPreferences("pimsg_pilink", MODE_PRIVATE).edit()
+            .putString("type", link.type)
+            .putString("value", link.value)
+            .apply()
+    }
+
+    fun clearPendingPiLink() {
+        pendingPiLink = null
+        getSharedPreferences("pimsg_pilink", MODE_PRIVATE).edit().clear().apply()
+    }
+
+    private fun parsePiLinkIntent(source: Intent?) {
+        val uri = source?.data ?: return
+        if (uri.scheme != "https" || uri.host != "pimsg.tchilopop.com") return
+        val parts = uri.pathSegments
+        if (parts.size != 2) return
+        when (parts[0]) {
+            "u" -> if (parts[1].matches(Regex("[a-z0-9]{6,16}"))) {
+                savePiLink(PendingPiLink("contact_slug", parts[1]))
+            }
+            "g" -> if (parts[1].matches(Regex("[A-Za-z0-9]{4,12}"))) {
+                savePiLink(PendingPiLink("group", parts[1]))
+            }
+        }
+    }
+
+    private fun readInstallReferrer() {
+        if (pendingPiLink != null) return
+        val client = InstallReferrerClient.newBuilder(this).build()
+        try {
+            client.startConnection(object : InstallReferrerStateListener {
+                override fun onInstallReferrerSetupFinished(responseCode: Int) {
+                    try {
+                        if (responseCode == InstallReferrerResponse.OK && pendingPiLink == null) {
+                            val raw = client.installReferrer.installReferrer
+                            val query = Uri.parse("https://referrer.invalid/?$raw")
+                            val type = query.getQueryParameter("pimsg_type")
+                            val code = query.getQueryParameter("pimsg_code")
+                            if (!code.isNullOrBlank() && code.matches(Regex("[A-Za-z0-9]{4,16}"))) {
+                                val route = when (type) {
+                                    "contact" -> PendingPiLink("contact_code", code.uppercase())
+                                    "group" -> PendingPiLink("group", code.uppercase())
+                                    else -> null
+                                }
+                                route?.let { runOnUiThread { if (pendingPiLink == null) savePiLink(it) } }
+                            }
+                        }
+                    } catch (_: Exception) {
+                    } finally {
+                        runCatching { client.endConnection() }
+                    }
+                }
+
+                override fun onInstallReferrerServiceDisconnected() = Unit
+            })
+        } catch (_: Exception) {
+            runCatching { client.endConnection() }
+        }
+    }
 
     /** Conteúdo recebido via share (texto/ficheiros de outras apps). */
     var pendingShare by mutableStateOf<ShareIncoming?>(null)
@@ -49,6 +120,13 @@ class MainActivity : ComponentActivity() {
         // Evita zoom de sistema na interface
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         pendingShare = intent.parseShare()
+        pendingPiLink = getSharedPreferences("pimsg_pilink", MODE_PRIVATE).let { prefs ->
+            val type = prefs.getString("type", null)
+            val value = prefs.getString("value", null)
+            if (type != null && value != null) PendingPiLink(type, value) else null
+        }
+        parsePiLinkIntent(intent)
+        readInstallReferrer()
         // Mantém permissão de leitura nos URIs partilhados enquanto a Activity existir
         intent?.clipData?.let { clip ->
             for (i in 0 until clip.itemCount) {
@@ -81,6 +159,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         pendingShare = intent.parseShare()
+        parsePiLinkIntent(intent)
     }
 
     fun clearShare() {
@@ -103,6 +182,9 @@ private fun AppRoot(activity: MainActivity) {
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
     var splash by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) { delay(1600); splash = false }
+    LaunchedEffect(activity.pendingPiLink, signedIn) {
+        if (activity.pendingPiLink != null && signedIn) screen = Screen.Home
+    }
 
     fun signOut() {
         FirebaseAuth.getInstance().signOut()
@@ -129,6 +211,10 @@ private fun AppRoot(activity: MainActivity) {
                                 "links" -> screen = Screen.Links
                             }
                         },
+                        initialContactCode = activity.pendingPiLink?.takeIf { it.type == "contact_code" }?.value,
+                        initialContactSlug = activity.pendingPiLink?.takeIf { it.type == "contact_slug" }?.value,
+                        initialGroupCode = activity.pendingPiLink?.takeIf { it.type == "group" }?.value,
+                        onPiLinkConsumed = activity::clearPendingPiLink,
                     )
                     is Screen.Chat -> ChatScreen(
                         ref = s.ref,
