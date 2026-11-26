@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -191,7 +192,7 @@ private fun PiAiChatScreen(onBack: () -> Unit) {
     }
 
     Column(
-        Modifier.fillMaxSize().background(PiColors.Background).imePadding(),
+        Modifier.fillMaxSize().background(PiColors.Background).systemBarsPadding().imePadding(),
     ) {
         Row(
             Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 8.dp),
