@@ -136,9 +136,9 @@ fun ChatScreen(
 
     Column(Modifier.fillMaxSize().background(PiColors.Background).systemBarsPadding().imePadding()) {
         Row(Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(PiIcons.Back, "Voltar", tint = PiColors.White) }
+            IconButton(onClick = { view.playClick(); onBack() }) { Icon(PiIcons.Back, "Voltar", tint = PiColors.White) }
             Text(title, color = PiColors.White, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f))
-            IconButton(onClick = { optionsOpen = true }) { Icon(PiIcons.More, "Mais opções", tint = PiColors.White) }
+            IconButton(onClick = { view.playClick(); optionsOpen = true }) { Icon(PiIcons.More, "Mais opções", tint = PiColors.White) }
         }
 
         DisableSelection {
