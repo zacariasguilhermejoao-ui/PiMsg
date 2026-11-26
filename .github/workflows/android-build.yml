@@ -34,7 +34,7 @@ jobs:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           if [ -z "$GOOGLE_SERVICES_JSON" ]; then
-            echo "::error::Missing repository secret GOOGLE_SERVICES_JSON. Add the Base64-encoded android/app/google-services.json in GitHub Settings > Secrets and variables > Actions."
+            echo "::error::Missing repository secret GOOGLE_SERVICES_JSON. Add the full JSON content of android/app/google-services.json in GitHub Settings > Secrets and variables > Actions."
             exit 1
           fi
           printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
