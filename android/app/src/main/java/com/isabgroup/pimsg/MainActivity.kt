@@ -2,6 +2,7 @@ package com.isabgroup.pimsg
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -45,7 +46,32 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        // Evita zoom de sistema na interface
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         pendingShare = intent.parseShare()
+        // Mantém permissão de leitura nos URIs partilhados enquanto a Activity existir
+        intent?.clipData?.let { clip ->
+            for (i in 0 until clip.itemCount) {
+                clip.getItemAt(i).uri?.let { uri ->
+                    try {
+                        contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                        )
+                    } catch (_: SecurityException) {
+                        // Alguns providers só dão permissão temporária — ok
+                    }
+                }
+            }
+        }
+        intent?.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM)?.let { uri ->
+            try {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            } catch (_: SecurityException) { }
+        }
         val dark = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
         enableEdgeToEdge(statusBarStyle = dark, navigationBarStyle = dark)
         setContent { PiMsgTheme { AppRoot(activity = this) } }
@@ -110,6 +136,8 @@ private fun AppRoot(activity: MainActivity) {
                             screen = Screen.Home
                             activity.clearShare()
                         },
+                        pendingShare = activity.pendingShare,
+                        onShareConsumed = { activity.clearShare() },
                     )
                     is Screen.Profile -> ProfileScreen(onBack = { screen = Screen.Home })
                     is Screen.Settings -> SettingsScreen(onBack = { screen = Screen.Home }, onSignOut = ::signOut)
