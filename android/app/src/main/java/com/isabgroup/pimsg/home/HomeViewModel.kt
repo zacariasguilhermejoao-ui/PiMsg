@@ -28,13 +28,22 @@ data class ChatItem(
     val hasStory: Boolean = false,
 )
 
-data class UserItem(val id: String, val name: String, val ringColor: String?)
+data class UserItem(
+    val id: String,
+    val name: String,
+    val ringColor: String?,
+    val linkId: String? = null,
+    val requestCode: String? = null,
+    val linkSubject: String? = null,
+)
+data class GroupItem(val id: String, val name: String, val description: String?)
 
 data class HomeState(
     val loading: Boolean = true,
     val tab: Tab = Tab.All,
     val chats: List<ChatItem> = emptyList(),
     val results: List<UserItem> = emptyList(),
+    val groupResults: List<GroupItem> = emptyList(),
     val error: String? = null,
     val notice: String? = null,
 )
@@ -91,7 +100,10 @@ class HomeViewModel : ViewModel() {
     fun openDirect(user: UserItem, onOpen: (String) -> Unit) {
         viewModelScope.launch {
             try {
-                val json = Api.post("/v1/chats/direct", JSONObject().put("user_id", user.id))
+                val body = JSONObject().put("user_id", user.id)
+                user.linkId?.let { body.put("link_id", it) }
+                user.requestCode?.let { body.put("request_code", it) }
+                val json = Api.post("/v1/chats/direct", body)
                 _state.update { it.copy(notice = null) }
                 onOpen(json.getString("id"))
             } catch (e: ApiException) {
@@ -108,6 +120,82 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    fun openRequestCode(code: String, onOpen: (String, UserItem) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val arr = Api.get("/v1/search?q=${Api.encode(code)}").getJSONArray("users")
+                if (arr.length() == 0) {
+                    _state.update { it.copy(notice = "Este link expirou ou já não está disponível.") }
+                    return@launch
+                }
+                val o = arr.getJSONObject(0)
+                val user = UserItem(
+                    o.getString("id"), o.getString("name"), o.str("ring_color"),
+                    o.str("link_id"), o.str("request_code"), o.str("link_subject"),
+                )
+                openDirect(user) { id -> onOpen(id, user) }
+            } catch (e: Exception) {
+                _state.update { it.copy(notice = "Não foi possível recuperar o destino deste link.") }
+            }
+        }
+    }
+
+    fun openContactSlug(slug: String, onOpen: (String, UserItem) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val result = Api.post("/v1/links/${Api.encode(slug)}/open", JSONObject())
+                val u = result.getJSONObject("user")
+                val user = UserItem(
+                    u.getString("id"), u.getString("name"), null,
+                    result.getString("link_id"), result.getString("request_code"), result.str("subject"),
+                )
+                openDirect(user) { id -> onOpen(id, user) }
+            } catch (e: Exception) {
+                _state.update { it.copy(notice = "Não foi possível abrir este link. Pode estar expirado ou indisponível.") }
+            }
+        }
+    }
+
+    fun joinGroup(code: String, seeHistory: Boolean, onJoined: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val result = Api.post(
+                    "/v1/groups/join",
+                    JSONObject().put("code", code).put("see_history", seeHistory),
+                )
+                onJoined(result.getString("id"))
+            } catch (e: Exception) {
+                _state.update { it.copy(notice = "Não foi possível entrar neste grupo. Verifique o convite.") }
+            }
+        }
+    }
+
+    fun joinGroupCode(code: String, onOpen: (String, String, String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val preview = Api.get("/v1/groups/preview/${Api.encode(code)}")
+                val result = Api.post(
+                    "/v1/groups/join",
+                    JSONObject().put("code", code).put("see_history", false),
+                )
+                onOpen(result.getString("id"), preview.getString("name"), code.uppercase())
+            } catch (e: Exception) {
+                _state.update { it.copy(notice = "O convite do grupo expirou ou já não está disponível.") }
+            }
+        }
+    }
+
+    fun createGroup(name: String, onCreated: (String, String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val result = Api.post("/v1/groups", JSONObject().put("name", name))
+                onCreated(result.getString("id"), result.getString("invite_code"))
+            } catch (e: Exception) {
+                _state.update { it.copy(notice = "Não foi possível criar o grupo.") }
+            }
+        }
+    }
+
     fun search(query: String) {
         val q = query.trim()
         if (q.length < 2) {
@@ -120,9 +208,17 @@ class HomeViewModel : ViewModel() {
                 val arr = json.getJSONArray("users")
                 val users = (0 until arr.length()).map { i ->
                     val o = arr.getJSONObject(i)
-                    UserItem(o.getString("id"), o.getString("name"), o.str("ring_color"))
+                    UserItem(
+                        o.getString("id"), o.getString("name"), o.str("ring_color"),
+                        o.str("link_id"), o.str("request_code"), o.str("link_subject"),
+                    )
                 }
-                _state.update { it.copy(results = users) }
+                val groupsJson = json.optJSONArray("groups")
+                val groups = if (groupsJson == null) emptyList() else (0 until groupsJson.length()).map { i ->
+                    val g = groupsJson.getJSONObject(i)
+                    GroupItem(g.getString("id"), g.getString("name"), g.str("description"))
+                }
+                _state.update { it.copy(results = users, groupResults = groups) }
             } catch (e: Exception) {
                 _state.update { it.copy(results = emptyList()) }
             }
