@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -44,7 +45,7 @@ fun PiBotAvatar(
     Image(
         painter = painterResource(R.drawable.pi_bot),
         contentDescription = contentDescription,
-        modifier = modifier.then(Modifier.height(size)),
+        modifier = modifier.then(Modifier.size(size)),
     )
 }
 
