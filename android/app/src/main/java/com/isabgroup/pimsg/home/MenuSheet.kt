@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -36,12 +37,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiIcons
+import com.isabgroup.pimsg.ui.PiBotAvatar
+import com.isabgroup.pimsg.ui.playClick
+import androidx.compose.ui.platform.LocalView
 import kotlinx.coroutines.launch
 
 private data class MenuEntry(val key: String, val label: String)
 
 private val account = listOf(
     MenuEntry("links", "Meus links"),
+    MenuEntry("plans", "Planos"),
 )
 private val create = listOf(
     MenuEntry("newstory", "Criar story"),
@@ -72,11 +77,24 @@ fun MenuSheet(
         Text(value, color = PiColors.Gray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
             modifier = Modifier.fillMaxWidth().padding(start = 24.dp, top = 18.dp, bottom = 4.dp))
     }
+    val view = LocalView.current
     @Composable
     fun Entry(entry: MenuEntry) {
-        Text(entry.label, color = PiColors.White, fontSize = 16.sp,
-            modifier = Modifier.fillMaxWidth().clickable { close { onItem(entry.key) } }
-                .padding(horizontal = 24.dp, vertical = 13.dp))
+        Row(
+            Modifier.fillMaxWidth().clickable { view.playClick(); close { onItem(entry.key) } }
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            when (entry.key) {
+                "bot" -> PiBotAvatar(size = 25.dp)
+                "plans" -> Icon(Icons.Filled.Star, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
+                "settings" -> Icon(PiIcons.More, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
+                "links" -> Icon(Icons.Filled.Person, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
+                else -> Spacer(Modifier.size(24.dp))
+            }
+            Text(entry.label, color = PiColors.White, fontSize = 16.sp)
+        }
     }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
