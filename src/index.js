@@ -64,6 +64,22 @@ async function authenticate(request, env) {
   const now = Date.now();
   let user = await env.DB.prepare("SELECT * FROM users WHERE firebase_uid = ?").bind(claims.sub).first();
   if (!user) {
+    const clientIp = request.headers.get("CF-Connecting-IP");
+    if (clientIp) {
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(clientIp));
+      const ipHash = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+      const windowStart = now - 60 * 60 * 1000;
+      const rate = await env.DB.prepare(
+        `INSERT INTO signup_ip_limits (ip_hash, window_started_at, signup_count, updated_at)
+         VALUES (?, ?, 1, ?)
+         ON CONFLICT(ip_hash) DO UPDATE SET
+           signup_count = CASE WHEN signup_ip_limits.window_started_at <= ? THEN 1 ELSE signup_ip_limits.signup_count + 1 END,
+           window_started_at = CASE WHEN signup_ip_limits.window_started_at <= ? THEN excluded.window_started_at ELSE signup_ip_limits.window_started_at END,
+           updated_at = excluded.updated_at
+         RETURNING signup_count`
+      ).bind(ipHash, now, now, windowStart, windowStart).first();
+      if ((rate?.signup_count || 0) > 10) return { blocked: "signup_rate_limited" };
+    }
     const id = crypto.randomUUID();
     const phone = claims.phone_number || null;
     const name = claims.name || (claims.email ? claims.email.split("@")[0] : "Utilizador");
@@ -106,7 +122,7 @@ async function handle(request, env) {
 
   const me = await authenticate(request, env);
   if (!me) return fail(401, "nao autenticado");
-  if (me.blocked) return fail(403, "conta " + me.blocked);
+  if (me.blocked) return fail(me.blocked === "signup_rate_limited" ? 429 : 403, me.blocked === "signup_rate_limited" ? "limite de criacao de contas nesta rede; tente mais tarde" : "conta " + me.blocked);
 
   if (path === "/v1/me" && method === "GET") {
     const code = await activeCode(env, me.id);
@@ -122,10 +138,25 @@ async function handle(request, env) {
     const bio = typeof b.bio === "string" ? b.bio.slice(0, 300) : me.bio;
     const show = typeof b.show_phone === "boolean" ? (b.show_phone && me.phone_verified ? 1 : 0) : me.show_phone;
     const tz = typeof b.timezone === "string" ? b.timezone.slice(0, 60) : me.timezone;
+    const hasPhone = Object.prototype.hasOwnProperty.call(b, "phone_e164");
+    const phone = hasPhone && typeof b.phone_e164 === "string" ? b.phone_e164.trim() : null;
     if (!name) return fail(400, "nome obrigatorio");
+    if (hasPhone) {
+      if (!phone || !/^\\+[1-9]\\d{7,14}$/.test(phone)) return fail(400, "numero de telefone invalido");
+      if (me.phone_verified && me.phone_e164 !== phone) return fail(409, "nao e permitido substituir um numero verificado sem nova verificacao");
+      const duplicate = await env.DB.prepare("SELECT id FROM users WHERE phone_e164 = ? AND id <> ?").bind(phone, me.id).first();
+      if (duplicate) return fail(409, "numero ja associado a outra conta");
+      try {
+        await env.DB.prepare(
+          "UPDATE users SET phone_e164 = ?, phone_verified = CASE WHEN phone_e164 = ? THEN phone_verified ELSE 0 END, show_phone = CASE WHEN phone_e164 = ? THEN show_phone ELSE 0 END WHERE id = ?"
+        ).bind(phone, phone, phone, me.id).run();
+      } catch {
+        return fail(409, "numero ja associado a outra conta");
+      }
+    }
     await env.DB.prepare("UPDATE users SET display_name=?, bio=?, show_phone=?, timezone=? WHERE id=?")
       .bind(name, bio, show, tz, me.id).run();
-    return json({ ok: true });
+    return json({ ok: true, phone_verified: hasPhone ? !!me.phone_verified && me.phone_e164 === phone : !!me.phone_verified });
   }
 
   if (path === "/v1/me/code/regenerate" && method === "POST") {
