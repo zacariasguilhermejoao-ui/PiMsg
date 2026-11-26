@@ -66,6 +66,8 @@ import com.isabgroup.pimsg.ui.PiIcons
 import com.isabgroup.pimsg.ui.openUrl
 import com.isabgroup.pimsg.ui.piFieldColors
 import kotlinx.coroutines.delay
+import org.json.JSONArray
+import org.json.JSONObject
 
 private const val SITE = "https://pimsg.tchilopop.com"
 
@@ -100,6 +102,28 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
+        // Recupera a lista anterior antes de tentar ligar ao servidor.
+        runCatching {
+            val saved = context.getSharedPreferences("pimsg_offline", android.content.Context.MODE_PRIVATE)
+                .getString("chats", null)
+            if (!saved.isNullOrBlank()) {
+                val array = JSONArray(saved)
+                val cached = (0 until array.length()).map { index ->
+                    val item = array.getJSONObject(index)
+                    ChatItem(
+                        id = item.getString("id"),
+                        title = item.optString("title", "Conversa"),
+                        preview = item.optString("preview", ""),
+                        unread = item.optInt("unread", 0),
+                        isGroup = item.optBoolean("isGroup", false),
+                        ringColor = item.optString("ringColor").takeIf { it.isNotBlank() },
+                        otherId = item.optString("otherId").takeIf { it.isNotBlank() },
+                        inviteCode = item.optString("inviteCode").takeIf { it.isNotBlank() },
+                    )
+                }
+                vm.restoreCachedChats(cached)
+            }
+        }
         vm.load()
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -120,6 +144,20 @@ fun HomeScreen(
                 onOpenChat(ChatRef(id, name, null, invite))
                 onPiLinkConsumed()
             }
+        }
+    }
+
+    LaunchedEffect(state.chats) {
+        if (state.chats.isNotEmpty()) {
+            val array = JSONArray()
+            state.chats.forEach { item ->
+                array.put(JSONObject().put("id", item.id).put("title", item.title)
+                    .put("preview", item.preview).put("unread", item.unread)
+                    .put("isGroup", item.isGroup).put("ringColor", item.ringColor)
+                    .put("otherId", item.otherId).put("inviteCode", item.inviteCode))
+            }
+            context.getSharedPreferences("pimsg_offline", android.content.Context.MODE_PRIVATE)
+                .edit().putString("chats", array.toString()).apply()
         }
     }
 
