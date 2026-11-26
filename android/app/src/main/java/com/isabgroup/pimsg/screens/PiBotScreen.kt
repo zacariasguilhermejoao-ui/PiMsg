@@ -93,11 +93,6 @@ fun PiBotScreen(onBack: () -> Unit) {
                 }
                 Text("›", color = PiColors.White, fontSize = 28.sp)
             }
-            Spacer(Modifier.height(18.dp))
-            Text(
-                "Os restantes assistentes serão apresentados aqui depois de as respetivas funções estarem integradas e testadas.",
-                color = PiColors.Gray, fontSize = 12.sp, lineHeight = 18.sp,
-            )
         }
     }
 }
