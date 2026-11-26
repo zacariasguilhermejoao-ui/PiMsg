@@ -45,11 +45,11 @@ function contactsBlock() {
 
 function legalDoc(title, intro, sections, env) {
   const body = sections.map(([h, t]) => `<h2>${esc(h)}</h2>${t}`).join("");
-  return html(title, `<h1>${esc(title)}</h1><p class="muted">Versão ${LEGAL_VERSION}, atualizada em ${LEGAL_DATE}</p><p class="muted">A PiMsg é uma aplicação de mensagens da ISAB Group.</p><p>${intro}</p>${body}${contactsBlock()}`);
+  return html(title, `<h1>${esc(title)}</h1><p class="muted">Versão ${LEGAL_VERSION}, atualizada em ${LEGAL_DATE}</p><p class="muted">A PiMsg é a aplicação de mensagens do Tchilo Pop, uma plataforma de rede social. A aplicação pertence à ISAB Group.</p><p>${intro}</p>${body}${contactsBlock()}`);
 }
 
 const LEGAL = {
-  terms: (env) => legalDoc("Termos de uso", "Estes termos regulam o uso do PiMsg, um app de mensagens da ISAB Group. Ao criar conta ou usar o app, aceita estes termos.", [
+  terms: (env) => legalDoc("Termos de uso", "Estes termos regulam o uso do PiMsg, a aplicação de mensagens do Tchilo Pop, uma plataforma de rede social, pertencente à ISAB Group. Ao criar conta ou usar o app, aceita estes termos.", [
     ["1. Conta e idade mínima", "<p>Para usar o PiMsg tem de ter pelo menos 16 anos. É responsável pela sua conta e por tudo o que é feito nela. Pode entrar com Google ou com o seu número de telefone, confirmado por SMS.</p>"],
     ["2. Planos e limites", "<p>O plano Free permite iniciar conversas com até 30 pessoas e enviar até 30 mensagens por dia. O plano Pro, semanal ou mensal, retira esses limites e permite o vídeo de apresentação no perfil. Quando o limite diário acaba, pode comprar créditos de 10 mensagens ou 15 horas de mensagens ilimitadas. Continua a poder receber mensagens. Os preços são mostrados na Google Play antes de comprar e podem variar conforme o país, a moeda e os impostos.</p>"],
     ["3. Uso permitido", "<p>Pode usar o PiMsg para conversar e para vender e negociar de forma honesta. É proibido:</p><ul><li>enganar ou aplicar golpes, incluindo vender o que não existe;</li><li>enviar spam ou mensagens em massa a quem não as pediu;</li><li>assediar, ameaçar ou discriminar;</li><li>partilhar conteúdo ilegal, violento ou sexual envolvendo menores, ou conteúdo sexual sem consentimento;</li><li>fazer-se passar por outra pessoa;</li><li>contornar os limites do app com contas falsas ou automatismos.</li></ul>"],
@@ -61,7 +61,7 @@ const LEGAL = {
     ["9. Lei aplicável", "<p>Estes termos regem-se pela lei aplicável na República de Angola, sem prejuízo dos direitos imperativos dos consumidores no seu país.</p>"],
   ], env),
 
-  privacy: (env) => legalDoc("Política de privacidade", "Esta política explica que dados o PiMsg, da ISAB Group, recolhe, para que serve e quais são os seus direitos.", [
+  privacy: (env) => legalDoc("Política de privacidade", "Esta política explica que dados o PiMsg, aplicação de mensagens do Tchilo Pop e pertencente à ISAB Group, recolhe, para que serve e quais são os seus direitos.", [
     ["1. Dados que recolhemos", "<ul><li>Conta: nome e e-mail da conta Google, ou número de telefone confirmado por SMS.</li><li>Perfil: nome, apresentação, foto, vídeo de apresentação e o código pessoal que gerar. O número de telefone só aparece no seu perfil se escolher mostrá-lo, e ninguém encontra outra pessoa pesquisando pelo número.</li><li>Conteúdo: mensagens, fotos, vídeos, áudios, ficheiros e stories que envia.</li><li>Dispositivo: identificador do aparelho, token de notificações e dados técnicos, usados para segurança e para limitar contas falsas.</li><li>Uso: contagens de mensagens e conversas necessárias para aplicar os limites dos planos, e registos de compras feitas na Google Play.</li><li>Denúncias e moderação: denúncias que faz ou recebe e as ações tomadas.</li></ul>"],
     ["2. Para que usamos", "<p>Para prestar o serviço, entregar mensagens e notificações, aplicar os planos e limites, prevenir fraude e abuso, tratar denúncias, cumprir obrigações legais e melhorar o app.</p>"],
     ["3. Mensagens", "<p>As mensagens e os ficheiros ficam guardados nos nossos servidores para poderem ser entregues e consultados. Neste momento não usam cifragem de ponta a ponta. Só os participantes da conversa têm acesso pelo app. A nossa equipa só consulta conteúdo quando necessário para tratar uma denúncia, por razões de segurança ou por obrigação legal.</p>"],
