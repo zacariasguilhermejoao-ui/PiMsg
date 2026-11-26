@@ -1,5 +1,6 @@
 package com.isabgroup.pimsg
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -36,12 +37,29 @@ import com.isabgroup.pimsg.ui.PiMsgTheme
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
+
+    private var pendingShare by mutableStateOf<ShareIncoming?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        pendingShare = intent.parseShare()
         val dark = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
         enableEdgeToEdge(statusBarStyle = dark, navigationBarStyle = dark)
-        setContent { PiMsgTheme { AppRoot() } }
+        setContent {
+            PiMsgTheme {
+                AppRoot(
+                    pendingShare = pendingShare,
+                    onShareConsumed = { pendingShare = null },
+                )
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingShare = intent.parseShare()
     }
 }
 
@@ -55,7 +73,10 @@ private sealed interface Screen {
 }
 
 @Composable
-private fun AppRoot() {
+private fun AppRoot(
+    pendingShare: ShareIncoming?,
+    onShareConsumed: () -> Unit,
+) {
     var signedIn by remember { mutableStateOf(FirebaseAuth.getInstance().currentUser != null) }
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
     var splash by remember { mutableStateOf(true) }
@@ -65,6 +86,7 @@ private fun AppRoot() {
         FirebaseAuth.getInstance().signOut()
         signedIn = false
         screen = Screen.Home
+        onShareConsumed()
     }
 
     Crossfade(targetState = splash, label = "splash") { showing ->
@@ -76,7 +98,9 @@ private fun AppRoot() {
                 when (val s = screen) {
                     is Screen.Home -> HomeScreen(
                         onSignOut = ::signOut,
-                        onOpenChat = { screen = Screen.Chat(it) },
+                        onOpenChat = { ref ->
+                            screen = Screen.Chat(ref)
+                        },
                         onOpenStories = { screen = Screen.Stories(it) },
                         onNavigate = { key ->
                             when (key) {
@@ -85,8 +109,17 @@ private fun AppRoot() {
                                 "links" -> screen = Screen.Links
                             }
                         },
+                        pendingShare = pendingShare,
                     )
-                    is Screen.Chat -> ChatScreen(ref = s.ref, onBack = { screen = Screen.Home })
+                    is Screen.Chat -> ChatScreen(
+                        ref = s.ref,
+                        onBack = {
+                            screen = Screen.Home
+                            onShareConsumed()
+                        },
+                        pendingShare = pendingShare,
+                        onShareConsumed = onShareConsumed,
+                    )
                     is Screen.Profile -> ProfileScreen(onBack = { screen = Screen.Home })
                     is Screen.Settings -> SettingsScreen(onBack = { screen = Screen.Home }, onSignOut = ::signOut)
                     is Screen.Links -> LinksScreen(onBack = { screen = Screen.Home })
@@ -97,7 +130,6 @@ private fun AppRoot() {
     }
 }
 
-// Tela de abertura: a arte enviada, ocupando o ecra todo. O logotipo fica no centro e sobrevive aos cortes.
 @Composable
 private fun SplashScreen() {
     Box(Modifier.fillMaxSize().background(PiColors.Background)) {
