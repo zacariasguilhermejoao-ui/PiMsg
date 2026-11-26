@@ -149,7 +149,9 @@ fun SecurityScreen(onBack: () -> Unit) {
                     scope.launch {
                         busy = true
                         try {
-                            FirebaseAuth.getInstance().currentUser?.multiFactor?.unenroll(factor).await()
+                            val current = FirebaseAuth.getInstance().currentUser
+                                ?: throw IllegalStateException("Sessão terminada.")
+                            current.multiFactor.unenroll(factor).await()
                             refreshFactors()
                             message = "Autenticador removido da conta."
                         } catch (e: Exception) {
