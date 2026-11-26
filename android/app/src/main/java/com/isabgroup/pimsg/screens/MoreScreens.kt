@@ -531,11 +531,22 @@ fun PlansScreen(onBack: () -> Unit) {
         Text("PRO", color = PiColors.Gray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(16.dp)) {
             Text("Mais capacidade", color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            listOf("Mensagens sem limite diário", "30 respostas do Pi AI por dia", "Vídeo de apresentação no perfil", "Planos de subscrição semanal e mensal").forEach {
+            listOf("Mensagens sem limite diário", "30 respostas do Pi AI por dia", "Vídeo de apresentação no perfil").forEach {
                 Text("•  $it", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp))
             }
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.weight(1f).background(PiColors.SurfaceHigh, androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).padding(12.dp)) {
+                    Text("Pro semanal", color = PiColors.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Acesso por semana", color = PiColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                }
+                Column(Modifier.weight(1f).background(PiColors.SurfaceHigh, androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).padding(12.dp)) {
+                    Text("Pro mensal", color = PiColors.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Acesso por mês", color = PiColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                }
+            }
             Text(
-                "Os preços e a adesão são apresentados pela Google Play. A compra ainda não está ativa nesta versão; não será apresentado um botão de pagamento enquanto os produtos não estiverem configurados e validados.",
+                "A consulta dos planos já está disponível. A adesão e os preços só serão apresentados quando os produtos de subscrição estiverem publicados e validados na Google Play.",
                 color = PiColors.Gray, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 12.dp),
             )
             if (current != "free") {
