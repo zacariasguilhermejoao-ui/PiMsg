@@ -154,9 +154,11 @@ async function handle(request, env) {
     const social = ["instagram_url", "facebook_url", "tiktok_url", "youtube_url", "website_url"];
     const values = social.map((key) => {
       const raw = typeof b[key] === "string" ? b[key].trim().slice(0, 200) : me[key];
-      if (raw && !/^https:\/\//i.test(raw)) throw new Error("As ligações sociais devem começar por https://");
       return raw || null;
     });
+    if (values.some((value) => value && !/^https:\/\//i.test(value))) {
+      return fail(400, "As ligações sociais devem começar por https://");
+    }
     await env.DB.prepare(
       "UPDATE users SET display_name=?, bio=?, show_phone=?, timezone=?, instagram_url=?, facebook_url=?, tiktok_url=?, youtube_url=?, website_url=? WHERE id=?"
     ).bind(name, bio, show, tz, ...values, me.id).run();
