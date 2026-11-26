@@ -127,6 +127,34 @@ async function handle(request, env) {
   if (!me) return fail(401, "nao autenticado");
   if (me.blocked) return fail(me.blocked === "signup_rate_limited" ? 429 : 403, me.blocked === "signup_rate_limited" ? "limite de criacao de contas nesta rede; tente mais tarde" : "conta " + me.blocked);
 
+  if (path === "/v1/plan" && method === "GET") {
+    const now = Date.now();
+    const sub = await env.DB.prepare(
+      "SELECT plan, status, expires_at, auto_renewing FROM subscriptions WHERE user_id = ? AND status IN ('active','grace') AND expires_at > ? ORDER BY expires_at DESC LIMIT 1"
+    ).bind(me.id, now).first();
+    const day = new Intl.DateTimeFormat("en-CA", { timeZone: me.timezone || "Africa/Luanda" }).format(new Date());
+    const usage = await env.DB.prepare(
+      "SELECT messages_sent FROM daily_usage WHERE user_id = ? AND day = ?"
+    ).bind(me.id, day).first();
+    const aiUsage = await env.DB.prepare(
+      "SELECT requests FROM bot_daily_usage WHERE user_id = ? AND day = ?"
+    ).bind(me.id, day).first();
+    return json({
+      current_plan: sub ? sub.plan : "free",
+      subscription_status: sub?.status || "free",
+      expires_at: sub?.expires_at || null,
+      auto_renewing: sub ? !!sub.auto_renewing : false,
+      message_usage: usage?.messages_sent || 0,
+      message_limit: sub ? null : 30,
+      ai_usage: aiUsage?.requests || 0,
+      ai_limit: sub ? 30 : 5,
+      plans: {
+        free: { contacts: 30, messages_per_day: 30, pi_ai_per_day: 5 },
+        pro: { messages_per_day: null, pi_ai_per_day: 30, profile_video: true }
+      }
+    });
+  }
+
   if (path === "/v1/me" && method === "GET") {
     const code = await activeCode(env, me.id);
     return json({
