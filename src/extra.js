@@ -70,7 +70,7 @@ export async function handleExtra(request, env, me, path, method) {
     return json({ ok: true });
   }
 
-  const openLink = path.match(/^\\/v1\\/links\\/([a-z0-9]{6,16})\\/open$/);
+  const openLink = path.match(/^\/v1\/links\/([a-z0-9]{6,16})\/open$/);
   if (openLink && method === "POST") {
     const link = await env.DB.prepare(
       `SELECT l.id, l.user_id, l.subject, u.display_name
