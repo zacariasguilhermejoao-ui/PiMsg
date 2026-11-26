@@ -94,9 +94,54 @@ jobs:
           print("Firebase JSON is valid and contains the PiMsg Android application ID.")
           PY
 
-      - name: Preflight release compilation, resources and R8
+      - name: Prepare Android signing keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              exit 1
+            fi
+          done
+          python3 - <<'PY'
+          import base64
+          import os
+          from pathlib import Path
+
+          encoded = "".join(os.environ["ANDROID_KEYSTORE_BASE64"].split())
+          try:
+              decoded = base64.b64decode(
+                  encoded + "=" * (-len(encoded) % 4),
+                  altchars=b"-_",
+                  validate=True,
+              )
+          except Exception:
+              raise SystemExit(
+                  "ANDROID_KEYSTORE_BASE64 is invalid. Re-encode the original .jks as "
+                  "single-line Base64 and update this GitHub Actions secret."
+              )
+          if not decoded:
+              raise SystemExit("ANDROID_KEYSTORE_BASE64 decoded to an empty keystore.")
+          Path("android/app/pimsg-release.jks").write_bytes(decoded)
+          PY
+          test -s android/app/pimsg-release.jks
+          echo "ANDROID_KEYSTORE_PATH=$GITHUB_WORKSPACE/android/app/pimsg-release.jks" >> "$GITHUB_ENV"
+          echo "Keystore decoded. Its password and alias will be checked next."
+
+      - name: Preflight release compilation, resources and R8
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # The Gradle build script configures release signing eagerly; supply the
+          # secrets here, but do not invoke signing tasks in this preflight.
           gradle -p android --no-daemon \
             :app:compileReleaseKotlin \
             :app:processReleaseResources \
