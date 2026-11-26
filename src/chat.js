@@ -111,6 +111,11 @@ export async function handleChat(request, env, me, path, method) {
     if (existing) {
       await env.DB.prepare("UPDATE conversation_members SET left_at = NULL WHERE conversation_id = ? AND user_id = ?")
         .bind(existing.id, me.id).run();
+      if (b.request_code && b.link_id) {
+        await env.DB.prepare(
+          "UPDATE contact_requests SET status = 'used', visitor_user_id = ? WHERE request_code = ? AND link_id = ? AND status = 'pending'"
+        ).bind(me.id, String(b.request_code).toUpperCase(), String(b.link_id)).run();
+      }
       return json({ id: existing.id });
     }
 
