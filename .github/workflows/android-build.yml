@@ -153,23 +153,43 @@ jobs:
             :app:processReleaseResources \
             :app:minifyReleaseWithR8
 
-      - name: Print signing certificate SHA fingerprints
+      - name: Validate keystore and print certificate SHA fingerprints
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          # Validate the keystore password separately from the private-key password.
-          keytool -list \
+          KEYSTORE_LIST="$RUNNER_TEMP/keystore-list.txt"
+          KEYSTORE_ERROR="$RUNNER_TEMP/keystore-error.txt"
+
+          # Keep keytool diagnostics visible without ever printing secret values.
+          if ! keytool -list -v \
             -keystore "$ANDROID_KEYSTORE_PATH" \
             -storepass:env ANDROID_KEYSTORE_PASSWORD \
-            > "$RUNNER_TEMP/keystore-list.txt"
-          if ! grep -Fq -- "$ANDROID_KEY_ALIAS" "$RUNNER_TEMP/keystore-list.txt"; then
-            echo "::error::ANDROID_KEY_ALIAS was not found in the decoded keystore. Check the alias secret."
+            > "$KEYSTORE_LIST" 2> "$KEYSTORE_ERROR"; then
+            echo "::error::Could not open the decoded keystore. Check whether ANDROID_KEYSTORE_BASE64 is the correct original .jks/.keystore and whether ANDROID_KEYSTORE_PASSWORD matches it."
+            if [ -s "$KEYSTORE_ERROR" ]; then
+              cat "$KEYSTORE_ERROR"
+            else
+              echo "keytool returned an error without diagnostic text."
+            fi
             exit 1
           fi
-          echo "Keystore password and alias validated. The private-key password will be tested during release signing."
+
+          if ! grep -Fqx -- "Alias name: $ANDROID_KEY_ALIAS" "$KEYSTORE_LIST"; then
+            echo "::error::The keystore opened successfully, but ANDROID_KEY_ALIAS does not match an entry in it."
+            echo "Aliases actually found in the keystore:"
+            grep '^Alias name: ' "$KEYSTORE_LIST" || true
+            exit 1
+          fi
+
+          echo "Keystore password and alias validated."
+          awk -v alias="$ANDROID_KEY_ALIAS" '
+            /^Alias name: / { selected = ($0 == "Alias name: " alias) }
+            selected && (/^SHA1: / || /^SHA256: /) { print }
+          ' "$KEYSTORE_LIST"
+          echo "The private-key password will be tested during release signing."
 
       - name: Build signed release APK and AAB
         env:
