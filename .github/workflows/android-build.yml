@@ -114,12 +114,12 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
+          # Listing the selected alias validates the store password and alias.
+          # Do not pipe through grep: JDK output formatting differs across releases.
           keytool -list -v \
             -keystore "$ANDROID_KEYSTORE_PATH" \
             -alias "$ANDROID_KEY_ALIAS" \
-            -storepass:env ANDROID_KEYSTORE_PASSWORD \
-            -keypass:env ANDROID_KEY_PASSWORD \
-            | grep -E 'SHA1:|SHA256:'
+            -storepass:env ANDROID_KEYSTORE_PASSWORD
 
       - name: Prepare Firebase configuration
         env:
