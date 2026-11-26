@@ -1,4 +1,3 @@
-// PiMsg - stories, links personalizados, dispositivos e perfil publico
 
 const SLUG_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
 const json = (data, status = 200) =>
@@ -20,7 +19,6 @@ async function isPro(env, userId, now) {
 export async function handleExtra(request, env, me, path, method) {
   const now = Date.now();
 
-  // ---- Dispositivo e token de notificacoes ----
   if (path === "/v1/devices" && method === "POST") {
     const b = await request.json().catch(() => ({}));
     const hash = String(b.device_hash || "").slice(0, 100);
@@ -38,7 +36,6 @@ export async function handleExtra(request, env, me, path, method) {
     return json({ ok: true });
   }
 
-  // ---- Perfil publico ----
   const profile = path.match(/^\/v1\/users\/([\w-]+)$/);
   if (profile && method === "GET") {
     const u = await env.DB.prepare("SELECT * FROM users WHERE id = ? AND status = 'active'").bind(profile[1]).first();
@@ -51,7 +48,6 @@ export async function handleExtra(request, env, me, path, method) {
     });
   }
 
-  // Foto de perfil e video de apresentacao (este so no plano Pro)
   if (path === "/v1/me/media" && method === "PATCH") {
     const b = await request.json().catch(() => ({}));
     const owns = async (id) => id && (await env.DB.prepare("SELECT 1 AS ok FROM media WHERE id = ? AND owner_id = ?").bind(id, me.id).first());
@@ -69,7 +65,6 @@ export async function handleExtra(request, env, me, path, method) {
     return json({ ok: true });
   }
 
-  // ---- Links personalizados ----
   if (path === "/v1/links" && method === "GET") {
     const r = await env.DB.prepare(
       "SELECT id, slug, subject, intro_text, opens_count, created_at FROM contact_links WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC"
@@ -95,7 +90,6 @@ export async function handleExtra(request, env, me, path, method) {
     return json({ ok: true });
   }
 
-  // ---- Stories ----
   if (path === "/v1/stories" && method === "POST") {
     const b = await request.json().catch(() => ({}));
     const m = await env.DB.prepare("SELECT mime FROM media WHERE id = ? AND owner_id = ?").bind(b.media_id || "", me.id).first();
@@ -107,7 +101,6 @@ export async function handleExtra(request, env, me, path, method) {
     return json({ id }, 201);
   }
 
-  // Stories de quem ja trocou conversa comigo, mais os meus
   if (path === "/v1/stories" && method === "GET") {
     const r = await env.DB.prepare(
       `SELECT s.id, s.user_id, u.display_name AS user_name, u.ring_color, s.media_id, s.caption, s.created_at,
