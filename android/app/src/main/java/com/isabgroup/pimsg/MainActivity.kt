@@ -58,12 +58,18 @@ class MainActivity : ComponentActivity() {
 
     fun clearPendingPiLink() {
         pendingPiLink = null
-        getSharedPreferences("pimsg_pilink", MODE_PRIVATE).edit().clear().apply()
+        getSharedPreferences("pimsg_pilink", MODE_PRIVATE).edit()
+            .remove("type")
+            .remove("value")
+            .apply()
     }
 
     private fun parsePiLinkIntent(source: Intent?) {
         val uri = source?.data ?: return
         if (uri.scheme != "https" || uri.host != "pimsg.tchilopop.com") return
+        getSharedPreferences("pimsg_pilink", MODE_PRIVATE).edit()
+            .putBoolean("referrer_processed", true)
+            .apply()
         val parts = uri.pathSegments
         if (parts.size != 2) return
         when (parts[0]) {
@@ -77,12 +83,16 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun readInstallReferrer() {
-        if (pendingPiLink != null) return
+        val prefs = getSharedPreferences("pimsg_pilink", MODE_PRIVATE)
+        if (pendingPiLink != null || prefs.getBoolean("referrer_processed", false)) return
         val client = InstallReferrerClient.newBuilder(this).build()
         try {
             client.startConnection(object : InstallReferrerStateListener {
                 override fun onInstallReferrerSetupFinished(responseCode: Int) {
                     try {
+                        if (responseCode == InstallReferrerResponse.OK) {
+                            prefs.edit().putBoolean("referrer_processed", true).apply()
+                        }
                         if (responseCode == InstallReferrerResponse.OK && pendingPiLink == null) {
                             val raw = client.installReferrer.installReferrer
                             val query = Uri.parse("https://referrer.invalid/?$raw")
