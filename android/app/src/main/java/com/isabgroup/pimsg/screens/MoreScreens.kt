@@ -80,6 +80,7 @@ fun ProfileScreen(onBack: () -> Unit) {
     var website by remember { mutableStateOf("") }
     var ringColor by remember { mutableStateOf("#8E8E93") }
     var msg by remember { mutableStateOf<String?>(null) }
+    var previewOpen by remember { mutableStateOf(false) }
     val imagePicker = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri ->
@@ -230,7 +231,9 @@ fun ProfileScreen(onBack: () -> Unit) {
             )
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(12.dp))
+        PiButton("Ver como os outros veem o meu perfil", { previewOpen = true }, primary = false)
+        Spacer(Modifier.height(12.dp))
         PiButton("Guardar alterações", {
             scope.launch {
                 saving = true
@@ -253,6 +256,32 @@ fun ProfileScreen(onBack: () -> Unit) {
         }, enabled = name.isNotBlank() && !saving)
         msg?.let { Text(it, color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp)) }
         Spacer(Modifier.height(24.dp))
+    }
+    if (previewOpen) {
+        AlertDialog(
+            onDismissRequest = { previewOpen = false },
+            containerColor = PiColors.Surface,
+            title = { Text("Pré-visualização do perfil", color = PiColors.White) },
+            text = {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (avatarBitmap != null) {
+                        androidx.compose.foundation.Image(
+                            bitmap = avatarBitmap!!.asImageBitmap(), contentDescription = "Fotografia pública",
+                            modifier = Modifier.size(96.dp).border(3.dp, runCatching { Color(android.graphics.Color.parseColor(ringColor)) }.getOrDefault(PiColors.Gray), androidx.compose.foundation.shape.CircleShape).clip(androidx.compose.foundation.shape.CircleShape),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        )
+                    } else {
+                        androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Person, contentDescription = "Avatar padrão", tint = PiColors.Gray, modifier = Modifier.size(72.dp))
+                    }
+                    Text(name.ifBlank { "O teu nome" }, color = PiColors.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    if (bio.isNotBlank()) Text(bio, color = PiColors.TextSecondary)
+                    listOf("Instagram" to instagram, "Facebook" to facebook, "TikTok" to tiktok, "YouTube" to youtube, "Website" to website)
+                        .filter { it.second.isNotBlank() }.forEach { Text(it.first, color = PiColors.White) }
+                    Text("Esta é uma pré-visualização do que outras pessoas podem ver.", color = PiColors.TextSecondary, fontSize = 12.sp)
+                }
+            },
+            confirmButton = { TextButton(onClick = { previewOpen = false }) { Text("Fechar", color = PiColors.White) } },
+        )
     }
 }
 
