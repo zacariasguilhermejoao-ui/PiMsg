@@ -351,7 +351,7 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit) {
 }
 
 // ---------------------------------------------------------------- Meus links
-private data class LinkItem(val id: String, val subject: String, val url: String, val opens: Int)
+private data class LinkItem(val id: String, val subject: String, val url: String, val opens: Int, val imageMediaId: String?)
 
 @Composable
 fun LinksScreen(onBack: () -> Unit) {
@@ -360,14 +360,31 @@ fun LinksScreen(onBack: () -> Unit) {
     var links by remember { mutableStateOf<List<LinkItem>>(emptyList()) }
     var subject by remember { mutableStateOf("") }
     var intro by remember { mutableStateOf("") }
+    var imageMediaId by remember { mutableStateOf<String?>(null) }
+    var imagePreview by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var msg by remember { mutableStateOf<String?>(null) }
+    val linkImagePicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) scope.launch {
+            try {
+                msg = "A enviar imagem..."
+                val uploaded = com.isabgroup.pimsg.data.uploadUri(context.contentResolver, uri)
+                if (!uploaded.mime.startsWith("image/")) throw IllegalArgumentException("Escolha uma imagem.")
+                imageMediaId = uploaded.id
+                val downloaded = Api.download("/v1/media/\u0024{uploaded.id}")
+                imagePreview = android.graphics.BitmapFactory.decodeByteArray(downloaded.bytes, 0, downloaded.bytes.size)
+                msg = "Imagem adicionada ao link."
+            } catch (e: Exception) { msg = "Não foi possível adicionar a imagem." }
+        }
+    }
 
     suspend fun load() {
         try {
             val arr = Api.get("/v1/links").getJSONArray("links")
             links = (0 until arr.length()).map {
                 val o = arr.getJSONObject(it)
-                LinkItem(o.getString("id"), o.getString("subject"), o.getString("url"), o.optInt("opens_count"))
+                LinkItem(o.getString("id"), o.getString("subject"), o.getString("url"), o.optInt("opens_count"), o.optString("image_media_id").takeIf { it.isNotBlank() && it != "null" })
             }
         } catch (e: Exception) { msg = "Não foi possível carregar os links." }
     }
@@ -381,13 +398,23 @@ fun LinksScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(16.dp))
         OutlinedTextField(value = subject, onValueChange = { subject = it.take(80) }, label = { Text("Assunto ou produto") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
-        OutlinedTextField(value = intro, onValueChange = { intro = it.take(400) }, label = { Text("Texto na página do link (opcional)") }, minLines = 2, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = intro, onValueChange = { intro = it.take(400) }, label = { Text("Descrição na página do link (opcional)") }, minLines = 2, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(10.dp))
+        PiButton("Adicionar fotografia ao link", { linkImagePicker.launch("image/*") }, primary = false)
+        imagePreview?.let { bitmap ->
+            androidx.compose.foundation.Image(
+                bitmap = bitmap.asImageBitmap(), contentDescription = "Imagem do link",
+                modifier = Modifier.fillMaxWidth().height(150.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp)),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            )
+            TextButton(onClick = { imageMediaId = null; imagePreview = null }) { Text("Remover imagem", color = PiColors.Danger) }
+        }
         Spacer(Modifier.height(12.dp))
         PiButton("Criar link", {
             scope.launch {
                 try {
-                    Api.post("/v1/links", JSONObject().put("subject", subject).put("intro_text", intro))
-                    subject = ""; intro = ""; msg = null; load()
+                    Api.post("/v1/links", JSONObject().put("subject", subject).put("intro_text", intro).put("image_media_id", imageMediaId ?: JSONObject.NULL))
+                    subject = ""; intro = ""; imageMediaId = null; imagePreview = null; msg = "Link criado com sucesso."; load()
                 } catch (e: Exception) { msg = "Não foi possível criar o link." }
             }
         }, enabled = subject.isNotBlank())
@@ -398,6 +425,7 @@ fun LinksScreen(onBack: () -> Unit) {
         links.forEach { l ->
             Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
                 Text(l.subject, color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                if (l.imageMediaId != null) Text("Tem fotografia personalizada", color = PiColors.TextSecondary, fontSize = 12.sp)
                 Text("${l.url}  ·  ${l.opens} aberturas", color = PiColors.TextSecondary, fontSize = 13.sp)
                 Row {
                     TextButton(onClick = { copy(context, "link", l.url); msg = "Link copiado." }) { Text("Copiar", color = PiColors.White) }
