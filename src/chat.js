@@ -211,22 +211,41 @@ export async function handleChat(request, env, me, path, method) {
     return json({ id: g.id });
   }
 
-  const sub = path.match(/^\/v1\/chats\/([\w-]+)\/(messages|read|favorite|leave)$/);
+  const sub = path.match(/^\/v1\/chats\/([\w-]+)\/(messages|read|favorite|leave|disappearing)$/);
   if (sub) {
     const convId = sub[1];
     const action = sub[2];
     const mem = await membership(env, convId, me.id);
     if (!mem) return fail(404, "conversa nao encontrada");
 
+    if (action === "disappearing" && method === "GET") {
+      const setting = await env.DB.prepare("SELECT disappearing_seconds FROM conversations WHERE id = ?")
+        .bind(convId).first();
+      return json({ seconds: setting?.disappearing_seconds || 0 });
+    }
+
+    if (action === "disappearing" && method === "PUT") {
+      const b = await request.json().catch(() => ({}));
+      const seconds = Number(b.seconds);
+      if (![0, 86400, 604800, 7776000].includes(seconds)) return fail(400, "duracao invalida");
+      await env.DB.prepare("UPDATE conversations SET disappearing_seconds = ? WHERE id = ?")
+        .bind(seconds, convId).run();
+      return json({ ok: true, seconds });
+    }
+
     if (action === "messages" && method === "GET") {
       const before = Number(url.searchParams.get("before")) || now + 1;
       const limit = Math.min(Number(url.searchParams.get("limit")) || 40, 100);
       const floor = mem.sees_history ? 0 : mem.joined_at;
+      await env.DB.prepare(
+        "DELETE FROM messages WHERE conversation_id = ? AND expires_at IS NOT NULL AND expires_at <= ?"
+      ).bind(convId, now).run();
       const r = await env.DB.prepare(
         `SELECT id, sender_id, kind, body, media_id, reply_to_id, created_at, edited_at
-         FROM messages WHERE conversation_id = ? AND deleted_at IS NULL AND created_at < ? AND created_at >= ?
+         FROM messages WHERE conversation_id = ? AND deleted_at IS NULL
+           AND (expires_at IS NULL OR expires_at > ?) AND created_at < ? AND created_at >= ?
          ORDER BY created_at DESC LIMIT ?`
-      ).bind(convId, before, floor, limit).all();
+      ).bind(convId, now, before, floor, limit).all();
       return json({ messages: r.results });
     }
 
@@ -239,7 +258,7 @@ export async function handleChat(request, env, me, path, method) {
         const m = await env.DB.prepare("SELECT id FROM media WHERE id = ? AND owner_id = ?").bind(b.media_id || "", me.id).first();
         if (!m) return fail(400, "ficheiro invalido");
       }
-      const conv = await env.DB.prepare("SELECT type, user_a_id, user_b_id FROM conversations WHERE id = ?").bind(convId).first();
+      const conv = await env.DB.prepare("SELECT type, user_a_id, user_b_id, disappearing_seconds FROM conversations WHERE id = ?").bind(convId).first();
       if (conv.type === "direct") {
         const otherId = conv.user_a_id === me.id ? conv.user_b_id : conv.user_a_id;
         if (await isBlockedBetween(env, me.id, otherId)) return fail(403, "mensagem nao enviada");
@@ -251,8 +270,9 @@ export async function handleChat(request, env, me, path, method) {
       const id = crypto.randomUUID();
       await env.DB.batch([
         env.DB.prepare(
-          "INSERT INTO messages (id, conversation_id, sender_id, kind, body, media_id, reply_to_id, created_at) VALUES (?,?,?,?,?,?,?,?)"
-        ).bind(id, convId, me.id, kind, body, kind === "text" ? null : b.media_id, b.reply_to_id || null, now),
+          "INSERT INTO messages (id, conversation_id, sender_id, kind, body, media_id, reply_to_id, created_at, expires_at) VALUES (?,?,?,?,?,?,?,?,?)"
+        ).bind(id, convId, me.id, kind, body, kind === "text" ? null : b.media_id, b.reply_to_id || null, now,
+          conv.disappearing_seconds > 0 ? now + conv.disappearing_seconds * 1000 : null),
         env.DB.prepare("UPDATE conversations SET last_message_at = ? WHERE id = ?").bind(now, convId),
         env.DB.prepare("UPDATE conversation_members SET last_read_at = ? WHERE conversation_id = ? AND user_id = ?").bind(now, convId, me.id),
         ...plan.stmts,
