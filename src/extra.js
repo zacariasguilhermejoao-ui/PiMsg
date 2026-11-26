@@ -70,6 +70,37 @@ export async function handleExtra(request, env, me, path, method) {
     return json({ ok: true });
   }
 
+  const resolveRequest = path.match(/^\\/v1\\/links\\/requests\\/([A-Z0-9]{8})$/i);
+  if (resolveRequest && method === "GET") {
+    const requestCodeValue = resolveRequest[1].toUpperCase();
+    const contact = await env.DB.prepare(
+      `SELECT cr.id AS request_id, cr.link_id, l.user_id, l.subject, u.display_name, u.ring_color
+       FROM contact_requests cr
+       JOIN contact_links l ON l.id = cr.link_id
+       JOIN users u ON u.id = l.user_id
+       WHERE cr.request_code = ? AND cr.status = 'pending' AND cr.expires_at > ?
+         AND l.is_active = 1 AND u.status = 'active'`
+    ).bind(requestCodeValue, now).first();
+    if (!contact) return fail(404, "codigo expirado ou indisponivel");
+    if (contact.user_id === me.id) return fail(400, "este convite pertence a sua conta");
+    const blocked = await env.DB.prepare(
+      "SELECT 1 AS ok FROM blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?) LIMIT 1"
+    ).bind(me.id, contact.user_id, contact.user_id, me.id).first();
+    if (blocked) return fail(403, "nao e possivel iniciar esta conversa");
+    const claim = await env.DB.prepare(
+      `UPDATE contact_requests SET visitor_user_id = ?
+       WHERE id = ? AND status = 'pending' AND expires_at > ?
+         AND (visitor_user_id IS NULL OR visitor_user_id = ?)`
+    ).bind(me.id, contact.request_id, now, me.id).run();
+    if (!claim.meta || claim.meta.changes !== 1) return fail(409, "codigo ja utilizado por outra conta");
+    return json({
+      user: { id: contact.user_id, name: contact.display_name, ring_color: contact.ring_color },
+      link_id: contact.link_id,
+      request_code: requestCodeValue,
+      subject: contact.subject,
+    });
+  }
+
   const openLink = path.match(/^\/v1\/links\/([a-z0-9]{6,16})\/open$/);
   if (openLink && method === "POST") {
     const link = await env.DB.prepare(
