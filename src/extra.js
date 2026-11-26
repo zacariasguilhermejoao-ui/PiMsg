@@ -70,7 +70,7 @@ export async function handleExtra(request, env, me, path, method) {
     return json({ ok: true });
   }
 
-  const resolveRequest = path.match(/^\\/v1\\/links\\/requests\\/([A-Z0-9]{8})$/i);
+  const resolveRequest = path.match(/^\/v1\/links\/requests\/([A-Z0-9]{8})$/i);
   if (resolveRequest && method === "GET") {
     const requestCodeValue = resolveRequest[1].toUpperCase();
     const contact = await env.DB.prepare(
