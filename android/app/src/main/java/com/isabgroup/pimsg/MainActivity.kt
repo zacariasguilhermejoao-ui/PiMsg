@@ -37,6 +37,7 @@ import com.isabgroup.pimsg.screens.LinksScreen
 import com.isabgroup.pimsg.screens.PiBotScreen
 import com.isabgroup.pimsg.screens.PlansScreen
 import com.isabgroup.pimsg.screens.ProfileScreen
+import com.isabgroup.pimsg.screens.SecurityScreen
 import com.isabgroup.pimsg.screens.SettingsScreen
 import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiMsgTheme
@@ -189,6 +190,7 @@ private sealed interface Screen {
     data class Chat(val ref: ChatRef) : Screen
     data object Profile : Screen
     data object Settings : Screen
+    data object Security : Screen
     data object Links : Screen
     data object PiBot : Screen
     data object Plans : Screen
@@ -281,7 +283,8 @@ private fun AppRoot(activity: MainActivity) {
                         onShareConsumed = { activity.clearShare() },
                     )
                     is Screen.Profile -> ProfileScreen(onBack = { screen = Screen.Home })
-                    is Screen.Settings -> SettingsScreen(onBack = { screen = Screen.Home }, onSignOut = ::signOut)
+                    is Screen.Settings -> SettingsScreen(onBack = { screen = Screen.Home }, onSignOut = ::signOut, onSecurity = { screen = Screen.Security })
+                    is Screen.Security -> SecurityScreen(onBack = { screen = Screen.Settings })
                     is Screen.Links -> LinksScreen(onBack = { screen = Screen.Home })
                     is Screen.PiBot -> PiBotScreen(onBack = { screen = Screen.Home })
                     is Screen.Plans -> PlansScreen(onBack = { screen = Screen.Home })
