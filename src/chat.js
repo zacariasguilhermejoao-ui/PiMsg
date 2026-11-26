@@ -104,38 +104,48 @@ export async function handleChat(request, env, me, path, method) {
     if (!other || other.status !== "active") return fail(404, "utilizador nao encontrado");
     if (await isBlockedBetween(env, me.id, otherId)) return fail(403, "nao e possivel conversar com este utilizador");
 
+    let contactRequest = null;
+    if (b.request_code) {
+      contactRequest = await env.DB.prepare(
+        `SELECT cr.id, cr.link_id, l.subject
+         FROM contact_requests cr
+         JOIN contact_links l ON l.id = cr.link_id
+         WHERE cr.request_code = ? AND cr.status = 'pending' AND cr.expires_at > ?
+           AND cr.visitor_user_id = ? AND l.user_id = ? AND l.is_active = 1`
+      ).bind(String(b.request_code).toUpperCase(), now, me.id, otherId).first();
+      if (!contactRequest) return fail(404, "codigo expirado ou indisponivel");
+    }
+
     const [a, bId] = me.id < otherId ? [me.id, otherId] : [otherId, me.id];
     const existing = await env.DB.prepare(
       "SELECT id FROM conversations WHERE type = 'direct' AND user_a_id = ? AND user_b_id = ?"
     ).bind(a, bId).first();
     if (existing) {
-      await env.DB.prepare("UPDATE conversation_members SET left_at = NULL WHERE conversation_id = ? AND user_id = ?")
-        .bind(existing.id, me.id).run();
-      if (b.request_code && b.link_id) {
-        await env.DB.prepare(
-          "UPDATE contact_requests SET status = 'used', visitor_user_id = ? WHERE request_code = ? AND link_id = ? AND status = 'pending'"
-        ).bind(me.id, String(b.request_code).toUpperCase(), String(b.link_id)).run();
-      }
+      await env.DB.batch([
+        env.DB.prepare("UPDATE conversation_members SET left_at = NULL WHERE conversation_id = ? AND user_id = ?")
+          .bind(existing.id, me.id),
+        ...(contactRequest ? [
+          env.DB.prepare("UPDATE conversations SET link_id = COALESCE(link_id, ?) WHERE id = ?")
+            .bind(contactRequest.link_id, existing.id),
+          env.DB.prepare("UPDATE contact_requests SET status = 'used' WHERE id = ? AND status = 'pending'")
+            .bind(contactRequest.id),
+        ] : []),
+      ]);
       return json({ id: existing.id });
     }
 
     if (!(await isPro(env, me.id, now))) {
-      const c = await env.DB.prepare(
+      const count = await env.DB.prepare(
         `SELECT COUNT(*) AS n FROM conversation_members cm JOIN conversations c ON c.id = cm.conversation_id
          WHERE cm.user_id = ? AND cm.is_initiator = 1 AND c.type = 'direct'`
       ).bind(me.id).first();
-      if (c.n >= FREE_CONTACT_LIMIT) {
+      if (count.n >= FREE_CONTACT_LIMIT) {
         return fail(402, "limite de conversas do plano Free atingido", { reason: "limit_contacts", limit: FREE_CONTACT_LIMIT });
       }
     }
 
-    let linkId = null;
-    let linkSubject = null;
-    if (b.link_id) {
-      const l = await env.DB.prepare("SELECT id, subject FROM contact_links WHERE id = ? AND user_id = ?").bind(b.link_id, otherId).first();
-      linkId = l ? l.id : null;
-      linkSubject = l ? l.subject : null;
-    }
+    const linkId = contactRequest?.link_id || null;
+    const linkSubject = contactRequest?.subject || null;
     const id = crypto.randomUUID();
     await env.DB.batch([
       env.DB.prepare(
@@ -147,17 +157,15 @@ export async function handleChat(request, env, me, path, method) {
       env.DB.prepare(
         "INSERT INTO conversation_members (conversation_id, user_id, is_initiator, joined_at) VALUES (?,?,0,?)"
       ).bind(id, otherId, now),
-      ...(linkSubject
-        ? [
-            env.DB.prepare("INSERT INTO messages (id, conversation_id, sender_id, kind, body, created_at) VALUES (?,?,?,'system',?,?)")
-              .bind(crypto.randomUUID(), id, me.id, "Interessado em: " + linkSubject, now),
-            env.DB.prepare("UPDATE conversations SET last_message_at = ? WHERE id = ?").bind(now, id),
-          ]
-        : []),
-      ...(b.request_code && linkId
-        ? [env.DB.prepare("UPDATE contact_requests SET status = 'used', visitor_user_id = ? WHERE request_code = ? AND link_id = ?")
-            .bind(me.id, String(b.request_code).toUpperCase(), linkId)]
-        : []),
+      ...(linkSubject ? [
+        env.DB.prepare("INSERT INTO messages (id, conversation_id, sender_id, kind, body, created_at) VALUES (?,?,?,'system',?,?)")
+          .bind(crypto.randomUUID(), id, me.id, "Interessado em: " + linkSubject, now),
+        env.DB.prepare("UPDATE conversations SET last_message_at = ? WHERE id = ?").bind(now, id),
+      ] : []),
+      ...(contactRequest ? [
+        env.DB.prepare("UPDATE contact_requests SET status = 'used' WHERE id = ? AND status = 'pending'")
+          .bind(contactRequest.id),
+      ] : []),
     ]);
     return json({ id }, 201);
   }
