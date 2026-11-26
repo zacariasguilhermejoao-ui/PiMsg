@@ -30,28 +30,33 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK command-line tools
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Android SDK licenses and install packages
+      - name: Set up Android SDK and install required packages
         shell: bash
         run: |
           set -euo pipefail
-          : "${ANDROID_HOME:?ANDROID_HOME was not configured by setup-android}"
-          command -v sdkmanager
+          # GitHub's Ubuntu runner image already provides Android command-line tools.
+          ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          test -d "$ANDROID_HOME/cmdline-tools"
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -x "$SDKMANAGER"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/build-tools/35.0.0" >> "$GITHUB_PATH"
+          echo "Using SDK manager at: $SDKMANAGER"
           # Accept licenses only on this ephemeral GitHub Actions runner.
           set +o pipefail
-          yes | sdkmanager --sdk_root="$ANDROID_HOME" --licenses
+          yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses
           set -o pipefail
-          # Quote each package separately: semicolons are part of package IDs.
-          sdkmanager --sdk_root="$ANDROID_HOME" --install \
+          # Each quoted SDK package ID is a separate sdkmanager argument.
+          "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --install \
             "platform-tools" \
             "platforms;android-36" \
             "build-tools;35.0.0"
-          sdkmanager --sdk_root="$ANDROID_HOME" --list_installed | tee /tmp/android-sdk-installed.txt
-          grep -F "platform-tools" /tmp/android-sdk-installed.txt
-          grep -F "platforms;android-36" /tmp/android-sdk-installed.txt
-          grep -F "build-tools;35.0.0" /tmp/android-sdk-installed.txt
+          test -d "$ANDROID_HOME/platform-tools"
+          test -d "$ANDROID_HOME/platforms/android-36"
+          test -x "$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          echo "Android SDK packages installed and verified."
 
       - name: Set up Gradle 8.13
         uses: gradle/actions/setup-gradle@v4
