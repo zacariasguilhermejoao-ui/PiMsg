@@ -38,7 +38,9 @@ import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
 
-    private var pendingShare by mutableStateOf<ShareIncoming?>(null)
+    /** Conteúdo recebido via share (texto/ficheiros de outras apps). */
+    var pendingShare by mutableStateOf<ShareIncoming?>(null)
+        private set
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -46,20 +48,17 @@ class MainActivity : ComponentActivity() {
         pendingShare = intent.parseShare()
         val dark = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
         enableEdgeToEdge(statusBarStyle = dark, navigationBarStyle = dark)
-        setContent {
-            PiMsgTheme {
-                AppRoot(
-                    pendingShare = pendingShare,
-                    onShareConsumed = { pendingShare = null },
-                )
-            }
-        }
+        setContent { PiMsgTheme { AppRoot(activity = this) } }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         pendingShare = intent.parseShare()
+    }
+
+    fun clearShare() {
+        pendingShare = null
     }
 }
 
@@ -73,10 +72,7 @@ private sealed interface Screen {
 }
 
 @Composable
-private fun AppRoot(
-    pendingShare: ShareIncoming?,
-    onShareConsumed: () -> Unit,
-) {
+private fun AppRoot(activity: MainActivity) {
     var signedIn by remember { mutableStateOf(FirebaseAuth.getInstance().currentUser != null) }
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
     var splash by remember { mutableStateOf(true) }
@@ -86,7 +82,7 @@ private fun AppRoot(
         FirebaseAuth.getInstance().signOut()
         signedIn = false
         screen = Screen.Home
-        onShareConsumed()
+        activity.clearShare()
     }
 
     Crossfade(targetState = splash, label = "splash") { showing ->
@@ -98,9 +94,7 @@ private fun AppRoot(
                 when (val s = screen) {
                     is Screen.Home -> HomeScreen(
                         onSignOut = ::signOut,
-                        onOpenChat = { ref ->
-                            screen = Screen.Chat(ref)
-                        },
+                        onOpenChat = { screen = Screen.Chat(it) },
                         onOpenStories = { screen = Screen.Stories(it) },
                         onNavigate = { key ->
                             when (key) {
@@ -109,16 +103,13 @@ private fun AppRoot(
                                 "links" -> screen = Screen.Links
                             }
                         },
-                        pendingShare = pendingShare,
                     )
                     is Screen.Chat -> ChatScreen(
                         ref = s.ref,
                         onBack = {
                             screen = Screen.Home
-                            onShareConsumed()
+                            activity.clearShare()
                         },
-                        pendingShare = pendingShare,
-                        onShareConsumed = onShareConsumed,
                     )
                     is Screen.Profile -> ProfileScreen(onBack = { screen = Screen.Home })
                     is Screen.Settings -> SettingsScreen(onBack = { screen = Screen.Home }, onSignOut = ::signOut)
