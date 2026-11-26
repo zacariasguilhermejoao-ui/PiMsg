@@ -25,6 +25,8 @@ object Api {
 
     suspend fun get(path: String): JSONObject = call("GET", path, null)
     suspend fun post(path: String, body: JSONObject): JSONObject = call("POST", path, body)
+    suspend fun translate(text: String, sourceLang: String, targetLang: String): JSONObject =
+        post("/v1/translate", JSONObject().put("text", text).put("source_lang", sourceLang).put("target_lang", targetLang))
     suspend fun put(path: String, body: JSONObject): JSONObject = call("PUT", path, body)
     suspend fun patch(path: String, body: JSONObject): JSONObject = call("PATCH", path, body)
     suspend fun delete(path: String): JSONObject = call("DELETE", path, null)
