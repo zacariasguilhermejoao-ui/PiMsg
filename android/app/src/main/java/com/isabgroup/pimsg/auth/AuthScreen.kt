@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.credentials.CredentialManager
@@ -219,23 +220,29 @@ fun AuthScreen(onSignedIn: () -> Unit) {
             Spacer(Modifier.height(16.dp))
             Text(it, color = PiColors.Danger, fontSize = 14.sp)
         }
-        Spacer(Modifier.height(24.dp))
-        Row(
+        Spacer(Modifier.height(22.dp))
+        Text(
+            "Ao continuar, confirma que leu e aceita os Termos de Utilização e a Política de Privacidade do PiMsg.",
+            color = PiColors.TextSecondary, fontSize = 12.sp, lineHeight = 18.sp,
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Termos de uso", color = PiColors.Gray, fontSize = 12.sp, modifier = Modifier.clickable { com.isabgroup.pimsg.ui.openUrl(context, "https://pimsg.tchilopop.com/terms") })
-            Text("  ·  ", color = PiColors.Gray, fontSize = 12.sp)
-            Text("Privacidade", color = PiColors.Gray, fontSize = 12.sp, modifier = Modifier.clickable { com.isabgroup.pimsg.ui.openUrl(context, "https://pimsg.tchilopop.com/privacy") })
-        }
+        )
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Reembolso", color = PiColors.Gray, fontSize = 12.sp, modifier = Modifier.clickable { com.isabgroup.pimsg.ui.openUrl(context, "https://pimsg.tchilopop.com/refund") })
+            Text("Termos de Utilização", color = Color(0xFF8AB4F8), fontSize = 12.sp,
+                textDecoration = TextDecoration.Underline,
+                modifier = Modifier.clickable { com.isabgroup.pimsg.ui.openUrl(context, "https://pimsg.tchilopop.com/terms") })
             Text("  ·  ", color = PiColors.Gray, fontSize = 12.sp)
-            Text("Regras da comunidade", color = PiColors.Gray, fontSize = 12.sp, modifier = Modifier.clickable { com.isabgroup.pimsg.ui.openUrl(context, "https://pimsg.tchilopop.com/community") })
+            Text("Privacidade", color = Color(0xFF8AB4F8), fontSize = 12.sp,
+                textDecoration = TextDecoration.Underline,
+                modifier = Modifier.clickable { com.isabgroup.pimsg.ui.openUrl(context, "https://pimsg.tchilopop.com/privacy") })
         }
+        Text(
+            "Regras da comunidade",
+            color = PiColors.White, fontSize = 12.sp, textDecoration = TextDecoration.Underline,
+            modifier = Modifier.padding(top = 8.dp).clickable { com.isabgroup.pimsg.ui.openUrl(context, "https://pimsg.tchilopop.com/community") },
+        )
     }
 }
