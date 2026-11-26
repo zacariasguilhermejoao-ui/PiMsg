@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.clip
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.layout.Arrangement
@@ -144,15 +143,14 @@ fun ProfileScreen(onBack: () -> Unit) {
                             bitmap = avatarBitmap!!.asImageBitmap(),
                             contentDescription = "Fotografia do perfil",
                             modifier = Modifier
-                                .height(104.dp)
+                                .size(104.dp)
                                 .clip(androidx.compose.foundation.shape.CircleShape),
                             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                         )
                     } else {
                         androidx.compose.foundation.layout.Box(
                             modifier = Modifier
-                                .height(104.dp)
-                                .fillMaxWidth()
+                                .size(104.dp)
                                 .clip(androidx.compose.foundation.shape.CircleShape)
                                 .background(PiColors.SurfaceHigh),
                             contentAlignment = Alignment.Center,
@@ -161,7 +159,7 @@ fun ProfileScreen(onBack: () -> Unit) {
                                 imageVector = androidx.compose.material.icons.Icons.Outlined.Person,
                                 contentDescription = "Avatar padrão",
                                 tint = PiColors.Gray,
-                                modifier = Modifier.height(54.dp),
+                                modifier = Modifier.size(54.dp),
                             )
                         }
                     }
