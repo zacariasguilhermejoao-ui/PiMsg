@@ -241,7 +241,7 @@ export async function handleChat(request, env, me, path, method) {
         "DELETE FROM messages WHERE conversation_id = ? AND expires_at IS NOT NULL AND expires_at <= ?"
       ).bind(convId, now).run();
       const r = await env.DB.prepare(
-        `SELECT id, sender_id, kind, body, media_id, reply_to_id, created_at, edited_at
+        `SELECT id, sender_id, kind, body, media_id, reply_to_id, created_at, edited_at, expires_at
          FROM messages WHERE conversation_id = ? AND deleted_at IS NULL
            AND (expires_at IS NULL OR expires_at > ?) AND created_at < ? AND created_at >= ?
          ORDER BY created_at DESC LIMIT ?`
