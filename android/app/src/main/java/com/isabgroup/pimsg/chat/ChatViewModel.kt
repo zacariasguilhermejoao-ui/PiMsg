@@ -26,6 +26,7 @@ data class Message(
     val body: String?,
     val mediaId: String?,
     val createdAt: Long,
+    val expiresAt: Long? = null,
     val pending: Boolean = false,
 )
 
@@ -68,7 +69,8 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
             val serverMessages = (0 until arr.length()).map { i ->
                 val o = arr.getJSONObject(i)
                 Message(o.getString("id"), o.getString("sender_id"), o.getString("kind"),
-                    o.str("body"), o.str("media_id"), o.getLong("created_at"))
+                    o.str("body"), o.str("media_id"), o.getLong("created_at"),
+                    if (o.isNull("expires_at")) null else o.optLong("expires_at"))
             }
             local.saveServer(convId, serverMessages)
             val combined = (serverMessages + local.pending(convId)).sortedByDescending { it.createdAt }
