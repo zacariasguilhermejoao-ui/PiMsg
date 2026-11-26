@@ -95,8 +95,9 @@ Workers AI inclui uma alocação diária gratuita e cobra utilização acima del
 - Não foi observado binding `AI` no Worker de produção.
 - D1 já contém utilizadores, conversas, mensagens, grupos, Stories, subscrições, créditos e dispositivos.
 - Ainda não foram identificadas tabelas de bots.
-- O código de produção inclui `index.js`, `chat.js`, `extra.js`, `pages.js` e `push.js`; algumas versões diferem do `main` do GitHub.
-- Nenhuma alteração de produção ou migração foi executada durante esta auditoria.
+- O código de produção inclui `index.js`, `chat.js`, `extra.js`, `pages.js` e `push.js`.
+- Em 26-11-2026, os cinco módulos foram copiados para `src/` na branch `feature/pimsg-bots-architecture` e comparados byte a byte com o Worker: os cinco estão idênticos.
+- A reconciliação foi feita no GitHub, não no Worker de produção. Não houve deploy nem migração D1.
 
 ## Referências oficiais
 
