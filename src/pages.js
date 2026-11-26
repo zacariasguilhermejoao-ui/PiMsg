@@ -45,7 +45,7 @@ function contactsBlock() {
 
 function legalDoc(title, intro, sections, env) {
   const body = sections.map(([h, t]) => `<h2>${esc(h)}</h2>${t}`).join("");
-  return html(title, `<h1>${esc(title)}</h1><p class="muted">Versão ${LEGAL_VERSION}, atualizada em ${LEGAL_DATE}</p><p class="muted">PiMsg é uma aplicação operada e gerida pela ISAB Group.</p><p>${intro}</p>${body}${contactsBlock()}`);
+  return html(title, `<h1>${esc(title)}</h1><p class="muted">Versão ${LEGAL_VERSION}, atualizada em ${LEGAL_DATE}</p><p class="muted">A PiMsg é uma aplicação de mensagens da ISAB Group.</p><p>${intro}</p>${body}${contactsBlock()}`);
 }
 
 const LEGAL = {
