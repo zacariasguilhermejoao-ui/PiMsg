@@ -78,6 +78,10 @@ fun HomeScreen(
     onOpenChat: (ChatRef) -> Unit,
     onOpenStories: (List<StoryItem>) -> Unit,
     onNavigate: (String) -> Unit,
+    initialContactCode: String? = null,
+    initialContactSlug: String? = null,
+    initialGroupCode: String? = null,
+    onPiLinkConsumed: () -> Unit = {},
     vm: HomeViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -102,6 +106,23 @@ fun HomeScreen(
         ) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         runCatching { Push.register(context) }
     }
+    LaunchedEffect(initialContactCode, initialContactSlug, initialGroupCode) {
+        when {
+            !initialContactCode.isNullOrBlank() -> vm.openRequestCode(initialContactCode) { id, user ->
+                onOpenChat(ChatRef(id, user.name, user.id, null))
+                onPiLinkConsumed()
+            }
+            !initialContactSlug.isNullOrBlank() -> vm.openContactSlug(initialContactSlug) { id, user ->
+                onOpenChat(ChatRef(id, user.name, user.id, null))
+                onPiLinkConsumed()
+            }
+            !initialGroupCode.isNullOrBlank() -> vm.joinGroupCode(initialGroupCode) { id, name, invite ->
+                onOpenChat(ChatRef(id, name, null, invite))
+                onPiLinkConsumed()
+            }
+        }
+    }
+
     LaunchedEffect(query) { delay(300); vm.search(query) }
     LaunchedEffect(searching) { if (searching) focus.requestFocus() }
 
