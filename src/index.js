@@ -130,6 +130,8 @@ async function handle(request, env) {
     const code = await activeCode(env, me.id);
     return json({
       id: me.id, name: me.display_name, bio: me.bio, avatar_key: me.avatar_key,
+      instagram_url: me.instagram_url, facebook_url: me.facebook_url,
+      tiktok_url: me.tiktok_url, youtube_url: me.youtube_url, website_url: me.website_url,
       ring_color: me.ring_color, phone_verified: !!me.phone_verified,
       show_phone: !!me.show_phone, timezone: me.timezone, code: code?.code,
     });
@@ -149,8 +151,15 @@ async function handle(request, env) {
       // field or let an unverified claim block the real owner from registering later.
       await env.DB.prepare("UPDATE users SET phone_contact = ? WHERE id = ?").bind(phone, me.id).run();
     }
-    await env.DB.prepare("UPDATE users SET display_name=?, bio=?, show_phone=?, timezone=? WHERE id=?")
-      .bind(name, bio, show, tz, me.id).run();
+    const social = ["instagram_url", "facebook_url", "tiktok_url", "youtube_url", "website_url"];
+    const values = social.map((key) => {
+      const raw = typeof b[key] === "string" ? b[key].trim().slice(0, 200) : me[key];
+      if (raw && !/^https:\/\//i.test(raw)) throw new Error("As ligações sociais devem começar por https://");
+      return raw || null;
+    });
+    await env.DB.prepare(
+      "UPDATE users SET display_name=?, bio=?, show_phone=?, timezone=?, instagram_url=?, facebook_url=?, tiktok_url=?, youtube_url=?, website_url=? WHERE id=?"
+    ).bind(name, bio, show, tz, ...values, me.id).run();
     return json({ ok: true, phone_verified: !!me.phone_verified });
   }
 
