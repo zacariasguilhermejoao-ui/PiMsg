@@ -68,6 +68,8 @@ async function authenticate(request, env) {
     if (clientIp) {
       const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(clientIp));
       const ipHash = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+      // Remove expired hashed IP counters; retain no raw IP address.
+      await env.DB.prepare("DELETE FROM signup_ip_limits WHERE updated_at < ?").bind(now - 24 * 60 * 60 * 1000).run();
       const windowStart = now - 60 * 60 * 1000;
       const rate = await env.DB.prepare(
         `INSERT INTO signup_ip_limits (ip_hash, window_started_at, signup_count, updated_at)
