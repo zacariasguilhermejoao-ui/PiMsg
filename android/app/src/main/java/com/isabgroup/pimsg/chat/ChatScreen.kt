@@ -328,13 +328,31 @@ private fun FileBody(m: Message, vm: ChatViewModel, fg: Color, sub: Color) {
 
 private suspend fun openMedia(context: Context, m: Message, vm: ChatViewModel) {
     try {
-        val d = Api.download("/v1/media/${m.mediaId}")
-        val dir = File(context.cacheDir, "shared").apply { mkdirs() }
-        val mime = d.mime.substringBefore(";")
-        val ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)
-        val safe = (m.body?.takeIf { it.isNotBlank() } ?: "ficheiro").replace(Regex("[^A-Za-z0-9._-]"), "_")
-        val file = File(dir, if (ext != null && !safe.endsWith(".$ext")) "$safe.$ext" else safe)
-        file.writeBytes(d.bytes)
+        val category = when (m.kind) {
+            "image" -> "Images"
+            "video" -> "Videos"
+            "audio", "music" -> "Audio"
+            else -> "Documents"
+        }
+        val dir = File(context.filesDir, "PiMsg/$category").apply { mkdirs() }
+        val existing = dir.listFiles()?.firstOrNull { it.name.startsWith("${m.mediaId}.") }
+        val file = if (existing != null) existing else {
+            val d = Api.download("/v1/media/${m.mediaId}")
+            val mime = d.mime.substringBefore(";")
+            val ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)
+            val safe = (m.body?.takeIf { it.isNotBlank() } ?: "ficheiro")
+                .replace(Regex("[^A-Za-z0-9._-]"), "_").take(80)
+            val stored = File(dir, "${m.mediaId}_" + if (ext != null) "$safe.$ext" else safe)
+            stored.writeBytes(d.bytes)
+            stored
+        }
+        val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension)
+            ?: when (m.kind) {
+                "image" -> "image/*"
+                "video" -> "video/*"
+                "audio", "music" -> "audio/*"
+                else -> "*/*"
+            }
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
         context.startActivity(
             Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime)
