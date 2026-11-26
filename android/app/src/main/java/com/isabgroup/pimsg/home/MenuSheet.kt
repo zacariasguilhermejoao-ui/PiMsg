@@ -1,16 +1,23 @@
 package com.isabgroup.pimsg.home
 
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -22,6 +29,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,39 +40,44 @@ import kotlinx.coroutines.launch
 
 private data class MenuEntry(val key: String, val label: String)
 
-private val main = listOf(
-    MenuEntry("profile", "Perfil"),
+private val account = listOf(
     MenuEntry("links", "Meus links"),
+)
+private val create = listOf(
+    MenuEntry("newstory", "Criar story"),
+    MenuEntry("newgroup", "Criar grupo"),
+)
+private val app = listOf(
     MenuEntry("bot", "PiBot"),
-    MenuEntry("newstory", "Novo story"),
-    MenuEntry("newgroup", "Novo grupo"),
     MenuEntry("settings", "Definições"),
 )
-private val legal = listOf(
-    MenuEntry("terms", "Termos de uso"),
-    MenuEntry("privacy", "Política de privacidade"),
-    MenuEntry("refund", "Política de reembolso"),
-    MenuEntry("support", "Suporte"),
-)
 
-// Menu em folha: fecha ao arrastar para baixo ou ao tocar no X. O item escolhido e entregue depois de fechar.
+// O menu principal mostra o perfil no topo. Termos e políticas ficam dentro de Definições.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MenuSheet(hasMyStory: Boolean, onDismiss: () -> Unit, onItem: (String) -> Unit) {
+fun MenuSheet(
+    hasMyStory: Boolean,
+    profileName: String,
+    profileAvatar: Bitmap?,
+    onDismiss: () -> Unit,
+    onItem: (String) -> Unit,
+) {
     val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     fun close(after: () -> Unit = {}) {
         scope.launch { state.hide() }.invokeOnCompletion { onDismiss(); after() }
     }
-
     @Composable
-    fun Entry(entry: MenuEntry, color: androidx.compose.ui.graphics.Color = PiColors.White) {
-        Text(
-            entry.label, color = color, fontSize = 17.sp,
-            modifier = Modifier.fillMaxWidth().clickable { close { onItem(entry.key) } }.padding(horizontal = 24.dp, vertical = 14.dp),
-        )
+    fun Heading(value: String) {
+        Text(value, color = PiColors.Gray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.fillMaxWidth().padding(start = 24.dp, top = 18.dp, bottom = 4.dp))
     }
-
+    @Composable
+    fun Entry(entry: MenuEntry) {
+        Text(entry.label, color = PiColors.White, fontSize = 16.sp,
+            modifier = Modifier.fillMaxWidth().clickable { close { onItem(entry.key) } }
+                .padding(horizontal = 24.dp, vertical = 13.dp))
+    }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = state,
@@ -71,23 +85,37 @@ fun MenuSheet(hasMyStory: Boolean, onDismiss: () -> Unit, onItem: (String) -> Un
         dragHandle = { BottomSheetDefaults.DragHandle(color = PiColors.GrayDark) },
     ) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState())) {
-            Row(
-                Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.weight(1f))
                 Text("Menu", color = PiColors.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                IconButton(onClick = { close() }) {
-                    Icon(PiIcons.Close, contentDescription = "Fechar", tint = PiColors.Gray)
-                }
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = { close() }) { Icon(PiIcons.Close, contentDescription = "Fechar", tint = PiColors.Gray) }
             }
-            Spacer(Modifier.height(8.dp))
+            Column(
+                Modifier.fillMaxWidth().clickable { close { onItem("profile") } }.padding(top = 12.dp, bottom = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Box(Modifier.size(88.dp).clip(CircleShape).background(PiColors.SurfaceHigh), contentAlignment = Alignment.Center) {
+                    if (profileAvatar != null) {
+                        Image(profileAvatar.asImageBitmap(), contentDescription = "A minha fotografia de perfil",
+                            modifier = Modifier.fillMaxWidth().size(88.dp).clip(CircleShape))
+                    } else {
+                        Icon(Icons.Filled.Person, contentDescription = "Perfil", tint = PiColors.Gray, modifier = Modifier.size(46.dp))
+                    }
+                }
+                Text(profileName.ifBlank { "O meu perfil" }, color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                Text("Ver e editar perfil", color = PiColors.TextSecondary, fontSize = 13.sp)
+            }
             if (hasMyStory) Entry(MenuEntry("mystory", "Ver o meu story"))
-            main.forEach { Entry(it) }
-            Spacer(Modifier.height(8.dp))
-            legal.forEach { Entry(it, PiColors.TextSecondary) }
-            Entry(MenuEntry("signout", "Sair"), PiColors.Gray)
-            Spacer(Modifier.height(16.dp))
+            Heading("A MINHA CONTA")
+            account.forEach { Entry(it) }
+            Heading("CRIAR")
+            create.forEach { Entry(it) }
+            Heading("APLICAÇÃO")
+            app.forEach { Entry(it) }
+            Entry(MenuEntry("signout", "Sair"))
+            Spacer(Modifier.size(12.dp))
         }
     }
 }
