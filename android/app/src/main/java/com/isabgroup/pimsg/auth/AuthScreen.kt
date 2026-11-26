@@ -141,7 +141,11 @@ fun AuthScreen(onSignedIn: () -> Unit) {
                     error = "Não foi possível entrar com o Google."
                 }
             } catch (e: Exception) {
-                error = "Não foi possível entrar com o Google. Tente novamente."
+                val detail = e.message?.lineSequence()?.firstOrNull()?.take(180)
+                error = when (e) {
+                    is IllegalStateException -> detail ?: "Configuração do Google incompleta no Firebase."
+                    else -> "Falha no Google (" + e.javaClass.simpleName + "): " + (detail ?: "sem detalhes do erro")
+                }
             } finally {
                 busy = false
             }
@@ -158,12 +162,13 @@ fun AuthScreen(onSignedIn: () -> Unit) {
         val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
             override fun onVerificationCompleted(credential: PhoneAuthCredential) {
                 scope.launch {
-                    try { signIn(credential) } catch (e: Exception) { error = "Não foi possível confirmar o número." }
+                    try { signIn(credential) } catch (e: Exception) { error = "Falha ao confirmar o número: " + (e.message?.take(160) ?: e.javaClass.simpleName) }
                     busy = false
                 }
             }
             override fun onVerificationFailed(e: FirebaseException) {
-                error = "Não foi possível enviar o código. Verifique o número."
+                val detail = e.message?.lineSequence()?.firstOrNull()?.take(180)
+                error = "Falha ao enviar SMS (" + e.javaClass.simpleName + "): " + (detail ?: "Firebase recusou o pedido")
                 busy = false
             }
             override fun onCodeSent(id: String, token: PhoneAuthProvider.ForceResendingToken) {
