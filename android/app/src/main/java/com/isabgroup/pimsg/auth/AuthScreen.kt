@@ -79,9 +79,19 @@ fun AuthScreen(onSignedIn: () -> Unit) {
         scope.launch {
             busy = true; error = null
             try {
+                val webClientIdRes = context.resources.getIdentifier(
+                    "default_web_client_id",
+                    "string",
+                    context.packageName,
+                )
+                if (webClientIdRes == 0) {
+                    throw IllegalStateException(
+                        "Firebase não tem um cliente OAuth Web. Adicione um cliente Web ao projeto Firebase e atualize GOOGLE_SERVICES_JSON."
+                    )
+                }
                 val option = GetGoogleIdOption.Builder()
                     .setFilterByAuthorizedAccounts(false)
-                    .setServerClientId(context.getString(R.string.default_web_client_id))
+                    .setServerClientId(context.getString(webClientIdRes))
                     .build()
                 val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
                 val result = CredentialManager.create(context).getCredential(context, request)
