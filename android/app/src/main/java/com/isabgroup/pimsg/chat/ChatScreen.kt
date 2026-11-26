@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -71,7 +72,12 @@ import java.util.Locale
 data class ChatRef(val id: String, val title: String, val otherId: String?, val inviteCode: String?)
 
 @Composable
-fun ChatScreen(ref: ChatRef, onBack: () -> Unit) {
+fun ChatScreen(
+    ref: ChatRef,
+    onBack: () -> Unit,
+    pendingShare: com.isabgroup.pimsg.ShareIncoming? = null,
+    onShareConsumed: () -> Unit = {},
+) {
     val convId = ref.id
     val title = ref.title
     val vm: ChatViewModel = viewModel(key = convId, factory = viewModelFactory { initializer { ChatViewModel(convId) } })
@@ -79,6 +85,24 @@ fun ChatScreen(ref: ChatRef, onBack: () -> Unit) {
     val context = LocalContext.current
     val cr = context.contentResolver
     var text by remember { mutableStateOf("") }
+    // Conteudo partilhado de outra app: texto vai para o campo; foto/video/audio enviam-se
+    LaunchedEffect(pendingShare) {
+        val share = pendingShare ?: return@LaunchedEffect
+        if (!share.text.isNullOrBlank() && text.isEmpty()) {
+            text = share.text
+        }
+        if (share.uris.isNotEmpty()) {
+            for (uri in share.uris) {
+                val mime = cr.getType(uri).orEmpty()
+                val hint = when {
+                    mime.startsWith("audio/") -> "music"
+                    else -> "file"
+                }
+                vm.sendMedia(cr, uri, hint)
+            }
+            onShareConsumed()
+        }
+    }
     var attachOpen by remember { mutableStateOf(false) }
     var optionsOpen by remember { mutableStateOf(false) }
     var reportOpen by remember { mutableStateOf(false) }
@@ -86,7 +110,6 @@ fun ChatScreen(ref: ChatRef, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val isGroup = ref.inviteCode != null
 
-    // Atualiza a conversa a cada poucos segundos (tempo real chega numa fase seguinte)
     LaunchedEffect(convId) {
         while (true) {
             vm.refresh()
@@ -108,13 +131,16 @@ fun ChatScreen(ref: ChatRef, onBack: () -> Unit) {
             IconButton(onClick = { optionsOpen = true }) { Icon(PiIcons.More, "Mais opções", tint = PiColors.White) }
         }
 
-        LazyColumn(
-            Modifier.weight(1f).fillMaxWidth(),
-            reverseLayout = true,
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            items(state.messages, key = { it.id }) { m -> Bubble(m, mine = m.senderId == state.myId, vm = vm) }
+        // Mensagens: sem selecao de texto
+        DisableSelection {
+            LazyColumn(
+                Modifier.weight(1f).fillMaxWidth(),
+                reverseLayout = true,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                items(state.messages, key = { it.id }) { m -> Bubble(m, mine = m.senderId == state.myId, vm = vm) }
+            }
         }
 
         info?.let {
@@ -148,7 +174,11 @@ fun ChatScreen(ref: ChatRef, onBack: () -> Unit) {
             Spacer(Modifier.size(8.dp))
             Box(
                 Modifier.size(46.dp).clip(CircleShape).background(PiColors.White)
-                    .clickable(enabled = text.isNotBlank() && !state.busy) { vm.sendText(text); text = "" },
+                    .clickable(enabled = text.isNotBlank() && !state.busy) {
+                        vm.sendText(text)
+                        text = ""
+                        onShareConsumed()
+                    },
                 contentAlignment = Alignment.Center,
             ) { Icon(PiIcons.Send, "Enviar", tint = Color.Black) }
         }
@@ -262,6 +292,7 @@ private fun ImageBody(m: Message, vm: ChatViewModel, fg: Color) {
     val id = m.mediaId
     val bmp = id?.let { vm.images[it] }
     if (bmp != null) {
+        // Sem zoom: só mostra a foto
         Image(bmp.asImageBitmap(), null, Modifier.widthIn(max = 260.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.FillWidth)
     } else {
         Column(
@@ -294,7 +325,6 @@ private fun FileBody(m: Message, vm: ChatViewModel, fg: Color, sub: Color) {
     }
 }
 
-// Descarrega so quando o utilizador toca, guarda na cache da app e abre com a app do telemovel.
 private suspend fun openMedia(context: Context, m: Message, vm: ChatViewModel) {
     try {
         val d = Api.download("/v1/media/${m.mediaId}")
