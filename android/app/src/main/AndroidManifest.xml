@@ -81,12 +81,19 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
 
-            <!-- Deep links /u/{slug} e convites -->
+            <!-- PiMsg contact links: https://pimsg.tchilopop.com/u/{slug} -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="pimsg.tchilopop.com" android:pathPrefix="/u/" />
+            </intent-filter>
+
+            <!-- PiMsg group invitations: https://pimsg.tchilopop.com/g/{code} -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="pimsg.tchilopop.com" android:pathPrefix="/g/" />
             </intent-filter>
         </activity>
