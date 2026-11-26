@@ -132,7 +132,12 @@ async function handle(request, env) {
     const sub = await env.DB.prepare(
       "SELECT plan, status, expires_at, auto_renewing FROM subscriptions WHERE user_id = ? AND status IN ('active','grace') AND expires_at > ? ORDER BY expires_at DESC LIMIT 1"
     ).bind(me.id, now).first();
-    const day = new Intl.DateTimeFormat("en-CA", { timeZone: me.timezone || "Africa/Luanda" }).format(new Date());
+    let day;
+    try {
+      day = new Intl.DateTimeFormat("en-CA", { timeZone: me.timezone || "Africa/Luanda" }).format(new Date());
+    } catch {
+      day = new Date().toISOString().slice(0, 10);
+    }
     const usage = await env.DB.prepare(
       "SELECT messages_sent FROM daily_usage WHERE user_id = ? AND day = ?"
     ).bind(me.id, day).first();
