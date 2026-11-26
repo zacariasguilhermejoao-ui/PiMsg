@@ -26,7 +26,7 @@ Depois de configurar, confirmar que:
 
 `https://pimsg.tchilopop.com/.well-known/assetlinks.json`
 
-devolve HTTP 200 e o pacote `com.isabgroup.pimsg` com a impressão digital correta. Enquanto a variável não estiver configurada, o endpoint devolve HTTP 503 e a verificação automática de Android App Links não ficará ativa.
+devolve HTTP 200 e o pacote `com.pimsg.isabstudio` com a impressão digital correta. Enquanto a variável não estiver configurada, o endpoint devolve HTTP 503 e a verificação automática de Android App Links não ficará ativa.
 
 ## Testes
 
