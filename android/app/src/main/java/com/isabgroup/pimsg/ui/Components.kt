@@ -3,6 +3,7 @@ package com.isabgroup.pimsg.ui
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
@@ -26,9 +27,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.isabgroup.pimsg.R
+
+/** Ícone estático reutilizável do assistente PiBot. */
+@Composable
+fun PiBotAvatar(
+    modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+    contentDescription: String = "PiBot",
+) {
+    Image(
+        painter = painterResource(R.drawable.pi_bot),
+        contentDescription = contentDescription,
+        modifier = modifier.then(Modifier.height(size)),
+    )
+}
 
 fun openUrl(context: Context, url: String) {
     try {
