@@ -47,6 +47,9 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.auth.FirebaseAuthMultiFactorException
+import com.google.firebase.auth.MultiFactorResolver
+import com.google.firebase.auth.TotpMultiFactorGenerator
 import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.ApiException
 import org.json.JSONObject
@@ -89,10 +92,45 @@ fun AuthScreen(onSignedIn: () -> Unit) {
     var phone by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var mfaResolver by remember { mutableStateOf<MultiFactorResolver?>(null) }
+    var mfaCode by remember { mutableStateOf("") }
 
     suspend fun signIn(credential: AuthCredential) {
-        auth.signInWithCredential(credential).await()
-        onSignedIn()
+        try {
+            auth.signInWithCredential(credential).await()
+            onSignedIn()
+        } catch (e: FirebaseAuthMultiFactorException) {
+            mfaResolver = e.resolver
+            mfaCode = ""
+            error = null
+        }
+    }
+
+    fun verifySecondFactor() {
+        val resolver = mfaResolver ?: return
+        val hint = resolver.hints.firstOrNull { it.factorId == TotpMultiFactorGenerator.FACTOR_ID }
+        if (hint == null) {
+            error = "A conta exige um método de verificação que esta versão ainda não suporta."
+            return
+        }
+        if (mfaCode.length != 6) {
+            error = "Introduza o código de seis dígitos do autenticador."
+            return
+        }
+        scope.launch {
+            busy = true
+            error = null
+            try {
+                val assertion = TotpMultiFactorGenerator.getAssertionForSignIn(hint.uid, mfaCode)
+                resolver.resolveSignIn(assertion).await()
+                mfaResolver = null
+                onSignedIn()
+            } catch (e: Exception) {
+                error = "Código de verificação incorreto ou expirado."
+            } finally {
+                busy = false
+            }
+        }
     }
 
     fun googleSignIn() {
@@ -179,7 +217,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
 
         Button(
             onClick = ::googleSignIn,
-            enabled = !busy,
+            enabled = !busy && mfaResolver == null,
             modifier = Modifier.fillMaxWidth().height(52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = PiColors.White, contentColor = Color(0xFF1F1F1F)),
         ) {
@@ -198,7 +236,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
             focusedTextColor = PiColors.White, unfocusedTextColor = PiColors.White, cursorColor = PiColors.White,
         )
         OutlinedTextField(
-            value = phone, onValueChange = { value -> phone = value.filter(Char::isDigit).take(14) }, singleLine = true,
+            value = phone, onValueChange = { value -> phone = value.filter(Char::isDigit).take(14) }, singleLine = true, enabled = mfaResolver == null,
             prefix = { if (dialCode > 0) Text("+$dialCode", color = PiColors.White) },
             placeholder = { Text("Número de telefone", color = PiColors.Gray) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -206,7 +244,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
         )
         Spacer(Modifier.height(12.dp))
         Button(
-            onClick = ::continueWithPhone, enabled = !busy,
+            onClick = ::continueWithPhone, enabled = !busy && mfaResolver == null,
             modifier = Modifier.fillMaxWidth().height(52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = PiColors.SurfaceHigh, contentColor = PiColors.White),
         ) { Text("Continuar com número", fontSize = 16.sp) }
@@ -215,6 +253,29 @@ fun AuthScreen(onSignedIn: () -> Unit) {
             "O número não será confirmado. Sem associar Google, não poderá recuperar a conta após reinstalar a app ou trocar de aparelho.",
             color = PiColors.Gray, fontSize = 11.sp,
         )
+
+        if (mfaResolver != null) {
+            Spacer(Modifier.height(18.dp))
+            Text("Verificação adicional", color = PiColors.White, fontSize = 16.sp)
+            Text("Introduza o código de seis dígitos gerado pela aplicação autenticadora.", color = PiColors.TextSecondary, fontSize = 12.sp)
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = mfaCode,
+                onValueChange = { mfaCode = it.filter(Char::isDigit).take(6) },
+                singleLine = true,
+                placeholder = { Text("Código de 6 dígitos", color = PiColors.Gray) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                modifier = Modifier.fillMaxWidth(),
+                colors = fieldColors,
+            )
+            Spacer(Modifier.height(10.dp))
+            Button(
+                onClick = ::verifySecondFactor,
+                enabled = !busy && mfaCode.length == 6,
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = PiColors.White, contentColor = Color.Black),
+            ) { Text("Confirmar código") }
+        }
 
         error?.let {
             Spacer(Modifier.height(16.dp))
