@@ -522,7 +522,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Text("FREE", color = PiColors.Gray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(16.dp)) {
             Text("Acesso essencial", color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            listOf("Até 30 contactos", "Até 30 mensagens por dia", "5 respostas do Pi AI por dia", "Mensagens e chamadas básicas do PiMsg").forEach {
+            listOf("Até 30 contactos", "Até 30 mensagens por dia", "5 respostas do Pi AI por dia", "Conversas e partilha de ficheiros").forEach {
                 Text("•  $it", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp))
             }
             if (current == "free") Text("Plano em utilização", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
