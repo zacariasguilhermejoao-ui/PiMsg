@@ -49,6 +49,8 @@ export async function handleExtra(request, env, me, path, method) {
     if (blocked) return fail(404, "utilizador nao encontrado");
     return json({
       id: u.id, name: u.display_name, bio: u.bio, avatar_key: u.avatar_key,
+      instagram_url: u.instagram_url, facebook_url: u.facebook_url,
+      tiktok_url: u.tiktok_url, youtube_url: u.youtube_url, website_url: u.website_url,
       intro_video_key: u.intro_video_key, ring_color: u.ring_color, phone: u.show_phone ? u.phone_e164 : null,
     });
   }
