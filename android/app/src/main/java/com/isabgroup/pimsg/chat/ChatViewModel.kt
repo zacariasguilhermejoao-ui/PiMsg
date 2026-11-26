@@ -1,6 +1,7 @@
 package com.isabgroup.pimsg.chat
 
 import android.content.ContentResolver
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.io.File
 
 data class Message(
     val id: String,
@@ -24,6 +26,7 @@ data class Message(
     val body: String?,
     val mediaId: String?,
     val createdAt: Long,
+    val pending: Boolean = false,
 )
 
 data class ChatState(
@@ -38,46 +41,86 @@ private const val MAX_MEDIA = 50L * 1024 * 1024
 
 private fun JSONObject.str(key: String): String? = if (!has(key) || isNull(key)) null else getString(key)
 
-class ChatViewModel(private val convId: String) : ViewModel() {
+class ChatViewModel(context: Context, private val convId: String) : ViewModel() {
+    private val appContext = context.applicationContext
+    private val local = LocalChatStore(appContext)
     private val _state = MutableStateFlow(ChatState())
     val state: StateFlow<ChatState> = _state.asStateFlow()
-
-    // Fotos so sao descarregadas quando o utilizador toca nelas.
     val images = mutableStateMapOf<String, Bitmap>()
-
     private var lastNewestId: String? = null
+    private var syncing = false
+
+    init {
+        // O histórico aparece imediatamente, mesmo sem rede.
+        _state.update { it.copy(messages = local.read(convId), loading = false) }
+    }
 
     suspend fun refresh() {
+        // Sempre mantém a cópia local visível se a rede falhar.
+        _state.update { it.copy(messages = local.read(convId)) }
         try {
             if (_state.value.myId == null) {
                 val me = Api.get("/v1/me")
                 _state.update { it.copy(myId = me.getString("id")) }
             }
-            val arr = Api.get("/v1/chats/$convId/messages?limit=60").getJSONArray("messages")
-            val list = (0 until arr.length()).map { i ->
+            syncPending()
+            val arr = Api.get("/v1/chats/$convId/messages?limit=100").getJSONArray("messages")
+            val serverMessages = (0 until arr.length()).map { i ->
                 val o = arr.getJSONObject(i)
-                Message(o.getString("id"), o.getString("sender_id"), o.getString("kind"), o.str("body"), o.str("media_id"), o.getLong("created_at"))
+                Message(o.getString("id"), o.getString("sender_id"), o.getString("kind"),
+                    o.str("body"), o.str("media_id"), o.getLong("created_at"))
             }
-            _state.update { it.copy(messages = list, loading = false) }
-            val newest = list.firstOrNull()?.id
+            local.saveServer(convId, serverMessages)
+            val combined = (serverMessages + local.pending(convId)).sortedByDescending { it.createdAt }
+            _state.update { it.copy(messages = combined, loading = false) }
+            val newest = serverMessages.firstOrNull()?.id
             if (newest != null && newest != lastNewestId) {
                 lastNewestId = newest
                 runCatching { Api.post("/v1/chats/$convId/read", JSONObject()) }
             }
-        } catch (e: Exception) {
-            _state.update { it.copy(loading = false) }
+        } catch (_: Exception) {
+            _state.update { it.copy(messages = local.read(convId), loading = false) }
+        }
+    }
+
+    private suspend fun syncPending() {
+        if (syncing) return
+        syncing = true
+        try {
+            val sender = _state.value.myId ?: return
+            for (message in local.pending(convId).sortedBy { it.createdAt }) {
+                try {
+                    Api.post("/v1/chats/$convId/messages",
+                        JSONObject().put("kind", "text").put("body", message.body.orEmpty()))
+                    local.markSent(message.id)
+                } catch (_: Exception) {
+                    // Mantém na fila para tentar novamente na próxima sincronização.
+                    break
+                }
+            }
+        } finally {
+            syncing = false
         }
     }
 
     fun sendText(text: String) {
         val body = text.trim()
         if (body.isEmpty()) return
-        viewModelScope.launch {
-            post(JSONObject().put("kind", "text").put("body", body))
-        }
+        val message = Message(
+            id = "local-" + java.util.UUID.randomUUID().toString(),
+            senderId = _state.value.myId ?: "me",
+            kind = "text",
+            body = body,
+            mediaId = null,
+            createdAt = System.currentTimeMillis(),
+            pending = true,
+        )
+        local.enqueue(convId, message)
+        _state.update { it.copy(messages = (it.messages + message).sortedByDescending { m -> m.createdAt }, error = null) }
+        viewModelScope.launch { refresh() }
     }
 
-    // hint: "file" para qualquer ficheiro, "music" para audio escolhido em Musica
+    // Os anexos são enviados quando há rede; mensagens de texto ficam em fila offline.
     fun sendMedia(cr: ContentResolver, uri: Uri, hint: String) {
         viewModelScope.launch {
             _state.update { it.copy(busy = true, error = null) }
@@ -105,31 +148,27 @@ class ChatViewModel(private val convId: String) : ViewModel() {
                     mime.startsWith("audio/") -> "audio"
                     else -> "file"
                 }
-                post(JSONObject().put("kind", kind).put("media_id", mediaId).put("body", name ?: ""))
+                Api.post("/v1/chats/$convId/messages", JSONObject().put("kind", kind)
+                    .put("media_id", mediaId).put("body", name ?: ""))
+                _state.update { it.copy(busy = false) }
+                refresh()
             } catch (e: Exception) {
                 _state.update { it.copy(busy = false, error = errorText(e, upload = true)) }
             }
         }
     }
 
-    private suspend fun post(body: JSONObject) {
-        _state.update { it.copy(busy = true, error = null) }
-        try {
-            Api.post("/v1/chats/$convId/messages", body)
-            _state.update { it.copy(busy = false) }
-            refresh()
-        } catch (e: Exception) {
-            _state.update { it.copy(busy = false, error = errorText(e, upload = false)) }
-        }
-    }
-
     suspend fun loadImage(mediaId: String) {
         if (images.containsKey(mediaId)) return
         try {
-            val d = Api.download("/v1/media/$mediaId")
-            BitmapFactory.decodeByteArray(d.bytes, 0, d.bytes.size)?.let { images[mediaId] = it }
-        } catch (e: Exception) {
-            _state.update { it.copy(error = "Não foi possível abrir a foto.") }
+            val dir = File(appContext.filesDir, "PiMsg/Images").apply { mkdirs() }
+            val cached = File(dir, "$mediaId.img")
+            val bytes = if (cached.exists()) cached.readBytes() else {
+                Api.download("/v1/media/$mediaId").bytes.also { cached.writeBytes(it) }
+            }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.let { images[mediaId] = it }
+        } catch (_: Exception) {
+            _state.update { it.copy(error = "Não foi possível abrir a foto. Se estiver offline, descarregue-a quando tiver Internet.") }
         }
     }
 
@@ -141,7 +180,7 @@ class ChatViewModel(private val convId: String) : ViewModel() {
             "Limite diário de mensagens atingido. Volte amanhã, compre créditos ou ative o plano Pro."
         e is ApiException && e.code == 403 -> "Mensagem não enviada."
         e is ApiException && e.code == 413 -> "O ficheiro passa de 50 MB."
-        upload -> "Não foi possível enviar o ficheiro."
-        else -> "Não foi possível enviar a mensagem."
+        upload -> "Não foi possível enviar o ficheiro. Verifique a ligação à Internet."
+        else -> "Mensagem guardada no telefone; será enviada quando a ligação voltar."
     }
 }
