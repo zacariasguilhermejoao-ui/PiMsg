@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,10 +45,23 @@ fun piFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedLabelColor = PiColors.White, unfocusedLabelColor = PiColors.Gray,
 )
 
+/** Botão principal de ação — toca som de clique. */
 @Composable
-fun PiButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, primary: Boolean = true, enabled: Boolean = true) {
+fun PiButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    primary: Boolean = true,
+    enabled: Boolean = true,
+    sound: Boolean = true,
+) {
+    val view = LocalView.current
     Button(
-        onClick = onClick, enabled = enabled,
+        onClick = {
+            if (sound && enabled) view.playClick()
+            onClick()
+        },
+        enabled = enabled,
         modifier = modifier.fillMaxWidth().height(50.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (primary) PiColors.White else PiColors.SurfaceHigh,
@@ -61,6 +75,7 @@ fun PiButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, p
 fun ScreenFrame(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxSize().background(PiColors.Background).systemBarsPadding().imePadding()) {
         Row(Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Voltar: sem som (navegação comum)
             IconButton(onClick = onBack) { Icon(PiIcons.Back, "Voltar", tint = PiColors.White) }
             Text(title, color = PiColors.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
         }
