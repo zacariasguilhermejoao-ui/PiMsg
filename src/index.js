@@ -208,7 +208,7 @@ async function handle(request, env) {
     return json({ ok: true, scheduled_for: now + 14 * 86400000 });
   }
 
-  if (path === "/v1/translate" && method === "POST") return handleTranslate(request, env);
+  if (path === "/v1/translate" && method === "POST") return handleTranslate(request, env, me);
 
   const chatResponse = await handleChat(request, env, me, path, method);
   if (chatResponse) return chatResponse;
