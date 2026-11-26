@@ -159,9 +159,11 @@ async function handle(request, env) {
     if (values.some((value) => value && !/^https:\/\//i.test(value))) {
       return fail(400, "As ligações sociais devem começar por https://");
     }
+    const ringColor = typeof b.ring_color === "string" ? b.ring_color.trim().slice(0, 7) : me.ring_color;
+    if (ringColor && !/^#[0-9a-fA-F]{6}$/.test(ringColor)) return fail(400, "cor do perfil invalida");
     await env.DB.prepare(
-      "UPDATE users SET display_name=?, bio=?, show_phone=?, timezone=?, instagram_url=?, facebook_url=?, tiktok_url=?, youtube_url=?, website_url=? WHERE id=?"
-    ).bind(name, bio, show, tz, ...values, me.id).run();
+      "UPDATE users SET display_name=?, bio=?, show_phone=?, timezone=?, instagram_url=?, facebook_url=?, tiktok_url=?, youtube_url=?, website_url=?, ring_color=? WHERE id=?"
+    ).bind(name, bio, show, tz, ...values, ringColor || "#8E8E93", me.id).run();
     return json({ ok: true, phone_verified: !!me.phone_verified });
   }
 
