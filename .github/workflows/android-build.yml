@@ -112,6 +112,20 @@ jobs:
           fi
           printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
           test -s android/app/google-services.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          config = json.loads(Path("android/app/google-services.json").read_text())
+          clients = config.get("client", [])
+          expected = "com.pimsg.isabstudio"
+          if not any(
+              client.get("client_info", {}).get("android_client_info", {}).get("package_name") == expected
+              for client in clients
+          ):
+              raise SystemExit("google-services.json has no Android client for com.pimsg.isabstudio")
+          print("Firebase JSON is valid and contains the PiMsg Android application ID.")
+          PY
 
       - name: Build signed release APK and AAB
         env:
@@ -120,12 +134,15 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: gradle -p android --no-daemon clean assembleRelease bundleRelease
 
-      - name: Verify APK signature
+      - name: Verify signed APK and AAB
         run: |
           set -euo pipefail
           APK="android/app/build/outputs/apk/release/app-release.apk"
+          AAB="android/app/build/outputs/bundle/release/app-release.aab"
           test -s "$APK"
-          apksigner verify --verbose "$APK"
+          test -s "$AAB"
+          apksigner verify --verbose --print-certs "$APK"
+          jarsigner -verify -verbose "$AAB"
 
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
