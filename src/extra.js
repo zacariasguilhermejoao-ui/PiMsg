@@ -130,7 +130,7 @@ export async function handleExtra(request, env, me, path, method) {
 
   if (path === "/v1/links" && method === "GET") {
     const r = await env.DB.prepare(
-      "SELECT id, slug, subject, intro_text, opens_count, created_at FROM contact_links WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC"
+      "SELECT id, slug, subject, intro_text, image_media_id, opens_count, created_at FROM contact_links WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC"
     ).bind(me.id).all();
     return json({ links: r.results.map((l) => ({ ...l, url: `https://pimsg.tchilopop.com/u/${l.slug}` })) });
   }
@@ -140,11 +140,17 @@ export async function handleExtra(request, env, me, path, method) {
     if (!subject) return fail(400, "assunto obrigatorio");
     const c = await env.DB.prepare("SELECT COUNT(*) AS n FROM contact_links WHERE user_id = ? AND is_active = 1").bind(me.id).first();
     if (c.n >= 20) return fail(400, "limite de 20 links atingido");
+    let imageMediaId = null;
+    if (b.image_media_id) {
+      const media = await env.DB.prepare("SELECT id, mime FROM media WHERE id = ? AND owner_id = ?").bind(String(b.image_media_id), me.id).first();
+      if (!media || !String(media.mime).startsWith("image/")) return fail(400, "imagem do link invalida");
+      imageMediaId = media.id;
+    }
     const id = crypto.randomUUID();
     const s = slug(8);
     await env.DB.prepare(
-      "INSERT INTO contact_links (id, user_id, slug, subject, intro_text, created_at) VALUES (?,?,?,?,?,?)"
-    ).bind(id, me.id, s, subject, typeof b.intro_text === "string" ? b.intro_text.trim().slice(0, 400) : null, now).run();
+      "INSERT INTO contact_links (id, user_id, slug, subject, intro_text, image_media_id, created_at) VALUES (?,?,?,?,?,?,?)"
+    ).bind(id, me.id, s, subject, typeof b.intro_text === "string" ? b.intro_text.trim().slice(0, 400) : null, imageMediaId, now).run();
     return json({ id, slug: s, url: `https://pimsg.tchilopop.com/u/${s}` }, 201);
   }
   const linkDel = path.match(/^\/v1\/links\/([\w-]+)$/);
