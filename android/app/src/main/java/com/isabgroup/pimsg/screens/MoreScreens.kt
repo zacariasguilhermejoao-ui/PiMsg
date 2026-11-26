@@ -466,3 +466,82 @@ fun LinksScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(24.dp))
     }
 }
+
+
+// ---------------------------------------------------------------- Planos
+@Composable
+fun PlansScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    var loading by remember { mutableStateOf(true) }
+    var current by remember { mutableStateOf("free") }
+    var status by remember { mutableStateOf("free") }
+    var expiresAt by remember { mutableStateOf<Long?>(null) }
+    var messageUsage by remember { mutableStateOf(0) }
+    var aiUsage by remember { mutableStateOf(0) }
+    var messageLimit by remember { mutableStateOf<Int?>(30) }
+    var aiLimit by remember { mutableStateOf(5) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val data = Api.get("/v1/plan")
+            current = data.optString("current_plan", "free")
+            status = data.optString("subscription_status", "free")
+            expiresAt = if (data.isNull("expires_at")) null else data.optLong("expires_at")
+            messageUsage = data.optInt("message_usage")
+            aiUsage = data.optInt("ai_usage")
+            messageLimit = if (data.isNull("message_limit")) null else data.optInt("message_limit")
+            aiLimit = data.optInt("ai_limit", 5)
+        } catch (e: Exception) { error = "Não foi possível consultar o plano da conta." }
+        finally { loading = false }
+    }
+
+    ScreenFrame("Planos", onBack) {
+        Text("Escolha o nível de acesso adequado à sua utilização do PiMsg.", color = PiColors.TextSecondary, fontSize = 14.sp)
+        Spacer(Modifier.height(18.dp))
+        Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(16.dp)) {
+            Text(if (current == "free") "Plano atual · Free" else "Plano atual · Pro", color = PiColors.White, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                if (current == "free") "Está a utilizar o plano gratuito." else "A sua subscrição Pro está ativa.",
+                color = PiColors.TextSecondary, fontSize = 13.sp,
+            )
+            Spacer(Modifier.height(12.dp))
+            Text("Mensagens hoje: $messageUsage" + (messageLimit?.let { " / $it" } ?: " · sem limite diário"), color = PiColors.White, fontSize = 13.sp)
+            Text("Pi AI hoje: $aiUsage / $aiLimit respostas", color = PiColors.White, fontSize = 13.sp)
+            if (expiresAt != null) {
+                val date = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(expiresAt!!))
+                Text("Válido até $date", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+            }
+            if (current != "free") Text("Estado: $status", color = PiColors.TextSecondary, fontSize = 12.sp)
+        }
+        Spacer(Modifier.height(18.dp))
+        Text("FREE", color = PiColors.Gray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(16.dp)) {
+            Text("Acesso essencial", color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            listOf("Até 30 contactos", "Até 30 mensagens por dia", "5 respostas do Pi AI por dia", "Mensagens e chamadas básicas do PiMsg").forEach {
+                Text("•  $it", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp))
+            }
+            if (current == "free") Text("Plano em utilização", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
+        }
+        Spacer(Modifier.height(14.dp))
+        Text("PRO", color = PiColors.Gray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(16.dp)) {
+            Text("Mais capacidade", color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            listOf("Mensagens sem limite diário", "30 respostas do Pi AI por dia", "Vídeo de apresentação no perfil", "Planos de subscrição semanal e mensal").forEach {
+                Text("•  $it", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp))
+            }
+            Text(
+                "Os preços e a adesão são apresentados pela Google Play. A compra ainda não está ativa nesta versão; não será apresentado um botão de pagamento enquanto os produtos não estiverem configurados e validados.",
+                color = PiColors.Gray, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 12.dp),
+            )
+            if (current != "free") {
+                PiButton("Gerir subscrição na Google Play", {
+                    openUrl(context, "https://play.google.com/store/account/subscriptions")
+                }, primary = false)
+            }
+        }
+        error?.let { Text(it, color = PiColors.Danger, fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp)) }
+        if (loading) Text("A consultar a sua conta…", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
+        Spacer(Modifier.height(20.dp))
+    }
+}
