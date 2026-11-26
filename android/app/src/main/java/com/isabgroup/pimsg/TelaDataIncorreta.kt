@@ -1,8 +1,7 @@
-package com.pimsg.app
+package com.isabgroup.pimsg
 
 import android.content.Intent
 import android.provider.Settings
-import android.webkit.WebView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,89 +14,51 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 
 @Composable
-fun TelaDataIncorreta(
-    onVerificarNovamente: () -> Unit = {}
-) {
+fun TelaDataIncorreta(onVerificarNovamente: () -> Unit = {}) {
     val context = LocalContext.current
-
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .padding(horizontal = 24.dp, vertical = 20.dp),
+        modifier = Modifier.fillMaxSize().background(Color.Black).padding(horizontal = 24.dp, vertical = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // Área da Animação SVG (adapta-se automaticamente a qualquer tamanho de ecrã)
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            contentAlignment = Alignment.Center
+        Column(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { ctx ->
-                    WebView(ctx).apply {
-                        setBackgroundColor(android.graphics.Color.BLACK)
-                        settings.loadWithOverviewMode = true
-                        settings.useWideViewPort = true
-                        isVerticalScrollBarEnabled = false
-                        isHorizontalScrollBarEnabled = false
-                        // Coloque o ficheiro tela_data_incorreta_dark_v2.svg na pasta app/src/main/assets/
-                        loadUrl("file:///android_asset/tela_data_incorreta_dark_v2.svg")
-                    }
-                }
+            Text("!", color = Color(0xFF3B82F6), fontSize = 76.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(24.dp))
+            Text("A data e hora estão incorretas", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "Para continuares a usar o PiMsg, atualiza a data e a hora do teu telemóvel nas definições. Recomendamos ativar a opção de data e hora automáticas.",
+                color = Color(0xFFA1A1AA), fontSize = 16.sp, textAlign = TextAlign.Center, lineHeight = 24.sp
             )
         }
-
-        // Botões na base do ecrã
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
                 onClick = {
-                    val intent = Intent(Settings.ACTION_DATE_SETTINGS)
-                    context.startActivity(intent)
+                    runCatching { context.startActivity(Intent(Settings.ACTION_DATE_SETTINGS)) }
+                        .onFailure { context.startActivity(Intent(Settings.ACTION_SETTINGS)) }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
+                modifier = Modifier.fillMaxWidth().height(54.dp),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF3B82F6),
-                    contentColor = Color.White
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6), contentColor = Color.White)
             ) {
-                Text(
-                    text = "Abrir Definições de Data e Hora",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Text("Abrir Definições de Data e Hora", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
-
             Button(
                 onClick = onVerificarNovamente,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF18181B),
-                    contentColor = Color(0xFFA1A1AA)
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF18181B), contentColor = Color(0xFFA1A1AA))
             ) {
-                Text(
-                    text = "Já atualizei, tentar novamente",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
+                Text("Já atualizei, tentar novamente", fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
