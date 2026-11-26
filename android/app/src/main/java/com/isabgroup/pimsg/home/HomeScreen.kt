@@ -1,5 +1,11 @@
 package com.isabgroup.pimsg.home
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,9 +27,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,37 +47,67 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.isabgroup.pimsg.R
+import com.isabgroup.pimsg.chat.ChatRef
+import com.isabgroup.pimsg.data.Push
 import com.isabgroup.pimsg.ui.ChatRowSkeleton
 import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiIcons
+import com.isabgroup.pimsg.ui.openUrl
+import com.isabgroup.pimsg.ui.piFieldColors
 import kotlinx.coroutines.delay
+
+private const val SITE = "https://pimsg.tchilopop.com"
 
 private fun parseColor(hex: String?): Color =
     try { Color(android.graphics.Color.parseColor(hex)) } catch (e: Exception) { PiColors.Gray }
 
 @Composable
-fun HomeScreen(onSignOut: () -> Unit, onOpenChat: (String, String) -> Unit, vm: HomeViewModel = viewModel()) {
+fun HomeScreen(
+    onSignOut: () -> Unit,
+    onOpenChat: (ChatRef) -> Unit,
+    onOpenStories: (List<StoryItem>) -> Unit,
+    onNavigate: (String) -> Unit,
+    vm: HomeViewModel = viewModel(),
+) {
+    val context = LocalContext.current
     val state by vm.state.collectAsStateWithLifecycle()
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var menuOpen by remember { mutableStateOf(false) }
+    var joinTarget by remember { mutableStateOf<GroupItem?>(null) }
+    var newGroupOpen by remember { mutableStateOf(false) }
+    var newGroupName by remember { mutableStateOf("") }
     val focus = remember { FocusRequester() }
 
-    LaunchedEffect(Unit) { vm.load() }
+    val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    val pickStory = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) vm.postStory(context.contentResolver, uri)
+    }
+
+    LaunchedEffect(Unit) {
+        vm.load()
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        runCatching { Push.register(context) }
+    }
     LaunchedEffect(query) { delay(300); vm.search(query) }
     LaunchedEffect(searching) { if (searching) focus.requestFocus() }
 
+    val myStories = state.myId?.let { state.stories[it] }.orEmpty()
+
     Column(Modifier.fillMaxSize().background(PiColors.Background).systemBarsPadding()) {
-        // Topo: menu de tres traços e lupa. A lupa abre o campo de pesquisa; o X fecha.
         Row(
             Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -113,7 +152,10 @@ fun HomeScreen(onSignOut: () -> Unit, onOpenChat: (String, String) -> Unit, vm: 
         val showResults = searching && query.trim().length >= 2
 
         state.notice?.let {
-            Text(it, color = PiColors.Danger, fontSize = 14.sp, modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp))
+            Text(
+                it, color = PiColors.White, fontSize = 14.sp,
+                modifier = Modifier.fillMaxWidth().clickable { vm.clearNotice() }.background(PiColors.Surface).padding(horizontal = 20.dp, vertical = 10.dp),
+            )
         }
 
         if (!showResults) {
@@ -140,12 +182,22 @@ fun HomeScreen(onSignOut: () -> Unit, onOpenChat: (String, String) -> Unit, vm: 
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 showResults -> LazyColumn(Modifier.fillMaxSize()) {
-                    if (state.results.isEmpty()) item { Hint("Nenhum resultado. Confira o nome ou o código.") }
-                    items(state.results, key = { it.id }) { u ->
+                    if (state.results.isEmpty() && state.groupResults.isEmpty()) item { Hint("Nenhum resultado. Confira o nome ou o código.") }
+                    items(state.results, key = { "u" + it.id }) { u ->
                         PersonRow(
-                            title = u.name, subtitle = "Toque para conversar", ring = null, unread = 0,
-                            onClick = { vm.openDirect(u) { id -> searching = false; query = ""; onOpenChat(id, u.name) } },
+                            title = u.name,
+                            subtitle = u.linkSubject?.let { "Assunto: $it" } ?: "Toque para conversar",
+                            ring = null, unread = 0,
+                            onClick = {
+                                vm.openDirect(u) { id ->
+                                    searching = false; query = ""
+                                    onOpenChat(ChatRef(id, u.name, u.id, null))
+                                }
+                            },
                         )
+                    }
+                    items(state.groupResults, key = { "g" + it.id }) { g ->
+                        PersonRow(title = g.name, subtitle = "Grupo, toque para entrar", ring = null, unread = 0, onClick = { joinTarget = g })
                     }
                 }
                 state.loading -> Column { repeat(8) { ChatRowSkeleton() } }
@@ -156,10 +208,12 @@ fun HomeScreen(onSignOut: () -> Unit, onOpenChat: (String, String) -> Unit, vm: 
                 )
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     items(state.chats, key = { it.id }) { c ->
+                        val stories = c.otherId?.let { state.stories[it] }.orEmpty()
                         PersonRow(
                             title = c.title, subtitle = c.preview, unread = c.unread,
-                            ring = if (c.hasStory) parseColor(c.ringColor) else null,
-                            onClick = { onOpenChat(c.id, c.title) },
+                            ring = if (stories.isNotEmpty()) parseColor(c.ringColor) else null,
+                            onAvatarClick = if (stories.isNotEmpty()) ({ onOpenStories(stories) }) else null,
+                            onClick = { onOpenChat(ChatRef(c.id, c.title, c.otherId, c.inviteCode)) },
                         )
                     }
                 }
@@ -172,7 +226,75 @@ fun HomeScreen(onSignOut: () -> Unit, onOpenChat: (String, String) -> Unit, vm: 
         )
     }
 
-    if (menuOpen) MenuSheet(onDismiss = { menuOpen = false }, onSignOut = onSignOut)
+    if (menuOpen) {
+        MenuSheet(
+            hasMyStory = myStories.isNotEmpty(),
+            onDismiss = { menuOpen = false },
+            onItem = { key ->
+                when (key) {
+                    "terms", "privacy", "refund", "support" -> openUrl(context, "$SITE/$key")
+                    "newstory" -> pickStory.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+                    "mystory" -> onOpenStories(myStories)
+                    "newgroup" -> { newGroupName = ""; newGroupOpen = true }
+                    "signout" -> onSignOut()
+                    else -> onNavigate(key)
+                }
+            },
+        )
+    }
+
+    joinTarget?.let { g ->
+        AlertDialog(
+            onDismissRequest = { joinTarget = null },
+            containerColor = PiColors.Surface,
+            title = { Text(g.name, color = PiColors.White) },
+            text = {
+                Text(
+                    (g.description?.let { "$it\n\n" } ?: "") + "Quer ver as mensagens anteriores do grupo? Os ficheiros nunca são descarregados sozinhos.",
+                    color = PiColors.TextSecondary,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val code = query.trim()
+                    joinTarget = null
+                    vm.joinGroup(code, true) { id -> searching = false; query = ""; onOpenChat(ChatRef(id, g.name, null, code.uppercase())) }
+                }) { Text("Com histórico", color = PiColors.White) }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        val code = query.trim()
+                        joinTarget = null
+                        vm.joinGroup(code, false) { id -> searching = false; query = ""; onOpenChat(ChatRef(id, g.name, null, code.uppercase())) }
+                    }) { Text("Sem histórico", color = PiColors.White) }
+                    TextButton(onClick = { joinTarget = null }) { Text("Cancelar", color = PiColors.Gray) }
+                }
+            },
+        )
+    }
+
+    if (newGroupOpen) {
+        AlertDialog(
+            onDismissRequest = { newGroupOpen = false },
+            containerColor = PiColors.Surface,
+            title = { Text("Novo grupo", color = PiColors.White) },
+            text = {
+                OutlinedTextField(
+                    value = newGroupName, onValueChange = { newGroupName = it.take(60) }, singleLine = true,
+                    label = { Text("Nome do grupo") }, colors = piFieldColors(),
+                )
+            },
+            confirmButton = {
+                TextButton(enabled = newGroupName.isNotBlank(), onClick = {
+                    val name = newGroupName
+                    newGroupOpen = false
+                    vm.createGroup(name) { id, invite -> onOpenChat(ChatRef(id, name.trim(), null, invite)) }
+                }) { Text("Criar", color = PiColors.White) }
+            },
+            dismissButton = { TextButton(onClick = { newGroupOpen = false }) { Text("Cancelar", color = PiColors.Gray) } },
+        )
+    }
 }
 
 @Composable
@@ -180,15 +302,23 @@ private fun Hint(text: String) {
     Text(text, color = PiColors.Gray, fontSize = 15.sp, modifier = Modifier.fillMaxWidth().padding(28.dp))
 }
 
-// Linha de conversa. O circulo colorido aparece quando a pessoa tem story ativo.
+// Linha de conversa. O circulo colorido aparece quando a pessoa tem story ativo; tocar nele abre o story.
 @Composable
-private fun PersonRow(title: String, subtitle: String, unread: Int, ring: Color?, onClick: () -> Unit) {
+private fun PersonRow(
+    title: String,
+    subtitle: String,
+    unread: Int,
+    ring: Color?,
+    onClick: () -> Unit,
+    onAvatarClick: (() -> Unit)? = null,
+) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        val ringModifier = if (ring != null) Modifier.border(2.5.dp, ring, CircleShape).padding(4.dp) else Modifier.padding(4.dp)
-        Box(Modifier.then(ringModifier)) {
+        var avatar = if (ring != null) Modifier.border(2.5.dp, ring, CircleShape).padding(4.dp) else Modifier.padding(4.dp)
+        if (onAvatarClick != null) avatar = avatar.clip(CircleShape).clickable(onClick = onAvatarClick)
+        Box(avatar) {
             Image(
                 painterResource(R.drawable.default_avatar), contentDescription = null,
                 contentScale = ContentScale.Crop,
