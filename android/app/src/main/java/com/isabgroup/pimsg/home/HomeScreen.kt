@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -45,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -92,6 +94,10 @@ fun HomeScreen(
     var query by remember { mutableStateOf("") }
     var menuOpen by remember { mutableStateOf(false) }
     var joinTarget by remember { mutableStateOf<GroupItem?>(null) }
+    var profileTarget by remember { mutableStateOf<UserItem?>(null) }
+    var publicProfile by remember { mutableStateOf<JSONObject?>(null) }
+    var publicAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var profileLoading by remember { mutableStateOf(false) }
     var newGroupOpen by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
     val focus = remember { FocusRequester() }
@@ -162,6 +168,22 @@ fun HomeScreen(
     }
 
     LaunchedEffect(query) { delay(300); vm.search(query) }
+    LaunchedEffect(profileTarget?.id) {
+        val target = profileTarget ?: run { publicProfile = null; publicAvatar = null; return@LaunchedEffect }
+        profileLoading = true
+        publicProfile = null
+        publicAvatar = null
+        try {
+            val profile = Api.get("/v1/users/\u0024{target.id}")
+            publicProfile = profile
+            val key = if (profile.isNull("avatar_key")) null else profile.optString("avatar_key").takeIf { it.isNotBlank() }
+            if (key != null) runCatching {
+                val downloaded = Api.download("/v1/media/\u0024key")
+                publicAvatar = android.graphics.BitmapFactory.decodeByteArray(downloaded.bytes, 0, downloaded.bytes.size)
+            }
+        } catch (_: Exception) { publicProfile = null }
+        profileLoading = false
+    }
     LaunchedEffect(searching) { if (searching) focus.requestFocus() }
 
     val myStories = state.myId?.let { state.stories[it] }.orEmpty()
@@ -247,12 +269,7 @@ fun HomeScreen(
                             title = u.name,
                             subtitle = u.linkSubject?.let { "Assunto: $it" } ?: "Toque para conversar",
                             ring = null, unread = 0,
-                            onClick = {
-                                vm.openDirect(u) { id ->
-                                    searching = false; query = ""
-                                    onOpenChat(ChatRef(id, u.name, u.id, null))
-                                }
-                            },
+                            onClick = { profileTarget = u },
                         )
                     }
                     items(state.groupResults, key = { "g" + it.id }) { g ->
@@ -302,6 +319,38 @@ fun HomeScreen(
         )
     }
 
+    profileTarget?.let { target ->
+        val profile = publicProfile
+        AlertDialog(
+            onDismissRequest = { profileTarget = null },
+            containerColor = PiColors.Surface,
+            title = { Text(profile?.optString("name")?.takeIf { !it.isNullOrBlank() } ?: target.name, color = PiColors.White) },
+            text = {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (publicAvatar != null) Image(bitmap = publicAvatar!!.asImageBitmap(), contentDescription = "Fotografia do perfil", modifier = Modifier.size(88.dp).clip(CircleShape), contentScale = ContentScale.Crop)
+                    else Box(Modifier.size(88.dp).clip(CircleShape).background(PiColors.SurfaceHigh), contentAlignment = Alignment.Center) {
+                        Icon(androidx.compose.material.icons.Icons.Filled.Person, contentDescription = "Avatar", tint = PiColors.Gray, modifier = Modifier.size(46.dp))
+                    }
+                    if (profileLoading) Text("A carregar perfil...", color = PiColors.TextSecondary)
+                    else if (profile == null) Text("Não foi possível carregar este perfil.", color = PiColors.TextSecondary)
+                    else {
+                        val bio = profile.optString("bio")
+                        if (bio.isNotBlank() && bio != "null") Text(bio, color = PiColors.TextSecondary)
+                        listOf("Instagram" to profile.optString("instagram_url"), "Facebook" to profile.optString("facebook_url"), "TikTok" to profile.optString("tiktok_url"), "YouTube" to profile.optString("youtube_url"), "Website" to profile.optString("website_url"))
+                            .filter { it.second.isNotBlank() && it.second != "null" }.forEach { (label, link) ->
+                                Text("$label · $link", color = PiColors.White, modifier = Modifier.fillMaxWidth().clickable { openUrl(context, link) }.padding(vertical = 3.dp))
+                            }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = !profileLoading && profile != null, onClick = {
+                    vm.openDirect(target) { id -> profileTarget = null; searching = false; query = ""; onOpenChat(ChatRef(id, target.name, target.id, null)) }
+                }) { Text("Enviar mensagem", color = PiColors.White) }
+            },
+            dismissButton = { TextButton(onClick = { profileTarget = null }) { Text("Fechar", color = PiColors.TextSecondary) } },
+        )
+    }
     joinTarget?.let { g ->
         AlertDialog(
             onDismissRequest = { joinTarget = null },
