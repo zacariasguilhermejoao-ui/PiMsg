@@ -288,7 +288,7 @@ fun ProfileScreen(onBack: () -> Unit) {
 
 // ---------------------------------------------------------------- Definições
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var blocked by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
@@ -327,6 +327,10 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit) {
                 PiFeedback.setHapticEnabled(context, it)
             }, colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = PiColors.White))
         }
+
+        Section("Segurança")
+        Text("Segurança da conta", color = PiColors.White, fontSize = 16.sp,
+            modifier = Modifier.fillMaxWidth().clickable { onSecurity() }.padding(vertical = 12.dp))
 
         Section("Contas bloqueadas")
         if (blocked.isEmpty()) Text("Não bloqueou ninguém.", color = PiColors.TextSecondary, fontSize = 15.sp)
