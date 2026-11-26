@@ -30,18 +30,38 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
+      - name: Set up Android SDK command-line tools
         uses: android-actions/setup-android@v3
-        with:
-          packages: |
-            platform-tools
-            platforms;android-36
-            build-tools;35.0.0
+
+      - name: Accept Android SDK licenses and install packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ANDROID_HOME:?ANDROID_HOME was not configured by setup-android}"
+          command -v sdkmanager
+          # Accept licenses only on this ephemeral GitHub Actions runner.
+          set +o pipefail
+          yes | sdkmanager --sdk_root="$ANDROID_HOME" --licenses
+          set -o pipefail
+          # Quote each package separately: semicolons are part of package IDs.
+          sdkmanager --sdk_root="$ANDROID_HOME" --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;35.0.0"
+          sdkmanager --sdk_root="$ANDROID_HOME" --list_installed | tee /tmp/android-sdk-installed.txt
+          grep -F "platform-tools" /tmp/android-sdk-installed.txt
+          grep -F "platforms;android-36" /tmp/android-sdk-installed.txt
+          grep -F "build-tools;35.0.0" /tmp/android-sdk-installed.txt
 
       - name: Set up Gradle 8.13
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.13"
+
+      - name: Verify Gradle installation
+        run: |
+          set -euo pipefail
+          gradle --version
 
       - name: Prepare Android signing keystore
         env:
