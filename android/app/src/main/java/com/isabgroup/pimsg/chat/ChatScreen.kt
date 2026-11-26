@@ -394,7 +394,7 @@ private suspend fun openMedia(context: Context, m: Message, vm: ChatViewModel) {
             "audio", "music" -> "Audio"
             else -> "Documents"
         }
-        val dir = File(context.filesDir, "PiMsg/$category").apply { mkdirs() }
+        val dir = File(context.getExternalFilesDir(null) ?: context.filesDir, "PiMsg/$category").apply { mkdirs() }
         val existing = dir.listFiles()?.firstOrNull { it.name.startsWith("${m.mediaId}.") }
         val file = if (existing != null) existing else {
             val d = Api.download("/v1/media/${m.mediaId}")
