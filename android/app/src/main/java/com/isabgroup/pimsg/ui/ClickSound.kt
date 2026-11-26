@@ -2,33 +2,64 @@ package com.isabgroup.pimsg.ui
 
 import android.content.Context
 import android.media.AudioManager
-import android.view.SoundEffectConstants
+import android.media.ToneGenerator
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.view.View
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 
-/**
- * Som de clique do sistema — só para ações importantes
- * (enviar, anexar, botões principais). Não usar em listas nem em cada ícone.
- */
-fun Context.playClick() {
-    try {
-        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        if (am.ringerMode == AudioManager.RINGER_MODE_NORMAL) {
-            am.playSoundEffect(AudioManager.FX_KEY_CLICK, 0.4f)
-        }
-    } catch (_: Exception) {
-        // alguns aparelhos bloqueiam o efeito de sistema
+/** Preferências de resposta tátil e sonora do PiMsg. */
+object PiFeedback {
+    private const val PREFS = "pimsg_preferences"
+    private const val SOUND = "sound_enabled"
+    private const val HAPTIC = "haptic_enabled"
+
+    fun soundEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(SOUND, true)
+
+    fun hapticEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(HAPTIC, true)
+
+    fun setSoundEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(SOUND, enabled).apply()
+    }
+
+    fun setHapticEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(HAPTIC, enabled).apply()
     }
 }
 
-/** Preferível em Compose: usa o View para respeitar as definições de som do utilizador. */
+private object ClickTone {
+    private val generator = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 32)
+    @Synchronized fun play() {
+        runCatching { generator.startTone(ToneGenerator.TONE_PROP_BEEP, 45) }
+    }
+}
+
+/** Feedback curto e discreto. Respeita as opções escolhidas nas Definições. */
 fun View.playClick() {
-    try {
-        playSoundEffect(SoundEffectConstants.CLICK)
-    } catch (_: Exception) { }
+    val ctx = context
+    if (PiFeedback.soundEnabled(ctx)) {
+        runCatching {
+            val audio = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            if (audio.ringerMode == AudioManager.RINGER_MODE_NORMAL) ClickTone.play()
+        }
+    }
+    if (PiFeedback.hapticEnabled(ctx)) {
+        runCatching {
+            val vibrator = if (Build.VERSION.SDK_INT >= 31) {
+                ctx.getSystemService(VibratorManager::class.java).defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                ctx.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            }
+            if (vibrator.hasVibrator()) vibrator.vibrate(VibrationEffect.createOneShot(22, 70))
+        }
+    }
 }
 
 @Composable
