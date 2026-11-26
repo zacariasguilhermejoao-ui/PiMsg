@@ -143,20 +143,13 @@ async function handle(request, env) {
     if (!name) return fail(400, "nome obrigatorio");
     if (hasPhone) {
       if (!phone || !/^\+[1-9]\d{7,14}$/.test(phone)) return fail(400, "numero de telefone invalido");
-      if (me.phone_verified && me.phone_e164 !== phone) return fail(409, "nao e permitido substituir um numero verificado sem nova verificacao");
-      const duplicate = await env.DB.prepare("SELECT id FROM users WHERE phone_e164 = ? AND id <> ?").bind(phone, me.id).first();
-      if (duplicate) return fail(409, "numero ja associado a outra conta");
-      try {
-        await env.DB.prepare(
-          "UPDATE users SET phone_e164 = ?, phone_verified = CASE WHEN phone_e164 = ? THEN phone_verified ELSE 0 END, show_phone = CASE WHEN phone_e164 = ? THEN show_phone ELSE 0 END WHERE id = ?"
-        ).bind(phone, phone, phone, me.id).run();
-      } catch {
-        return fail(409, "numero ja associado a outra conta");
-      }
+      // Unverified numbers are contact details only. Never reserve the verified phone_e164
+      // field or let an unverified claim block the real owner from registering later.
+      await env.DB.prepare("UPDATE users SET phone_contact = ? WHERE id = ?").bind(phone, me.id).run();
     }
     await env.DB.prepare("UPDATE users SET display_name=?, bio=?, show_phone=?, timezone=? WHERE id=?")
       .bind(name, bio, show, tz, me.id).run();
-    return json({ ok: true, phone_verified: hasPhone ? !!me.phone_verified && me.phone_e164 === phone : !!me.phone_verified });
+    return json({ ok: true, phone_verified: !!me.phone_verified });
   }
 
   if (path === "/v1/me/code/regenerate" && method === "POST") {
