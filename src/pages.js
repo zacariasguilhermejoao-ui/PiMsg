@@ -2,7 +2,7 @@
 import { pushToUsers } from "./push.js";
 
 const PLAY_URL = "https://play.google.com/store/apps/details?id=com.pimsg.isabstudio";
-const LEGAL_VERSION = "1.0";
+const LEGAL_VERSION = "1.1";
 const LEGAL_DATE = "26 de novembro de 2026";
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -31,12 +31,21 @@ const COPY_JS = `<script>function copyCode(id,btn){var t=document.getElementById
 
 const steps = `<ol><li>Instale o PiMsg na Play Store.</li><li>Entre com a sua conta Google ou com o seu número.</li><li>Toque na lupa, no topo, e cole o código.</li></ol>`;
 
+const CONTACTS = [
+  ["Suporte", "suporte@tchilopop.com"],
+  ["Parcerias", "parceria@tchilopop.com"],
+  ["Privacidade e dados pessoais", "privacidade@tchilopop.com"],
+  ["Contas e faturação", "contas@tchilopop.com"],
+  ["Denúncias", "denuncia@tchilopop.com"],
+];
+
+function contactsBlock() {
+  return `<h2>Contactos oficiais</h2><ul>${CONTACTS.map(([label, email]) => `<li>${esc(label)}: <a href="mailto:${esc(email)}">${esc(email)}</a></li>`).join("")}</ul>`;
+}
+
 function legalDoc(title, intro, sections, env) {
   const body = sections.map(([h, t]) => `<h2>${esc(h)}</h2>${t}`).join("");
-  const contact = env.SUPPORT_EMAIL
-    ? `<p>Contacto: <a href="mailto:${esc(env.SUPPORT_EMAIL)}">${esc(env.SUPPORT_EMAIL)}</a></p>`
-    : `<p>Contacto: use a opção Suporte dentro do app, no Menu.</p>`;
-  return html(title, `<h1>${esc(title)}</h1><p class="muted">Versão ${LEGAL_VERSION}, atualizada em ${LEGAL_DATE}</p><p>${intro}</p>${body}${contact}`);
+  return html(title, `<h1>${esc(title)}</h1><p class="muted">Versão ${LEGAL_VERSION}, atualizada em ${LEGAL_DATE}</p><p>${intro}</p>${body}${contactsBlock()}`);
 }
 
 const LEGAL = {
@@ -48,7 +57,8 @@ const LEGAL = {
     ["5. O seu conteúdo", "<p>O conteúdo que envia continua a ser seu. Dá-nos apenas a permissão necessária para o guardar, transmitir e mostrar aos destinatários que escolheu. É responsável pelo que envia e por ter direito a enviá-lo.</p>"],
     ["6. Negociações entre utilizadores", "<p>O PiMsg é uma ferramenta de conversa. Não somos parte nas vendas, pagamentos ou acordos feitos entre utilizadores e não garantimos a qualidade, a entrega ou a identidade de quem vende ou compra. Tenha cuidado com pagamentos adiantados.</p>"],
     ["7. Disponibilidade e alterações", "<p>Trabalhamos para manter o serviço disponível, mas podem existir interrupções. Podemos atualizar estes termos e, se a mudança for importante, avisamos no app.</p>"],
-    ["8. Lei aplicável", "<p>Estes termos regem-se pela lei aplicável na República de Angola, sem prejuízo dos direitos imperativos dos consumidores no seu país.</p>"],
+    ["8. Reclamações e contacto", "<p>Para questões de conta, suporte, denúncias ou privacidade, use os contactos oficiais apresentados no fim desta página. As reclamações serão registadas e analisadas pela equipa responsável.</p>"],
+    ["9. Lei aplicável", "<p>Estes termos regem-se pela lei aplicável na República de Angola, sem prejuízo dos direitos imperativos dos consumidores no seu país.</p>"],
   ], env),
 
   privacy: (env) => legalDoc("Política de privacidade", "Esta política explica que dados o PiMsg, da ISAB Group, recolhe, para que serve e quais são os seus direitos.", [
@@ -60,15 +70,17 @@ const LEGAL = {
     ["6. Os seus direitos", "<p>Pode aceder, corrigir e pedir a eliminação dos seus dados, e pedir uma cópia deles. Pode apagar a conta no app, em Menu, Definições, Apagar conta, ou pelo formulário em /delete-account. O pedido tem um período de 14 dias em que pode desistir.</p>"],
     ["7. Menores", "<p>O PiMsg não é destinado a menores de 16 anos. Se souber de uma conta de um menor dessa idade, contacte-nos para a removermos.</p>"],
     ["8. Segurança e transferências", "<p>Usamos ligações cifradas e controlo de acessos. Os prestadores indicados podem processar dados fora do seu país, com as proteções que oferecem. Nenhum sistema é totalmente seguro.</p>"],
-    ["9. Alterações", "<p>Se esta política mudar de forma relevante, avisamos no app.</p>"],
+    ["9. Direitos e pedidos", "<p>Para exercer direitos de acesso, retificação, oposição ou eliminação, contacte privacidade@tchilopop.com. Para questões de acesso à conta, contacte contas@tchilopop.com. Para denunciar conteúdo ou comportamento, use denuncia@tchilopop.com.</p>"],
+    ["10. Alterações", "<p>Se esta política mudar de forma relevante, avisamos no app.</p>"],
   ], env),
 
   refund: (env) => legalDoc("Política de reembolso", "Esta política aplica-se às compras feitas no PiMsg: planos Pro e créditos de mensagens.", [
-    ["1. Pagamentos pela Google Play", "<p>Todas as compras no app são processadas pela Google Play. Os reembolsos seguem as regras da Google Play e são pedidos à Google, através da sua conta ou da página de reembolsos da Google Play.</p>"],
-    ["2. Planos Pro", "<p>Os planos semanal e mensal renovam-se automaticamente até serem cancelados. Pode cancelar a qualquer momento na Google Play, em Pagamentos e subscrições. Mantém o acesso Pro até ao fim do período já pago. Não fazemos reembolsos parciais do período não usado, exceto quando a lei ou a Google Play o exigirem.</p>"],
-    ["3. Créditos de mensagens", "<p>Os créditos de 10 mensagens e de 15 horas de mensagens ilimitadas são entregues logo após a compra. Créditos já usados, ou cujo tempo já começou a contar, não são reembolsáveis, exceto quando a lei o exigir ou se houver falha nossa que o impeça de os usar.</p>"],
-    ["4. Quando há reembolso", "<p>Se a Google Play reembolsar uma compra, o plano ou os créditos correspondentes deixam de estar ativos.</p>"],
-    ["5. Problemas com uma compra", "<p>Se pagou e não recebeu o plano ou os créditos, contacte-nos com o comprovativo da Google Play e resolvemos.</p>"],
+    ["1. Pagamentos pela Google Play", "<p>As compras digitais feitas na aplicação são processadas pela Google Play. O pedido de reembolso deve ser submetido na Google Play, através do histórico de encomendas da conta Google utilizada na compra. A decisão e o processamento do reembolso seguem as regras da Google Play e a legislação de defesa do consumidor aplicável.</p>"],
+    ["2. Planos Pro", "<p>Os planos semanal e mensal podem renovar-se automaticamente, conforme indicado no ecrã de compra. Pode cancelar a renovação a qualquer momento na Google Play, em Pagamentos e subscrições. O cancelamento impede a próxima cobrança, mas normalmente mantém o acesso até ao fim do período pago. A elegibilidade para reembolso é avaliada pela Google Play e pela legislação aplicável; esta política não elimina direitos legais do consumidor.</p>"],
+    ["3. Créditos de mensagens", "<p>Os créditos são disponibilizados após a confirmação do pagamento. Se os créditos não forem entregues, aparecerem duplicados ou existir uma falha técnica que impeça a sua utilização, contacte contas@tchilopop.com com o comprovativo da Google Play. Créditos consumidos não são normalmente reembolsáveis, sem prejuízo dos direitos que a lei reconhece ao consumidor.</p>"],
+    ["4. Quando há reembolso", "<p>Quando um reembolso é aprovado, o acesso ou os créditos associados à compra podem ser ajustados para refletir o valor devolvido, sem afetar compras diferentes ou a conta PiMsg em si.</p>"],
+    ["5. Problemas com uma compra", "<p>Se pagou e não recebeu o plano ou os créditos, contacte contas@tchilopop.com. Inclua o ID da encomenda da Google Play, a data e uma descrição do problema. Nunca envie a palavra-passe da sua conta Google.</p>"],
+    ["6. Prazos e direitos legais", "<p>Os prazos de análise e processamento dependem da Google Play e do método de pagamento. Nada nesta política limita direitos de reembolso ou garantia que sejam obrigatórios segundo a legislação aplicável.</p>"],
   ], env),
 
   community: (env) => legalDoc("Regras da comunidade", "O PiMsg existe para facilitar conversas e vendas honestas. Estas regras mantêm o espaço seguro para todos.", [
@@ -80,8 +92,7 @@ const LEGAL = {
 };
 
 function supportPage(env) {
-  const mail = env.SUPPORT_EMAIL ? `<p>Escreva-nos para <a href="mailto:${esc(env.SUPPORT_EMAIL)}">${esc(env.SUPPORT_EMAIL)}</a>.</p>` : `<p>Dentro do app, abra o Menu e escolha Suporte.</p>`;
-  return html("Suporte", `<h1>Suporte</h1>${mail}<h2>Perguntas frequentes</h2><p><b>Como encontro alguém?</b> Toque na lupa e escreva o nome, o código ou o código de convite de um grupo. O número de telefone não serve para pesquisar.</p><p><b>Como mudo o meu código?</b> Em Perfil, toque em Gerar novo código. O código anterior deixa de valer.</p><p><b>Como cancelo o plano Pro?</b> Na Google Play, em Pagamentos e subscrições.</p><p><b>Como apago a conta?</b> No app, em Menu, Definições, Apagar conta, ou em <a href="/delete-account">pimsg.tchilopop.com/delete-account</a>.</p>`);
+  return html("Suporte", `<h1>Suporte</h1><p>Escolha o contacto adequado para receber ajuda mais rapidamente.</p>${contactsBlock()}<h2>Perguntas frequentes</h2><p><b>Como encontro alguém?</b> Toque na lupa e escreva o nome, o código ou o código de convite de um grupo. O número de telefone não serve para pesquisar.</p><p><b>Como mudo o meu código?</b> Em Perfil, toque em Gerar novo código. O código anterior deixa de valer.</p><p><b>Como cancelo o plano Pro?</b> Na Google Play, em Pagamentos e subscrições.</p><p><b>Como apago a conta?</b> No app, em Menu, Definições, Apagar conta, ou em <a href="/delete-account">pimsg.tchilopop.com/delete-account</a>. Para pedidos sobre a conta, escreva para contas@tchilopop.com.</p>`);
 }
 
 function deletePage() {
@@ -168,7 +179,7 @@ export async function handlePublic(request, env) {
       });
     }
     if (path === "/") {
-      return html("PiMsg", `<h1>Converse e venda sem risco de perder a sua conta</h1><p>O PiMsg é um app de mensagens feito para facilitar a vida de quem negocia pelo telemóvel.</p><a class="btn w" href="${PLAY_URL}">Baixar na Play Store</a>`);
+      return html("PiMsg", `<a class="btn w" href="${PLAY_URL}">Baixar na Play Store</a>`);
     }
     const key = path.slice(1);
     if (LEGAL[key]) return LEGAL[key](env);
