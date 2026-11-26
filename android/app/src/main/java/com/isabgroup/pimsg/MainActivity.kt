@@ -35,6 +35,7 @@ import com.isabgroup.pimsg.home.StoryItem
 import com.isabgroup.pimsg.home.StoryViewer
 import com.isabgroup.pimsg.screens.LinksScreen
 import com.isabgroup.pimsg.screens.PiBotScreen
+import com.isabgroup.pimsg.screens.PlansScreen
 import com.isabgroup.pimsg.screens.ProfileScreen
 import com.isabgroup.pimsg.screens.SettingsScreen
 import com.isabgroup.pimsg.ui.PiColors
@@ -190,6 +191,7 @@ private sealed interface Screen {
     data object Settings : Screen
     data object Links : Screen
     data object PiBot : Screen
+    data object Plans : Screen
     data class Stories(val items: List<StoryItem>) : Screen
 }
 
@@ -261,6 +263,7 @@ private fun AppRoot(activity: MainActivity) {
                                 "settings" -> screen = Screen.Settings
                                 "links" -> screen = Screen.Links
                                 "bot" -> screen = Screen.PiBot
+                                "plans" -> screen = Screen.Plans
                             }
                         },
                         initialContactCode = activity.pendingPiLink?.takeIf { it.type == "contact_code" }?.value,
@@ -281,6 +284,7 @@ private fun AppRoot(activity: MainActivity) {
                     is Screen.Settings -> SettingsScreen(onBack = { screen = Screen.Home }, onSignOut = ::signOut)
                     is Screen.Links -> LinksScreen(onBack = { screen = Screen.Home })
                     is Screen.PiBot -> PiBotScreen(onBack = { screen = Screen.Home })
+                    is Screen.Plans -> PlansScreen(onBack = { screen = Screen.Home })
                     is Screen.Stories -> StoryViewer(stories = s.items, onClose = { screen = Screen.Home })
                 }
             }
