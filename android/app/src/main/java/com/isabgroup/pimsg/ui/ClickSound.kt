@@ -34,7 +34,7 @@ object PiFeedback {
 }
 
 private object ClickTone {
-    private val generator = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 32)
+    private val generator = ToneGenerator(AudioManager.STREAM_SYSTEM, 48)
     @Synchronized fun play() {
         runCatching { generator.startTone(ToneGenerator.TONE_PROP_BEEP, 45) }
     }
