@@ -279,7 +279,13 @@ private fun Bubble(m: Message, mine: Boolean, vm: ChatViewModel) {
             val fg = if (mine) Color.Black else PiColors.White
             val sub = if (mine) Color(0xFF55555B) else PiColors.Gray
             when (m.kind) {
-                "text", "system" -> Text(m.body.orEmpty(), color = fg, fontSize = 16.sp)
+                "text", "system" -> {
+                    val translated = if (!mine && m.kind == "text") vm.translations[m.id] else null
+                    Text(translated ?: m.body.orEmpty(), color = fg, fontSize = 16.sp)
+                    if (translated != null) {
+                        Text("TR · Traduzido", color = sub, fontSize = 10.sp, modifier = Modifier.align(Alignment.End).padding(top = 2.dp))
+                    }
+                }
                 "image" -> ImageBody(m, vm, fg)
                 else -> FileBody(m, vm, fg, sub)
             }
