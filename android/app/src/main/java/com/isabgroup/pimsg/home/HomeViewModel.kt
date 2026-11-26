@@ -1,9 +1,12 @@
 package com.isabgroup.pimsg.home
 
+import android.content.ContentResolver
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.ApiException
+import com.isabgroup.pimsg.data.uploadUri
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +29,8 @@ data class ChatItem(
     val isGroup: Boolean,
     val ringColor: String?,
     val hasStory: Boolean = false,
+    val otherId: String? = null,
+    val inviteCode: String? = null,
 )
 
 data class UserItem(
@@ -38,12 +43,25 @@ data class UserItem(
 )
 data class GroupItem(val id: String, val name: String, val description: String?)
 
+data class StoryItem(
+    val id: String,
+    val userId: String,
+    val userName: String,
+    val mediaId: String,
+    val caption: String?,
+    val createdAt: Long,
+    val mime: String?,
+    val viewed: Boolean,
+)
+
 data class HomeState(
     val loading: Boolean = true,
     val tab: Tab = Tab.All,
     val chats: List<ChatItem> = emptyList(),
     val results: List<UserItem> = emptyList(),
     val groupResults: List<GroupItem> = emptyList(),
+    val myId: String? = null,
+    val stories: Map<String, List<StoryItem>> = emptyMap(),
     val error: String? = null,
     val notice: String? = null,
 )
@@ -87,11 +105,58 @@ class HomeViewModel : ViewModel() {
                         unread = o.optInt("unread", 0),
                         isGroup = group,
                         ringColor = o.str("other_ring"),
+                        otherId = o.str("other_id"),
+                        inviteCode = o.str("invite_code"),
                     )
                 }
                 _state.update { it.copy(loading = false, chats = list) }
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, error = "Não foi possível carregar as conversas.") }
+            }
+            loadStories()
+        }
+    }
+
+    private suspend fun loadStories() {
+        try {
+            val me = Api.get("/v1/me").getString("id")
+            val array = Api.get("/v1/stories").getJSONArray("stories")
+            val items = (0 until array.length()).map { index ->
+                val story = array.getJSONObject(index)
+                StoryItem(
+                    id = story.getString("id"),
+                    userId = story.getString("user_id"),
+                    userName = story.optString("user_name", "PiMsg"),
+                    mediaId = story.getString("media_id"),
+                    caption = story.str("caption"),
+                    createdAt = story.optLong("created_at"),
+                    mime = story.str("mime"),
+                    viewed = story.optBoolean("viewed"),
+                )
+            }
+            _state.update { it.copy(myId = me, stories = items.groupBy { story -> story.userId }) }
+        } catch (_: Exception) {
+            // A lista de conversas continua utilizável se os stories estiverem indisponíveis.
+        }
+    }
+
+    fun clearNotice() {
+        _state.update { it.copy(notice = null) }
+    }
+
+    fun postStory(contentResolver: ContentResolver, uri: Uri) {
+        viewModelScope.launch {
+            _state.update { it.copy(notice = null) }
+            try {
+                val uploaded = uploadUri(contentResolver, uri)
+                if (!uploaded.mime.startsWith("image/") && !uploaded.mime.startsWith("video/")) {
+                    throw ApiException(400, "story exige imagem ou vídeo")
+                }
+                Api.post("/v1/stories", JSONObject().put("media_id", uploaded.id))
+                loadStories()
+                _state.update { it.copy(notice = "Story publicado.") }
+            } catch (_: Exception) {
+                _state.update { it.copy(notice = "Não foi possível publicar o story. Verifique o ficheiro e tente novamente.") }
             }
         }
     }
