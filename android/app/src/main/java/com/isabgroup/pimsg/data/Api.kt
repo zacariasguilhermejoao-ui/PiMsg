@@ -25,6 +25,9 @@ object Api {
 
     suspend fun get(path: String): JSONObject = call("GET", path, null)
     suspend fun post(path: String, body: JSONObject): JSONObject = call("POST", path, body)
+    suspend fun put(path: String, body: JSONObject): JSONObject = call("PUT", path, body)
+    suspend fun patch(path: String, body: JSONObject): JSONObject = call("PATCH", path, body)
+    suspend fun delete(path: String): JSONObject = call("DELETE", path, null)
     fun encode(s: String): String = URLEncoder.encode(s, "UTF-8")
 
     // Envia um ficheiro para o R2 pela API. Devolve o id do ficheiro.
@@ -76,7 +79,12 @@ object Api {
         return withContext(Dispatchers.IO) {
             val c = URL(BASE + path).openConnection() as HttpURLConnection
             try {
-                c.requestMethod = method
+                if (method == "PATCH") {
+                    c.requestMethod = "POST"
+                    c.setRequestProperty("X-HTTP-Method-Override", "PATCH")
+                } else {
+                    c.requestMethod = method
+                }
                 c.connectTimeout = 15_000
                 c.readTimeout = 20_000
                 c.setRequestProperty("Authorization", "Bearer $token")
@@ -96,3 +104,5 @@ object Api {
         }
     }
 }
+
+fun JSONObject.strOrNull(key: String): String? = if (!has(key) || isNull(key)) null else getString(key)
