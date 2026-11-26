@@ -202,7 +202,7 @@ export async function handleChat(request, env, me, path, method) {
       const limit = Math.min(Number(url.searchParams.get("limit")) || 40, 100);
       const floor = mem.sees_history ? 0 : mem.joined_at;
       const r = await env.DB.prepare(
-        `SELECT id, sender_id, kind, body, media_id, reply_to_id, created_at, edited_at
+        `SELECT id, sender_id, kind, body, media_id, reply_to_id, source_lang, created_at, edited_at
          FROM messages WHERE conversation_id = ? AND deleted_at IS NULL AND created_at < ? AND created_at >= ?
          ORDER BY created_at DESC LIMIT ?`
       ).bind(convId, before, floor, limit).all();
@@ -213,6 +213,7 @@ export async function handleChat(request, env, me, path, method) {
       const b = await request.json().catch(() => ({}));
       const kind = KINDS.includes(b.kind) ? b.kind : "text";
       const body = typeof b.body === "string" ? b.body.slice(0, 4000) : null;
+      const sourceLang = typeof b.source_lang === "string" && /^[a-z]{2,3}$/i.test(b.source_lang) ? b.source_lang.toLowerCase() : null;
       if (kind === "text" && !body?.trim()) return fail(400, "mensagem vazia");
       if (kind !== "text") {
         const m = await env.DB.prepare("SELECT id FROM media WHERE id = ? AND owner_id = ?").bind(b.media_id || "", me.id).first();
@@ -230,8 +231,8 @@ export async function handleChat(request, env, me, path, method) {
       const id = crypto.randomUUID();
       await env.DB.batch([
         env.DB.prepare(
-          "INSERT INTO messages (id, conversation_id, sender_id, kind, body, media_id, reply_to_id, created_at) VALUES (?,?,?,?,?,?,?,?)"
-        ).bind(id, convId, me.id, kind, body, kind === "text" ? null : b.media_id, b.reply_to_id || null, now),
+          "INSERT INTO messages (id, conversation_id, sender_id, kind, body, media_id, reply_to_id, source_lang, created_at) VALUES (?,?,?,?,?,?,?,?,?)"
+        ).bind(id, convId, me.id, kind, body, kind === "text" ? null : b.media_id, b.reply_to_id || null, kind === "text" ? sourceLang : null, now),
         env.DB.prepare("UPDATE conversations SET last_message_at = ? WHERE id = ?").bind(now, convId),
         env.DB.prepare("UPDATE conversation_members SET last_read_at = ? WHERE conversation_id = ? AND user_id = ?").bind(now, convId, me.id),
         ...plan.stmts,
