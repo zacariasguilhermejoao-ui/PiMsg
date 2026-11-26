@@ -1,8 +1,6 @@
 package com.isabgroup.pimsg.auth
 
-import android.app.Activity
 import android.content.Context
-import android.content.ContextWrapper
 import android.telephony.TelephonyManager
 import java.util.Locale
 import androidx.compose.foundation.Image
@@ -45,13 +43,12 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.google.firebase.FirebaseException
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
+import com.isabgroup.pimsg.data.Api
+import com.isabgroup.pimsg.data.ApiException
+import org.json.JSONObject
 import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.auth.PhoneAuthCredential
-import com.google.firebase.auth.PhoneAuthOptions
-import com.google.firebase.auth.PhoneAuthProvider
 import com.isabgroup.pimsg.R
 import com.isabgroup.pimsg.ui.PiColors
 import kotlinx.coroutines.launch
@@ -81,12 +78,6 @@ private fun GoogleMark() {
     )
 }
 
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
-}
-
 @Composable
 fun AuthScreen(onSignedIn: () -> Unit) {
     val context = LocalContext.current
@@ -95,8 +86,6 @@ fun AuthScreen(onSignedIn: () -> Unit) {
 
     val dialCode = remember(context) { detectDialCode(context).second }
     var phone by remember { mutableStateOf("") }
-    var code by remember { mutableStateOf("") }
-    var verificationId by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -144,47 +133,31 @@ fun AuthScreen(onSignedIn: () -> Unit) {
         }
     }
 
-    fun sendCode() {
-        val activity = context.findActivity() ?: return
+    fun continueWithPhone() {
         val localNumber = phone.filter(Char::isDigit)
         if (dialCode == 0) { error = "Não foi possível detetar o código do país."; return }
-        if (localNumber.length !in 6..15) { error = "Verifique o número de telefone."; return }
+        if (localNumber.length !in 6..14) { error = "Verifique o número de telefone."; return }
         val number = "+$dialCode$localNumber"
-        busy = true; error = null
-        val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-            override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                scope.launch {
-                    try { signIn(credential) } catch (e: Exception) { error = "Falha ao confirmar o número: " + (e.message?.take(160) ?: e.javaClass.simpleName) }
-                    busy = false
-                }
-            }
-            override fun onVerificationFailed(e: FirebaseException) {
-                val detail = e.message?.lineSequence()?.firstOrNull()?.take(180)
-                error = "Falha ao enviar SMS (" + e.javaClass.simpleName + "): " + (detail ?: "Firebase recusou o pedido")
-                busy = false
-            }
-            override fun onCodeSent(id: String, token: PhoneAuthProvider.ForceResendingToken) {
-                verificationId = id
-                busy = false
-            }
-        }
-        PhoneAuthProvider.verifyPhoneNumber(
-            PhoneAuthOptions.newBuilder(auth)
-                .setPhoneNumber(number)
-                .setTimeout(60L, TimeUnit.SECONDS)
-                .setActivity(activity)
-                .setCallbacks(callbacks)
-                .build()
-        )
-    }
-
-    fun confirmCode() {
-        val id = verificationId ?: return
         scope.launch {
-            busy = true; error = null
-            try { signIn(PhoneAuthProvider.getCredential(id, code.trim())) }
-            catch (e: Exception) { error = "Código incorreto ou expirado." }
-            finally { busy = false }
+            busy = true
+            error = null
+            try {
+                auth.signInAnonymously().await()
+                Api.patch("/v1/me", JSONObject().put("phone_e164", number))
+                onSignedIn()
+            } catch (e: Exception) {
+                auth.signOut()
+                error = when (e) {
+                    is ApiException -> when (e.code) {
+                        409 -> "Este número já está associado a outra conta."
+                        429 -> "Muitas contas foram criadas nesta rede. Tente mais tarde."
+                        else -> "Não foi possível criar a conta. Verifique a ligação e tente novamente."
+                    }
+                    else -> "Não foi possível criar a conta. Verifique a ligação e tente novamente."
+                }
+            } finally {
+                busy = false
+            }
         }
     }
 
@@ -218,34 +191,24 @@ fun AuthScreen(onSignedIn: () -> Unit) {
             focusedBorderColor = PiColors.White, unfocusedBorderColor = PiColors.GrayDark,
             focusedTextColor = PiColors.White, unfocusedTextColor = PiColors.White, cursorColor = PiColors.White,
         )
-        if (verificationId == null) {
-            OutlinedTextField(
-                value = phone, onValueChange = { value -> phone = value.filter(Char::isDigit).take(15) }, singleLine = true,
-                prefix = { if (dialCode > 0) Text("+$dialCode", color = PiColors.White) },
-                placeholder = { Text("Número de telefone", color = PiColors.Gray) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                modifier = Modifier.fillMaxWidth(), colors = fieldColors,
-            )
-            Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = ::sendCode, enabled = !busy,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PiColors.SurfaceHigh, contentColor = PiColors.White),
-            ) { Text("Receber código", fontSize = 16.sp) }
-        } else {
-            OutlinedTextField(
-                value = code, onValueChange = { code = it.take(6) }, singleLine = true,
-                placeholder = { Text("Código de 6 dígitos", color = PiColors.Gray) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                modifier = Modifier.fillMaxWidth(), colors = fieldColors,
-            )
-            Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = ::confirmCode, enabled = !busy && code.length >= 6,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PiColors.White, contentColor = androidx.compose.ui.graphics.Color.Black),
-            ) { Text("Confirmar", fontSize = 16.sp) }
-        }
+        OutlinedTextField(
+            value = phone, onValueChange = { value -> phone = value.filter(Char::isDigit).take(14) }, singleLine = true,
+            prefix = { if (dialCode > 0) Text("+$dialCode", color = PiColors.White) },
+            placeholder = { Text("Número de telefone", color = PiColors.Gray) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            modifier = Modifier.fillMaxWidth(), colors = fieldColors,
+        )
+        Spacer(Modifier.height(12.dp))
+        Button(
+            onClick = ::continueWithPhone, enabled = !busy,
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = PiColors.SurfaceHigh, contentColor = PiColors.White),
+        ) { Text("Continuar com número", fontSize = 16.sp) }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "O número não será confirmado por SMS e ficará marcado como não verificado.",
+            color = PiColors.Gray, fontSize = 11.sp,
+        )
 
         error?.let {
             Spacer(Modifier.height(16.dp))
