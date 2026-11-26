@@ -55,7 +55,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import com.isabgroup.pimsg.data.Api
+import org.json.JSONObject
 import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiIcons
 import kotlinx.coroutines.delay
@@ -65,14 +68,23 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+data class ChatRef(val id: String, val title: String, val otherId: String?, val inviteCode: String?)
+
 @Composable
-fun ChatScreen(convId: String, title: String, onBack: () -> Unit) {
+fun ChatScreen(ref: ChatRef, onBack: () -> Unit) {
+    val convId = ref.id
+    val title = ref.title
     val vm: ChatViewModel = viewModel(key = convId, factory = viewModelFactory { initializer { ChatViewModel(convId) } })
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val cr = context.contentResolver
     var text by remember { mutableStateOf("") }
     var attachOpen by remember { mutableStateOf(false) }
+    var optionsOpen by remember { mutableStateOf(false) }
+    var reportOpen by remember { mutableStateOf(false) }
+    var info by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val isGroup = ref.inviteCode != null
 
     // Atualiza a conversa a cada poucos segundos (tempo real chega numa fase seguinte)
     LaunchedEffect(convId) {
@@ -93,6 +105,7 @@ fun ChatScreen(convId: String, title: String, onBack: () -> Unit) {
         Row(Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(PiIcons.Back, "Voltar", tint = PiColors.White) }
             Text(title, color = PiColors.White, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f))
+            IconButton(onClick = { optionsOpen = true }) { Icon(PiIcons.More, "Mais opções", tint = PiColors.White) }
         }
 
         LazyColumn(
@@ -104,6 +117,9 @@ fun ChatScreen(convId: String, title: String, onBack: () -> Unit) {
             items(state.messages, key = { it.id }) { m -> Bubble(m, mine = m.senderId == state.myId, vm = vm) }
         }
 
+        info?.let {
+            Text(it, color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.fillMaxWidth().clickable { info = null }.padding(horizontal = 20.dp, vertical = 6.dp))
+        }
         state.error?.let {
             Text(it, color = PiColors.Danger, fontSize = 14.sp, modifier = Modifier.fillMaxWidth().clickable { vm.clearError() }.padding(horizontal = 20.dp, vertical = 6.dp))
         }
@@ -136,6 +152,77 @@ fun ChatScreen(convId: String, title: String, onBack: () -> Unit) {
                 contentAlignment = Alignment.Center,
             ) { Icon(PiIcons.Send, "Enviar", tint = Color.Black) }
         }
+    }
+
+    if (optionsOpen) {
+        AlertDialog(
+            onDismissRequest = { optionsOpen = false },
+            containerColor = PiColors.Surface,
+            title = { Text(title, color = PiColors.White) },
+            text = {
+                Column {
+                    if (isGroup) {
+                        OptionRow("Convidar para o grupo") {
+                            optionsOpen = false
+                            val link = "https://pimsg.tchilopop.com/g/${ref.inviteCode}"
+                            val send = Intent(Intent.ACTION_SEND).setType("text/plain")
+                                .putExtra(Intent.EXTRA_TEXT, "Entre no grupo ${ref.title} no PiMsg. Código de convite: ${ref.inviteCode}\n$link")
+                            context.startActivity(Intent.createChooser(send, "Convidar"))
+                        }
+                        OptionRow("Denunciar grupo") { optionsOpen = false; reportOpen = true }
+                        OptionRow("Sair do grupo") {
+                            optionsOpen = false
+                            scope.launch {
+                                try { Api.post("/v1/chats/$convId/leave", JSONObject()); onBack() }
+                                catch (e: Exception) { info = "Não foi possível sair do grupo." }
+                            }
+                        }
+                    } else if (ref.otherId != null) {
+                        OptionRow("Bloquear") {
+                            optionsOpen = false
+                            scope.launch {
+                                try { Api.put("/v1/blocks/${ref.otherId}", JSONObject()); onBack() }
+                                catch (e: Exception) { info = "Não foi possível bloquear." }
+                            }
+                        }
+                        OptionRow("Denunciar") { optionsOpen = false; reportOpen = true }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { optionsOpen = false }) { Text("Fechar", color = PiColors.White) } },
+        )
+    }
+
+    if (reportOpen) {
+        val reasons = listOf(
+            "spam" to "Spam", "scam" to "Golpe", "harassment" to "Assédio", "inappropriate" to "Conteúdo impróprio",
+            "illegal" to "Conteúdo ilegal", "impersonation" to "Falsificação de identidade", "other" to "Outro motivo",
+        )
+        AlertDialog(
+            onDismissRequest = { reportOpen = false },
+            containerColor = PiColors.Surface,
+            title = { Text("Motivo da denúncia", color = PiColors.White) },
+            text = {
+                Column {
+                    reasons.forEach { (key, label) ->
+                        OptionRow(label) {
+                            reportOpen = false
+                            scope.launch {
+                                try {
+                                    Api.post(
+                                        "/v1/reports",
+                                        JSONObject().put("target_type", if (isGroup) "group" else "user")
+                                            .put("target_id", if (isGroup) convId else ref.otherId).put("reason", key),
+                                    )
+                                    info = "Denúncia enviada. Obrigado."
+                                } catch (e: Exception) { info = "Não foi possível enviar a denúncia." }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { reportOpen = false }) { Text("Cancelar", color = PiColors.Gray) } },
+        )
     }
 
     if (attachOpen) {
@@ -227,4 +314,9 @@ private suspend fun openMedia(context: Context, m: Message, vm: ChatViewModel) {
     } catch (e: Exception) {
         vm.showError("Não foi possível abrir o ficheiro.")
     }
+}
+
+@Composable
+private fun OptionRow(label: String, onClick: () -> Unit) {
+    Text(label, color = PiColors.White, fontSize = 17.sp, modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp))
 }
