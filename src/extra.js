@@ -1,4 +1,6 @@
 
+import { pushToUsers } from "./push.js";
+
 const SLUG_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
 const json = (data, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -8,6 +10,9 @@ const json = (data, status = 200) =>
 const fail = (status, error) => json({ error }, status);
 const slug = (n) =>
   Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => SLUG_ALPHABET[b % SLUG_ALPHABET.length]).join("");
+const REQUEST_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const requestCode = (n) =>
+  Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => REQUEST_ALPHABET[b % REQUEST_ALPHABET.length]).join("");
 
 async function isPro(env, userId, now) {
   const r = await env.DB.prepare(
@@ -63,6 +68,30 @@ export async function handleExtra(request, env, me, path, method) {
       await env.DB.prepare("UPDATE users SET intro_video_key = ? WHERE id = ?").bind(b.intro_video_media_id, me.id).run();
     }
     return json({ ok: true });
+  }
+
+  const openLink = path.match(/^\\/v1\\/links\\/([a-z0-9]{6,16})\\/open$/);
+  if (openLink && method === "POST") {
+    const link = await env.DB.prepare(
+      `SELECT l.id, l.user_id, l.subject, u.display_name
+       FROM contact_links l JOIN users u ON u.id = l.user_id
+       WHERE l.slug = ? AND l.is_active = 1 AND u.status = 'active'`
+    ).bind(openLink[1]).first();
+    if (!link) return fail(404, "link indisponivel");
+    const blocked = await env.DB.prepare(
+      "SELECT 1 AS ok FROM blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?) LIMIT 1"
+    ).bind(me.id, link.user_id, link.user_id, me.id).first();
+    if (blocked) return fail(403, "nao e possivel iniciar esta conversa");
+    const recent = await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM contact_requests WHERE link_id = ? AND created_at > ?"
+    ).bind(link.id, now - 3600_000).first();
+    if (recent.n >= 200) return fail(429, "muitos pedidos neste momento");
+    const rc = requestCode(8);
+    await env.DB.prepare(
+      "INSERT INTO contact_requests (id, link_id, visitor_name, request_code, visitor_user_id, status, created_at, expires_at) VALUES (?,?,?,?,?,'pending',?,?)"
+    ).bind(crypto.randomUUID(), link.id, me.display_name, rc, me.id, now, now + 7 * 86400_000).run();
+    await pushToUsers(env, [link.user_id], "Novo interessado", `${me.display_name} pretende conversar sobre ${link.subject}`, { type: "contact_request", link_id: link.id });
+    return json({ user: { id: link.user_id, name: link.display_name }, link_id: link.id, request_code: rc, subject: link.subject });
   }
 
   if (path === "/v1/links" && method === "GET") {
