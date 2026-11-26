@@ -142,7 +142,7 @@ async function handle(request, env) {
     const phone = hasPhone && typeof b.phone_e164 === "string" ? b.phone_e164.trim() : null;
     if (!name) return fail(400, "nome obrigatorio");
     if (hasPhone) {
-      if (!phone || !/^\\+[1-9]\\d{7,14}$/.test(phone)) return fail(400, "numero de telefone invalido");
+      if (!phone || !/^\+[1-9]\d{7,14}$/.test(phone)) return fail(400, "numero de telefone invalido");
       if (me.phone_verified && me.phone_e164 !== phone) return fail(409, "nao e permitido substituir um numero verificado sem nova verificacao");
       const duplicate = await env.DB.prepare("SELECT id FROM users WHERE phone_e164 = ? AND id <> ?").bind(phone, me.id).first();
       if (duplicate) return fail(409, "numero ja associado a outra conta");
