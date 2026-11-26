@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.isabgroup.pimsg.R
+import com.isabgroup.pimsg.ui.playClick
 
 /** Ícone estático reutilizável do assistente PiBot. */
 @Composable
@@ -92,10 +93,10 @@ fun PiButton(
 
 @Composable
 fun ScreenFrame(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val view = LocalView.current
     Column(Modifier.fillMaxSize().background(PiColors.Background).systemBarsPadding().imePadding()) {
         Row(Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Voltar: sem som (navegação comum)
-            IconButton(onClick = onBack) { Icon(PiIcons.Back, "Voltar", tint = PiColors.White) }
+            IconButton(onClick = { view.playClick(); onBack() }) { Icon(PiIcons.Back, "Voltar", tint = PiColors.White) }
             Text(title, color = PiColors.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
         }
         Column(
