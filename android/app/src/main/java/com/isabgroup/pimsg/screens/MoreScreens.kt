@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.strOrNull
 import com.isabgroup.pimsg.ui.PiButton
+import com.isabgroup.pimsg.ui.PiFeedback
 import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.ScreenFrame
 import com.isabgroup.pimsg.ui.openUrl
@@ -293,6 +294,8 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit) {
     var blocked by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var confirmDelete by remember { mutableStateOf(false) }
     var msg by remember { mutableStateOf<String?>(null) }
+    var soundEnabled by remember { mutableStateOf(PiFeedback.soundEnabled(context)) }
+    var hapticEnabled by remember { mutableStateOf(PiFeedback.hapticEnabled(context)) }
 
     suspend fun loadBlocked() {
         try {
@@ -303,6 +306,28 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit) {
     LaunchedEffect(Unit) { loadBlocked() }
 
     ScreenFrame("Definições", onBack) {
+        Section("Som e vibração")
+        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Som ao tocar", color = PiColors.White, fontSize = 16.sp)
+                Text("Efeitos sonoros discretos nos controlos principais", color = PiColors.TextSecondary, fontSize = 12.sp)
+            }
+            Switch(checked = soundEnabled, onCheckedChange = {
+                soundEnabled = it
+                PiFeedback.setSoundEnabled(context, it)
+            }, colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = PiColors.White))
+        }
+        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Vibração ao tocar", color = PiColors.White, fontSize = 16.sp)
+                Text("Resposta tátil nos botões e ações principais", color = PiColors.TextSecondary, fontSize = 12.sp)
+            }
+            Switch(checked = hapticEnabled, onCheckedChange = {
+                hapticEnabled = it
+                PiFeedback.setHapticEnabled(context, it)
+            }, colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = PiColors.White))
+        }
+
         Section("Contas bloqueadas")
         if (blocked.isEmpty()) Text("Não bloqueou ninguém.", color = PiColors.TextSecondary, fontSize = 15.sp)
         blocked.forEach { (id, name) ->
