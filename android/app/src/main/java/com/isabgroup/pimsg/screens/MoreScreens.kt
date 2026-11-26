@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
@@ -77,6 +78,7 @@ fun ProfileScreen(onBack: () -> Unit) {
     var tiktok by remember { mutableStateOf("") }
     var youtube by remember { mutableStateOf("") }
     var website by remember { mutableStateOf("") }
+    var ringColor by remember { mutableStateOf("#8E8E93") }
     var msg by remember { mutableStateOf<String?>(null) }
     val imagePicker = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
@@ -108,6 +110,7 @@ fun ProfileScreen(onBack: () -> Unit) {
             tiktok = j.strOrNull("tiktok_url").orEmpty()
             youtube = j.strOrNull("youtube_url").orEmpty()
             website = j.strOrNull("website_url").orEmpty()
+            ringColor = j.strOrNull("ring_color") ?: "#8E8E93"
             avatarKey?.let { key ->
                 try {
                     val d = Api.download("/v1/media/$key")
@@ -146,6 +149,7 @@ fun ProfileScreen(onBack: () -> Unit) {
                             contentDescription = "Fotografia do perfil",
                             modifier = Modifier
                                 .size(104.dp)
+                                .border(3.dp, runCatching { Color(android.graphics.Color.parseColor(ringColor)) }.getOrDefault(PiColors.Gray), androidx.compose.foundation.shape.CircleShape)
                                 .clip(androidx.compose.foundation.shape.CircleShape),
                             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                         )
@@ -186,6 +190,9 @@ fun ProfileScreen(onBack: () -> Unit) {
         OutlinedTextField(value = name, onValueChange = { name = it.take(60) }, label = { Text("Nome") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(value = bio, onValueChange = { bio = it.take(300) }, label = { Text("Biografia / apresentação") }, minLines = 3, supportingText = { Text("${bio.length}/300") }, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+
+        Section("Personalização do perfil")
+        OutlinedTextField(value = ringColor, onValueChange = { ringColor = it.take(7) }, label = { Text("Cor do perfil (HEX)") }, singleLine = true, supportingText = { Text("Exemplo: #8E8E93") }, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
 
         Section("Redes sociais e website")
         Text("Adicione os seus perfis. Só serão apresentados no seu perfil público quando preencher os campos.", color = PiColors.TextSecondary, fontSize = 13.sp)
@@ -237,6 +244,7 @@ fun ProfileScreen(onBack: () -> Unit) {
                         .put("tiktok_url", tiktok.trim())
                         .put("youtube_url", youtube.trim())
                         .put("website_url", website.trim())
+                        .put("ring_color", ringColor.trim())
                     Api.patch("/v1/me", body)
                     msg = "Perfil guardado com sucesso."
                 } catch (e: Exception) { msg = "Não foi possível guardar. Verifique as ligações e tente novamente." }
