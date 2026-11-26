@@ -1,8 +1,8 @@
 # PiMsg bot visual assets
 
-- `bot_icon.svg`: supplied bot artwork.
-- `bot_working.svg`: supplied working/active bot artwork.
+- `pi_bot.png`: ícone estático oficial do PiBot.
+- `bot_working.svg`: arte SVG fornecida para o estado de trabalho/animação.
 
-The two uploaded SVG files were byte-identical. Both currently contain the same CSS animations: gentle floating, blinking eyes, and pulsing antenna lights. They are retained as supplied, under separate names so the app can assign each role.
+O PNG também é copiado para `android/app/src/main/res/drawable-nodpi/pi_bot.png` e exposto no Compose pelo componente reutilizável `PiBotAvatar` em `ui/Components.kt`.
 
-Android's native drawable/vector resource system does not execute CSS keyframe animations inside an SVG. These are source assets, not yet wired into the Android UI. Before UI integration, render them with a compatible SVG/WebView approach or convert the animation into an Android-supported animated asset while preserving the supplied appearance.
+O SVG animado é mantido como asset-fonte. O Android Drawable nativo não executa animações CSS/keyframes embutidas em SVG; a animação visual ainda precisa de um renderizador compatível antes de ser mostrada na interface. Esta alteração não cria ainda um ecrã de bots nem altera fluxos existentes.
