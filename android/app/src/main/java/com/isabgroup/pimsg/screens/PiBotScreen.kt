@@ -6,6 +6,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,40 +59,79 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 private data class AiMessage(val role: String, val content: String)
+private data class AiBotInfo(val id: String, val name: String, val description: String, val available: Boolean)
 
 @Composable
 fun PiBotScreen(onBack: () -> Unit) {
     var openChat by remember { mutableStateOf(false) }
+    var bots by remember { mutableStateOf<List<AiBotInfo>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var catalogError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val response = Api.get("/v1/bots")
+            val array = response.optJSONArray("bots") ?: JSONArray()
+            bots = (0 until array.length()).mapNotNull { index ->
+                val item = array.optJSONObject(index) ?: return@mapNotNull null
+                AiBotInfo(
+                    id = item.optString("id"),
+                    name = item.optString("name"),
+                    description = item.optString("description"),
+                    available = item.optBoolean("available", false),
+                )
+            }
+        } catch (_: Exception) {
+            catalogError = "Não foi possível carregar os assistentes. Verifique a ligação e tente novamente."
+        } finally {
+            loading = false
+        }
+    }
+
     if (openChat) {
         PiAiChatScreen(onBack = { openChat = false })
     } else {
         ScreenFrame("PiBot", onBack) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                PiBotAvatar(size = 58.dp)
-                Column {
-                    Text("Assistentes PiMsg", color = PiColors.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Ferramentas integradas na plataforma", color = PiColors.TextSecondary, fontSize = 13.sp)
-                }
+            Text("Assistentes de IA", color = PiColors.White, fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Ferramentas de inteligência artificial disponíveis no PiMsg.",
+                color = PiColors.TextSecondary, fontSize = 13.sp, lineHeight = 19.sp,
+                modifier = Modifier.padding(top = 5.dp, bottom = 22.dp),
+            )
+            Text("CATÁLOGO", color = PiColors.Gray, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            if (loading) {
+                Text("A consultar os assistentes…", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 14.dp))
             }
-            Spacer(Modifier.height(22.dp))
-            Text("Disponível", color = PiColors.Gray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            Row(
-                Modifier.fillMaxWidth().background(PiColors.Surface, RoundedCornerShape(18.dp))
-                    .clickable { openChat = true }.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                PiBotAvatar(size = 48.dp)
-                Column(Modifier.weight(1f)) {
-                    Text("Pi AI", color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Assistente inteligente", color = PiColors.TextSecondary, fontSize = 13.sp)
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        "Perguntas, explicações, escrita, ideias e apoio na utilização do PiMsg.",
-                        color = PiColors.TextSecondary, fontSize = 13.sp, lineHeight = 18.sp,
-                    )
+            catalogError?.let {
+                Text(it, color = PiColors.Danger, fontSize = 13.sp, modifier = Modifier.padding(top = 14.dp))
+            }
+            if (!loading && catalogError == null && bots.isEmpty()) {
+                Text("Não existem assistentes disponíveis neste momento.", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 14.dp))
+            }
+            bots.forEach { bot ->
+                Row(
+                    Modifier.fillMaxWidth()
+                        .background(PiColors.Surface, RoundedCornerShape(16.dp))
+                        .clickable(enabled = bot.available && bot.id == "pi-ai") {
+                            if (bot.id == "pi-ai") openChat = true
+                        }
+                        .padding(15.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    PiBotAvatar(size = 38.dp)
+                    Column(Modifier.weight(1f)) {
+                        Text(bot.name, color = PiColors.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Text(bot.description, color = PiColors.TextSecondary, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 4.dp))
+                        Text(
+                            if (bot.available) "Disponível" else "Temporariamente indisponível",
+                            color = if (bot.available) Color(0xFF8AB4F8) else PiColors.Gray,
+                            fontSize = 11.sp, modifier = Modifier.padding(top = 7.dp),
+                        )
+                    }
+                    if (bot.available) Text("›", color = PiColors.White, fontSize = 25.sp)
                 }
-                Text("›", color = PiColors.White, fontSize = 28.sp)
+                Spacer(Modifier.height(10.dp))
             }
         }
     }
@@ -197,7 +237,10 @@ private fun PiAiChatScreen(onBack: () -> Unit) {
             IconButton(onClick = { view.playClick(); onBack() }) {
                 Icon(PiIcons.Back, contentDescription = "Voltar", tint = PiColors.White)
             }
-            PiBotAvatar(size = 30.dp, modifier = Modifier.scale(if (busy) pulse else 1f))
+            Box(contentAlignment = Alignment.BottomEnd) {
+                PiBotAvatar(size = 23.dp)
+                if (busy) Box(Modifier.size(7.dp).scale(pulse).background(Color(0xFF8AB4F8), CircleShape))
+            }
             Column(Modifier.weight(1f)) {
                 Text("Pi AI", color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                 Text(if (busy) "A preparar uma resposta" else "Assistente PiMsg", color = PiColors.TextSecondary, fontSize = 11.sp)
