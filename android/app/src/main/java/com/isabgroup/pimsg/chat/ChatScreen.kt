@@ -108,9 +108,17 @@ fun ChatScreen(
     var attachOpen by remember { mutableStateOf(false) }
     var optionsOpen by remember { mutableStateOf(false) }
     var reportOpen by remember { mutableStateOf(false) }
+    var disappearingOpen by remember { mutableStateOf(false) }
+    var disappearingSeconds by remember { mutableStateOf(0) }
     var info by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val isGroup = ref.inviteCode != null
+
+    LaunchedEffect(convId) {
+        runCatching {
+            disappearingSeconds = Api.get("/v1/chats/$convId/disappearing").optInt("seconds", 0)
+        }
+    }
 
     LaunchedEffect(convId) {
         while (true) {
@@ -193,6 +201,10 @@ fun ChatScreen(
             title = { Text(title, color = PiColors.White) },
             text = {
                 Column {
+                    OptionRow("Mensagens temporárias") {
+                        optionsOpen = false
+                        disappearingOpen = true
+                    }
                     if (isGroup) {
                         OptionRow("Convidar para o grupo") {
                             optionsOpen = false
@@ -222,6 +234,54 @@ fun ChatScreen(
                 }
             },
             confirmButton = { TextButton(onClick = { optionsOpen = false }) { Text("Fechar", color = PiColors.White) } },
+        )
+    }
+
+    if (disappearingOpen) {
+        val durations = listOf(
+            0 to "Desativadas",
+            86400 to "24 horas",
+            604800 to "7 dias",
+            7776000 to "90 dias",
+        )
+        AlertDialog(
+            onDismissRequest = { disappearingOpen = false },
+            containerColor = PiColors.Surface,
+            title = { Text("Mensagens temporárias", color = PiColors.White) },
+            text = {
+                Column {
+                    Text(
+                        "As novas mensagens desta conversa serão eliminadas para todos após o período escolhido.",
+                        color = PiColors.Gray,
+                        fontSize = 14.sp,
+                    )
+                    durations.forEach { (seconds, label) ->
+                        OptionRow(
+                            if (disappearingSeconds == seconds) "✓ $label" else label
+                        ) {
+                            scope.launch {
+                                try {
+                                    Api.put(
+                                        "/v1/chats/$convId/disappearing",
+                                        JSONObject().put("seconds", seconds),
+                                    )
+                                    disappearingSeconds = seconds
+                                    info = if (seconds == 0) "Mensagens temporárias desativadas."
+                                        else "Mensagens temporárias ativadas: $label."
+                                } catch (_: Exception) {
+                                    info = "Não foi possível alterar esta definição."
+                                }
+                                disappearingOpen = false
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { disappearingOpen = false }) {
+                    Text("Fechar", color = PiColors.White)
+                }
+            },
         )
     }
 
