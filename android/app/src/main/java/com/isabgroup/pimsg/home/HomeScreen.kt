@@ -98,6 +98,8 @@ fun HomeScreen(
     var profileTarget by remember { mutableStateOf<UserItem?>(null) }
     var publicProfile by remember { mutableStateOf<JSONObject?>(null) }
     var publicAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var ownProfileName by remember { mutableStateOf("O meu perfil") }
+    var ownProfileAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var profileLoading by remember { mutableStateOf(false) }
     var newGroupOpen by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
@@ -168,6 +170,17 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        runCatching {
+            val me = Api.get("/v1/me")
+            ownProfileName = me.optString("name", "O meu perfil")
+            val key = me.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
+            if (key != null) {
+                val downloaded = Api.download("/v1/media/$key")
+                ownProfileAvatar = android.graphics.BitmapFactory.decodeByteArray(downloaded.bytes, 0, downloaded.bytes.size)
+            }
+        }
+    }
     LaunchedEffect(query) { delay(300); vm.search(query) }
     LaunchedEffect(profileTarget?.id) {
         val target = profileTarget ?: run { publicProfile = null; publicAvatar = null; return@LaunchedEffect }
@@ -306,6 +319,8 @@ fun HomeScreen(
     if (menuOpen) {
         MenuSheet(
             hasMyStory = myStories.isNotEmpty(),
+            profileName = ownProfileName,
+            profileAvatar = ownProfileAvatar,
             onDismiss = { menuOpen = false },
             onItem = { key ->
                 when (key) {
