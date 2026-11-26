@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -67,6 +68,7 @@ import com.isabgroup.pimsg.ui.ChatRowSkeleton
 import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiIcons
 import com.isabgroup.pimsg.ui.openUrl
+import com.isabgroup.pimsg.ui.playClick
 import com.isabgroup.pimsg.ui.piFieldColors
 import kotlinx.coroutines.delay
 import org.json.JSONArray
@@ -90,6 +92,7 @@ fun HomeScreen(
     vm: HomeViewModel = viewModel(),
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val state by vm.state.collectAsStateWithLifecycle()
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -207,12 +210,12 @@ fun HomeScreen(
             Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = { menuOpen = true }) {
+            IconButton(onClick = { view.playClick(); menuOpen = true }) {
                 Icon(PiIcons.Menu, contentDescription = "Menu", tint = PiColors.White)
             }
             if (!searching) {
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = { searching = true }) {
+                IconButton(onClick = { view.playClick(); searching = true }) {
                     Icon(PiIcons.Search, contentDescription = "Pesquisar", tint = PiColors.White)
                 }
             } else {
@@ -238,7 +241,7 @@ fun HomeScreen(
                         },
                     )
                 }
-                IconButton(onClick = { searching = false; query = "" }) {
+                IconButton(onClick = { view.playClick(); searching = false; query = "" }) {
                     Icon(PiIcons.Close, contentDescription = "Fechar pesquisa", tint = PiColors.White)
                 }
             }
@@ -258,7 +261,7 @@ fun HomeScreen(
                 Tab.values().forEach { tab ->
                     val selected = tab == state.tab
                     Column(
-                        Modifier.clip(RoundedCornerShape(10.dp)).clickable { vm.selectTab(tab) }.padding(horizontal = 10.dp, vertical = 8.dp),
+                        Modifier.clip(RoundedCornerShape(10.dp)).clickable { view.playClick(); vm.selectTab(tab) }.padding(horizontal = 10.dp, vertical = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
