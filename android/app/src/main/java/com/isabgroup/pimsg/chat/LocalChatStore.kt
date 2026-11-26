@@ -22,6 +22,7 @@ internal class LocalChatStore(context: Context) :
                 body TEXT,
                 media_id TEXT,
                 created_at INTEGER NOT NULL,
+                expires_at INTEGER,
                 pending INTEGER NOT NULL DEFAULT 0
             )"""
         )
@@ -35,9 +36,9 @@ internal class LocalChatStore(context: Context) :
         val result = mutableListOf<Message>()
         readableDatabase.query(
             "messages",
-            arrayOf("id", "sender_id", "kind", "body", "media_id", "created_at", "pending"),
-            "conversation_id = ?",
-            arrayOf(conversationId),
+            arrayOf("id", "sender_id", "kind", "body", "media_id", "created_at", "expires_at", "pending"),
+            "conversation_id = ? AND (expires_at IS NULL OR expires_at > ?)",
+            arrayOf(conversationId, System.currentTimeMillis().toString()),
             null, null, "created_at DESC"
         ).use { c ->
             while (c.moveToNext()) {
@@ -48,7 +49,8 @@ internal class LocalChatStore(context: Context) :
                     body = c.getString(3),
                     mediaId = c.getString(4),
                     createdAt = c.getLong(5),
-                    pending = c.getInt(6) == 1,
+                    expiresAt = if (c.isNull(6)) null else c.getLong(6),
+                    pending = c.getInt(7) == 1,
                 )
             }
         }
@@ -71,6 +73,7 @@ internal class LocalChatStore(context: Context) :
                     put("body", message.body)
                     put("media_id", message.mediaId)
                     put("created_at", message.createdAt)
+                    if (message.expiresAt == null) putNull("expires_at") else put("expires_at", message.expiresAt)
                     put("pending", 0)
                 }
                 db.insertWithOnConflict("messages", null, values, SQLiteDatabase.CONFLICT_REPLACE)
@@ -91,6 +94,7 @@ internal class LocalChatStore(context: Context) :
             put("body", message.body)
             put("media_id", message.mediaId)
             put("created_at", message.createdAt)
+            putNull("expires_at")
             put("pending", 1)
         }
         writableDatabase.insertWithOnConflict("messages", null, values, SQLiteDatabase.CONFLICT_REPLACE)
