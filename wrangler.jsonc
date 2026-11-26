@@ -1,0 +1,25 @@
+{
+  "name": "pimsg-api",
+  "main": "src/index.js",
+  "vars": { "FIREBASE_PROJECT_ID": "SUBSTITUIR_PELO_ID_DO_PROJETO_FIREBASE" },
+  "compatibility_date": "2026-11-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    { "pattern": "pimsg.tchilopop.com", "custom_domain": true }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pimsg-db",
+      "database_id": "22bfe30d-ac68-4111-8d0d-bbb8e7b03633",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    { "binding": "MEDIA", "bucket_name": "pimsg-media" }
+  ],
+  "observability": {
+    "enabled": true,
+    "traces": { "enabled": true }
+  }
+}
