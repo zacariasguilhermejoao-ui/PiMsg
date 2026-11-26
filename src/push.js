@@ -1,5 +1,3 @@
-// Notificacoes push via Firebase Cloud Messaging (API HTTP v1).
-// Precisa do segredo FCM_SERVICE_ACCOUNT (JSON da conta de servico do Firebase). Sem ele, nao envia nada.
 
 let cached = { token: null, exp: 0 };
 
@@ -38,7 +36,6 @@ async function accessToken(sa) {
   return cached.token;
 }
 
-// Envia uma notificacao (so dados; a app monta a notificacao com o icone e o canal do PiMsg).
 export async function pushToUsers(env, userIds, title, body, data = {}) {
   if (!env.FCM_SERVICE_ACCOUNT || !userIds.length) return;
   try {
