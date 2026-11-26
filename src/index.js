@@ -1,7 +1,7 @@
-// PiMsg API (ISAB Group) - Cloudflare Worker
-// Login: token de ID do Firebase (Google ou numero com SMS confirmado).
 
 import { handleChat } from "./chat.js";
+import { handleExtra } from "./extra.js";
+import { handlePublic } from "./pages.js";
 
 const JWKS_URL = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -97,15 +97,17 @@ async function activeCode(env, userId) {
 async function handle(request, env) {
   const url = new URL(request.url);
   const path = url.pathname;
-  const method = request.method;
+  const method = request.method === "POST" && request.headers.get("x-http-method-override") === "PATCH" ? "PATCH" : request.method;
 
   if (path === "/health") return json({ ok: true, app: "PiMsg" });
+
+  const publicResponse = await handlePublic(request, env);
+  if (publicResponse) return publicResponse;
 
   const me = await authenticate(request, env);
   if (!me) return fail(401, "nao autenticado");
   if (me.blocked) return fail(403, "conta " + me.blocked);
 
-  // Perfil
   if (path === "/v1/me" && method === "GET") {
     const code = await activeCode(env, me.id);
     return json({
@@ -126,7 +128,6 @@ async function handle(request, env) {
     return json({ ok: true });
   }
 
-  // Codigo pessoal: gerar novo expira o anterior
   if (path === "/v1/me/code/regenerate" && method === "POST") {
     const now = Date.now();
     const newCode = randomCode(8);
@@ -138,7 +139,6 @@ async function handle(request, env) {
     return json({ code: newCode });
   }
 
-  // Pesquisa por codigo ou nome. Nunca por numero.
   if (path === "/v1/search" && method === "GET") {
     const q = (url.searchParams.get("q") || "").trim();
     if (q.length < 2) return json({ users: [], groups: [] });
@@ -157,13 +157,21 @@ async function handle(request, env) {
        AND id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = ?) LIMIT 20`
     ).bind(like, me.id, me.id).all();
     const seen = new Set();
-    const users = [...byCode.results, ...byName.results]
-      .filter((u) => !seen.has(u.id) && seen.add(u.id))
-      .map(publicUser);
+    const rq = await env.DB.prepare(
+      `SELECT u.*, l.id AS link_id, l.subject AS link_subject FROM contact_requests r
+       JOIN contact_links l ON l.id = r.link_id JOIN users u ON u.id = l.user_id
+       WHERE r.request_code = ? AND r.status <> 'expired' AND r.expires_at > ? AND l.is_active = 1 AND u.status = 'active'
+       AND u.id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = ?)`
+    ).bind(up, Date.now(), me.id).first();
+    const users = [];
+    if (rq) {
+      seen.add(rq.id);
+      users.push({ ...publicUser(rq), link_id: rq.link_id, link_subject: rq.link_subject, request_code: up });
+    }
+    for (const u of [...byCode.results, ...byName.results]) if (!seen.has(u.id) && seen.add(u.id)) users.push(publicUser(u));
     return json({ users, groups: group.results });
   }
 
-  // Bloqueios
   if (path === "/v1/blocks" && method === "GET") {
     const r = await env.DB.prepare(
       "SELECT u.* FROM blocks b JOIN users u ON u.id = b.blocked_id WHERE b.blocker_id = ? ORDER BY b.created_at DESC"
@@ -182,7 +190,6 @@ async function handle(request, env) {
     return json({ ok: true });
   }
 
-  // Denuncias (limite simples contra abuso: 20 por dia)
   if (path === "/v1/reports" && method === "POST") {
     const b = await request.json().catch(() => ({}));
     const types = ["user", "message", "group", "story"];
@@ -198,7 +205,6 @@ async function handle(request, env) {
     return json({ ok: true });
   }
 
-  // Apagar conta: fica agendado com 14 dias para desistir
   if (path === "/v1/me/delete" && method === "POST") {
     const now = Date.now();
     await env.DB.prepare(
@@ -206,6 +212,9 @@ async function handle(request, env) {
     ).bind(crypto.randomUUID(), me.id, "delete", "app", "pending", now, now + 14 * 86400000).run();
     return json({ ok: true, scheduled_for: now + 14 * 86400000 });
   }
+
+  const extraResponse = await handleExtra(request, env, me, path, method);
+  if (extraResponse) return extraResponse;
 
   const chatResponse = await handleChat(request, env, me, path, method);
   if (chatResponse) return chatResponse;
