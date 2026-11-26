@@ -82,9 +82,9 @@ fun ChatScreen(
 ) {
     val convId = ref.id
     val title = ref.title
-    val vm: ChatViewModel = viewModel(key = convId, factory = viewModelFactory { initializer { ChatViewModel(convId) } })
-    val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val vm: ChatViewModel = viewModel(key = convId, factory = viewModelFactory { initializer { ChatViewModel(context.applicationContext, convId) } })
+    val state by vm.state.collectAsStateWithLifecycle()
     val cr = context.contentResolver
     val view = LocalView.current
     var text by remember { mutableStateOf("") }
