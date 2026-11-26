@@ -163,7 +163,7 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     suspend fun loadImage(mediaId: String) {
         if (images.containsKey(mediaId)) return
         try {
-            val dir = File(appContext.filesDir, "PiMsg/Images").apply { mkdirs() }
+            val dir = File(appContext.getExternalFilesDir(null) ?: appContext.filesDir, "PiMsg/Images").apply { mkdirs() }
             val cached = File(dir, "$mediaId.img")
             val bytes = if (cached.exists()) cached.readBytes() else {
                 Api.download("/v1/media/$mediaId").bytes.also { cached.writeBytes(it) }
