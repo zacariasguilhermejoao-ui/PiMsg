@@ -169,9 +169,15 @@ jobs:
             -storepass:env ANDROID_KEYSTORE_PASSWORD \
             > "$KEYSTORE_LIST" 2> "$KEYSTORE_ERROR"; then
             echo "::error::Could not open the decoded keystore. Check whether ANDROID_KEYSTORE_BASE64 is the correct original .jks/.keystore and whether ANDROID_KEYSTORE_PASSWORD matches it."
+            if [ -s "$KEYSTORE_LIST" ]; then
+              echo "keytool output:"
+              cat "$KEYSTORE_LIST"
+            fi
             if [ -s "$KEYSTORE_ERROR" ]; then
+              echo "keytool error output:"
               cat "$KEYSTORE_ERROR"
-            else
+            fi
+            if [ ! -s "$KEYSTORE_LIST" ] && [ ! -s "$KEYSTORE_ERROR" ]; then
               echo "keytool returned an error without diagnostic text."
             fi
             exit 1
