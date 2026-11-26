@@ -31,13 +31,13 @@ jobs:
 
       - name: Prepare Firebase configuration
         env:
-          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ]; then
-            echo "::error::Missing repository secret GOOGLE_SERVICES_JSON_BASE64. Add the Base64-encoded android/app/google-services.json in GitHub Settings > Secrets and variables > Actions."
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "::error::Missing repository secret GOOGLE_SERVICES_JSON. Add the Base64-encoded android/app/google-services.json in GitHub Settings > Secrets and variables > Actions."
             exit 1
           fi
-          printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > android/app/google-services.json
+          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
           test -s android/app/google-services.json
 
       - name: Build release APK and AAB (unsigned)
