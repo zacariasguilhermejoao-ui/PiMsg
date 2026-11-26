@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -157,7 +158,7 @@ fun ProfileScreen(onBack: () -> Unit) {
                             contentAlignment = Alignment.Center,
                         ) {
                             androidx.compose.material3.Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Outlined.Person,
+                                imageVector = androidx.compose.material.icons.Icons.Filled.Person,
                                 contentDescription = "Avatar padrão",
                                 tint = PiColors.Gray,
                                 modifier = Modifier.size(54.dp),
