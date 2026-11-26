@@ -40,6 +40,12 @@ import com.isabgroup.pimsg.screens.SettingsScreen
 import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiMsgTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import androidx.compose.runtime.rememberCoroutineScope
+import java.net.HttpURLConnection
+import java.net.URL
 
 data class PendingPiLink(val type: String, val value: String)
 
@@ -192,7 +198,37 @@ private fun AppRoot(activity: MainActivity) {
     var signedIn by remember { mutableStateOf(FirebaseAuth.getInstance().currentUser != null) }
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
     var splash by remember { mutableStateOf(true) }
+    var invalidClock by remember { mutableStateOf(false) }
+    var checkingClock by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    suspend fun verifyClock() {
+        checkingClock = true
+        invalidClock = withContext(Dispatchers.IO) {
+            var connection: HttpURLConnection? = null
+            try {
+                connection = (URL("https://www.google.com/generate_204").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "HEAD"
+                    connectTimeout = 5000
+                    readTimeout = 5000
+                    useCaches = false
+                }
+                connection.connect()
+                val serverDate = connection.getHeaderFieldDate("Date", -1L)
+                serverDate > 0L && kotlin.math.abs(System.currentTimeMillis() - serverDate) > 5 * 60 * 1000L
+            } catch (_: Exception) {
+                false
+            } finally {
+                connection?.disconnect()
+            }
+        }
+        checkingClock = false
+    }
+
     LaunchedEffect(Unit) { delay(1600); splash = false }
+    LaunchedEffect(splash) {
+        if (!splash) verifyClock()
+    }
     LaunchedEffect(activity.pendingPiLink, signedIn) {
         if (activity.pendingPiLink != null && signedIn) screen = Screen.Home
     }
@@ -207,6 +243,10 @@ private fun AppRoot(activity: MainActivity) {
     Crossfade(targetState = splash, label = "splash") { showing ->
         when {
             showing -> SplashScreen()
+            checkingClock -> Box(Modifier.fillMaxSize().background(PiColors.Background))
+            invalidClock -> TelaDataIncorreta(
+                onVerificarNovamente = { scope.launch { verifyClock() } }
+            )
             !signedIn -> AuthScreen(onSignedIn = { signedIn = true })
             else -> {
                 BackHandler(enabled = screen != Screen.Home) { screen = Screen.Home }
