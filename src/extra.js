@@ -78,6 +78,7 @@ export async function handleExtra(request, env, me, path, method) {
        WHERE l.slug = ? AND l.is_active = 1 AND u.status = 'active'`
     ).bind(openLink[1]).first();
     if (!link) return fail(404, "link indisponivel");
+    if (link.user_id === me.id) return fail(400, "este link pertence a sua conta");
     const blocked = await env.DB.prepare(
       "SELECT 1 AS ok FROM blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?) LIMIT 1"
     ).bind(me.id, link.user_id, link.user_id, me.id).first();
