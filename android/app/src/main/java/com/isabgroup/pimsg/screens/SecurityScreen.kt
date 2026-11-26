@@ -56,6 +56,7 @@ fun SecurityScreen(onBack: () -> Unit) {
     val factors = remember { mutableStateListOf<MultiFactorInfo>() }
     var secret by remember { mutableStateOf<TotpSecret?>(null) }
     var secretText by remember { mutableStateOf("") }
+    var qrCodeUri by remember { mutableStateOf("") }
     var otp by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
@@ -100,6 +101,7 @@ fun SecurityScreen(onBack: () -> Unit) {
                 val generated = TotpMultiFactorGenerator.generateSecret(session).await()
                 secret = generated
                 secretText = generated.sharedSecretKey
+                qrCodeUri = generated.generateQrCodeUrl(current.email ?: current.uid, "PiMsg")
                 otp = ""
                 message = "Adicione esta chave ao Google Authenticator e introduza o código de seis dígitos gerado."
             } catch (e: Exception) {
@@ -124,6 +126,7 @@ fun SecurityScreen(onBack: () -> Unit) {
                 current.multiFactor.enroll(assertion, "Google Authenticator").await()
                 secret = null
                 secretText = ""
+                qrCodeUri = ""
                 otp = ""
                 refreshFactors()
                 message = "Verificação em duas etapas ativada."
@@ -164,11 +167,17 @@ fun SecurityScreen(onBack: () -> Unit) {
             Text("1. Adicione a chave ao autenticador", color = PiColors.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             Text("No Google Authenticator, escolha adicionar uma conta com chave de configuração e introduza esta chave:", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
             Text(secretText, color = PiColors.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp))
-            TextButton(onClick = {
-                (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as ClipboardManager)
-                    .setPrimaryClip(ClipData.newPlainText("Chave do PiMsg", secretText))
-                message = "Chave copiada."
-            }) { Text("Copiar chave", color = Color(0xFF8AB4F8)) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = {
+                    (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                        .setPrimaryClip(ClipData.newPlainText("Chave do PiMsg", secretText))
+                    message = "Chave copiada."
+                }) { Text("Copiar chave", color = Color(0xFF8AB4F8)) }
+                TextButton(onClick = {
+                    runCatching { secret?.openInOtpApp(qrCodeUri) }
+                        .onFailure { message = "Não foi possível abrir uma aplicação autenticadora neste aparelho." }
+                }) { Text("Abrir autenticador", color = Color(0xFF8AB4F8)) }
+            }
             Spacer(Modifier.height(8.dp))
             Text("2. Confirme o código", color = PiColors.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             OutlinedTextField(
@@ -179,7 +188,7 @@ fun SecurityScreen(onBack: () -> Unit) {
             )
             Spacer(Modifier.height(10.dp))
             PiButton("Ativar verificação em duas etapas", { confirmTotp() }, enabled = otp.length == 6 && !busy)
-            TextButton(onClick = { secret = null; secretText = ""; otp = ""; message = "Configuração cancelada." }) {
+            TextButton(onClick = { secret = null; secretText = ""; qrCodeUri = ""; otp = ""; message = "Configuração cancelada." }) {
                 Text("Cancelar", color = PiColors.TextSecondary)
             }
         }
