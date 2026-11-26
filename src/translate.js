@@ -13,10 +13,28 @@ const json = (data, status = 200) =>
     },
   });
 
-export async function handleTranslate(request, env) {
+const DAILY_TRANSLATION_LIMIT = 50;
+
+function localDay(timeZone) {
+  try {
+    return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+
+export async function handleTranslate(request, env, me) {
   if (request.method !== "POST") {
     return json({ error: "metodo nao permitido" }, 405);
   }
+  const now = Date.now();
+  const subscription = await env.DB.prepare(
+    "SELECT 1 AS ok FROM subscriptions WHERE user_id = ? AND status IN ('active','grace') AND expires_at > ? LIMIT 1"
+  ).bind(me.id, now).first();
+  if (!subscription) {
+    return json({ error: "A traducao automatica esta disponivel apenas no plano Pro.", reason: "pro_required" }, 402);
+  }
+
   if (!env.AI) {
     return json({ error: "Cloudflare Workers AI nao esta configurado" }, 503);
   }
@@ -37,6 +55,17 @@ export async function handleTranslate(request, env) {
   }
   if (sourceLang === targetLang) {
     return json({ original_text: text, translated_text: text, translated: false, marker: null });
+  }
+
+  const day = localDay(me.timezone || "Africa/Luanda");
+  const quota = await env.DB.prepare(
+    `INSERT INTO translation_usage (user_id, day, translations_count) VALUES (?, ?, 1)
+     ON CONFLICT(user_id, day) DO UPDATE SET translations_count = translations_count + 1
+     WHERE translations_count < ?
+     RETURNING translations_count`
+  ).bind(me.id, day, DAILY_TRANSLATION_LIMIT).first();
+  if (!quota) {
+    return json({ error: "Atingiste o limite diario de 50 traducoes do plano Pro.", reason: "translation_daily_limit", limit: DAILY_TRANSLATION_LIMIT }, 429);
   }
 
   try {
