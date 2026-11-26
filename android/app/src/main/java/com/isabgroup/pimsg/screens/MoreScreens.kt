@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,6 +46,7 @@ import com.isabgroup.pimsg.ui.PiFeedback
 import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.ScreenFrame
 import com.isabgroup.pimsg.ui.openUrl
+import com.isabgroup.pimsg.ui.playClick
 import com.isabgroup.pimsg.ui.piFieldColors
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -290,6 +292,7 @@ fun ProfileScreen(onBack: () -> Unit) {
 @Composable
 fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> Unit) {
     val context = LocalContext.current
+    val view = LocalView.current
     val scope = rememberCoroutineScope()
     var blocked by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -326,6 +329,10 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
                 hapticEnabled = it
                 PiFeedback.setHapticEnabled(context, it)
             }, colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = PiColors.White))
+        }
+
+        TextButton(onClick = { view.playClick() }, modifier = Modifier.fillMaxWidth()) {
+            Text("Testar som e vibração", color = Color(0xFF8AB4F8))
         }
 
         Section("Segurança")
