@@ -4,6 +4,31 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccessibilityNew
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Devices
+import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.PersonAddAlt1
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.WorkspacePremium
+import androidx.compose.material.icons.outlined.ManageAccounts
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.core.content.ContextCompat
+import com.isabgroup.pimsg.data.Push
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -100,71 +125,220 @@ fun ProfileScreen(onBack: () -> Unit) {
         }
 
         Section("Privacidade")
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Mostrar o meu número no perfil", color = PiColors.White, fontSize = 16.sp)
-                if (!phoneVerified) Text("Disponível quando o número estiver confirmado.", color = PiColors.Gray, fontSize = 13.sp)
-            }
-            Switch(
-                checked = showPhone, onCheckedChange = { showPhone = it }, enabled = phoneVerified,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.Black, checkedTrackColor = PiColors.White,
-                    uncheckedThumbColor = PiColors.Gray, uncheckedTrackColor = PiColors.SurfaceHigh,
-                ),
-            )
-        }
+        Row(Modifier.// ---------------------------------------------------------------- Definições
+private data class SettingsEntry(
+    val key: String,
+    val title: String,
+    val description: String,
+    val icon: ImageVector,
+)
 
-        Spacer(Modifier.height(24.dp))
-        PiButton("Guardar", {
-            scope.launch {
-                try {
-                    Api.patch("/v1/me", JSONObject().put("name", name).put("bio", bio).put("show_phone", showPhone))
-                    msg = "Perfil guardado."
-                } catch (e: Exception) { msg = "Não foi possível guardar." }
-            }
-        }, enabled = name.isNotBlank())
-        msg?.let { Text(it, color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp)) }
-        Spacer(Modifier.height(24.dp))
+@Composable
+private fun SettingsRow(entry: SettingsEntry, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        androidx.compose.material3.Icon(
+            imageVector = entry.icon,
+            contentDescription = null,
+            tint = Color(0xFF929298),
+            modifier = Modifier.padding(end = 16.dp).height(24.dp),
+        )
+        Column(Modifier.weight(1f)) {
+            Text(entry.title, color = PiColors.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            Text(entry.description, color = PiColors.TextSecondary, fontSize = 13.sp, lineHeight = 18.sp)
+        }
+        androidx.compose.material3.Icon(
+            imageVector = Icons.Outlined.ChevronRight,
+            contentDescription = null,
+            tint = Color(0xFF66666D),
+        )
     }
 }
 
-// ---------------------------------------------------------------- Definições
+@Composable
+private fun SettingsInfo(title: String, description: String) {
+    Column(
+        Modifier.fillMaxWidth().padding(vertical = 8.dp)
+            .background(PiColors.Surface, RoundedCornerShape(14.dp)).padding(16.dp),
+    ) {
+        Text(title, color = PiColors.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Text(description, color = PiColors.TextSecondary, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(top = 5.dp))
+    }
+}
+
 @Composable
 fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var selected by remember { mutableStateOf<String?>(null) }
     var blocked by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var confirmDelete by remember { mutableStateOf(false) }
     var msg by remember { mutableStateOf<String?>(null) }
+    var pushEnabled by remember {
+        mutableStateOf(
+            Build.VERSION.SDK_INT < 33 ||
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        )
+    }
 
     suspend fun loadBlocked() {
         try {
             val arr = Api.get("/v1/blocks").getJSONArray("users")
             blocked = (0 until arr.length()).map { arr.getJSONObject(it).let { o -> o.getString("id") to o.getString("name") } }
-        } catch (e: Exception) { /* lista vazia */ }
+        } catch (_: Exception) { msg = "Não foi possível carregar as contas bloqueadas." }
     }
-    LaunchedEffect(Unit) { loadBlocked() }
 
-    ScreenFrame("Definições", onBack) {
-        Section("Contas bloqueadas")
-        if (blocked.isEmpty()) Text("Não bloqueou ninguém.", color = PiColors.TextSecondary, fontSize = 15.sp)
-        blocked.forEach { (id, name) ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(name, color = PiColors.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
-                TextButton(onClick = { scope.launch { runCatching { Api.delete("/v1/blocks/$id") }; loadBlocked() } }) {
-                    Text("Desbloquear", color = PiColors.White)
+    val pushPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        pushEnabled = granted
+        if (granted) scope.launch {
+            try { Push.register(context); msg = "Notificações ativadas neste dispositivo." }
+            catch (_: Exception) { msg = "Permissão concedida, mas não foi possível registar o dispositivo. Tente novamente." }
+        } else msg = "A permissão de notificações continua desativada nas definições do Android."
+    }
+
+    LaunchedEffect(selected) {
+        if (selected == "privacy") loadBlocked()
+    }
+
+    val entries = listOf(
+        SettingsEntry("subscription", "Subscrições", "Explore os benefícios premium", Icons.Outlined.WorkspacePremium),
+        SettingsEntry("devices", "Dispositivos associados", "Use a app noutros dispositivos", Icons.Outlined.Devices),
+        SettingsEntry("account", "Conta", "Notificações de segurança, alterar número", Icons.Outlined.ManageAccounts),
+        SettingsEntry("privacy", "Privacidade", "Contas bloqueadas, mensagens temporárias", Icons.Outlined.Shield),
+        SettingsEntry("lists", "Listas", "Gira pessoas e grupos", Icons.Outlined.Groups),
+        SettingsEntry("conversations", "Conversas", "Tema, fundos, histórico de conversas", Icons.Outlined.Forum),
+        SettingsEntry("appearance", "Aspeto", "Tema da conversa, ícone da app, tema da app", Icons.Outlined.Palette),
+        SettingsEntry("notifications", "Notificações", "Toques de mensagens, grupos e chamadas", Icons.Outlined.Notifications),
+        SettingsEntry("storage", "Armazenamento e dados", "Utilização da rede, descarregar automaticamente", Icons.Outlined.Storage),
+        SettingsEntry("accessibility", "Acessibilidade", "Aumentar contraste, animação", Icons.Outlined.AccessibilityNew),
+        SettingsEntry("language", "Idioma da app", "Português (Portugal) (idioma do dispositivo)", Icons.Outlined.Language),
+        SettingsEntry("help", "Ajuda e feedback", "Centro de Ajuda, contacte-nos, Política de Privacidade", Icons.Outlined.HelpOutline),
+        SettingsEntry("invite", "Convidar um contacto", "Convide pessoas para o PiMsg", Icons.Outlined.PersonAddAlt1),
+    )
+
+    val pageTitle = entries.firstOrNull { it.key == selected }?.title ?: "Definições"
+    ScreenFrame(pageTitle, { if (selected != null) selected = null else onBack() }) {
+        if (selected == null) {
+            Text("Preferências", color = PiColors.Gray, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
+            entries.forEachIndexed { index, entry ->
+                SettingsRow(entry) {
+                    if (entry.key == "invite") {
+                        val send = Intent(Intent.ACTION_SEND).setType("text/plain")
+                            .putExtra(Intent.EXTRA_TEXT, "Vamos conversar no PiMsg. Instale a aplicação: https://play.google.com/store/apps/details?id=com.pimsg.isabstudio")
+                        context.startActivity(Intent.createChooser(send, "Convidar um contacto"))
+                    } else selected = entry.key
+                }
+                if (index != entries.lastIndex) androidx.compose.material3.HorizontalDivider(color = PiColors.SurfaceHigh.copy(alpha = 0.75f), thickness = 0.7.dp)
+            }
+            Spacer(Modifier.height(22.dp))
+            Section("Sessão")
+            Text("Sair", color = PiColors.White, fontSize = 15.sp, modifier = Modifier.fillMaxWidth().clickable { onSignOut() }.padding(vertical = 12.dp))
+            Text("Apagar conta", color = PiColors.Danger, fontSize = 15.sp, modifier = Modifier.fillMaxWidth().clickable { confirmDelete = true }.padding(vertical = 12.dp))
+        } else {
+            when (selected) {
+                "subscription" -> {
+                    SettingsInfo("PiMsg Premium", "Explore os benefícios premium e as opções de subscrição disponíveis na aplicação.")
+                    SettingsInfo("Benefícios", "Mais liberdade para conversar, limites ampliados e funcionalidades exclusivas do plano Pro.")
+                    Text("Consulte os planos e preços apresentados na Google Play antes de subscrever.", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(vertical = 8.dp))
+                    PiButton("Ver PiMsg na Google Play", { openUrl(context, "https://play.google.com/store/apps/details?id=com.pimsg.isabstudio") }, primary = false)
+                }
+                "devices" -> {
+                    SettingsInfo("Este dispositivo", "O PiMsg pode registar este aparelho para receber notificações push quando a permissão estiver ativa.")
+                    SettingsInfo("Outros dispositivos", "A gestão de sessões e a remoção remota de dispositivos ainda não estão disponíveis nesta versão.")
+                }
+                "account" -> {
+                    SettingsInfo("Segurança da conta", "Mantenha o acesso à sua conta Google ou ao número de telefone associado protegido.")
+                    SettingsInfo("Alterar número", "A alteração do número exige um fluxo de confirmação por SMS. Essa operação ainda não está disponível nesta versão.")
+                    Text("Para questões sobre acesso à conta, contacte o suporte.", color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(vertical = 8.dp))
+                    PiButton("Contactar suporte", { openUrl(context, "mailto:suporte@tchilopop.com") }, primary = false)
+                }
+                "privacy" -> {
+                    Section("Contas bloqueadas")
+                    if (blocked.isEmpty()) Text("Não bloqueou ninguém.", color = PiColors.TextSecondary, fontSize = 14.sp)
+                    blocked.forEach { (id, name) ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(name, color = PiColors.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                            TextButton(onClick = { scope.launch { runCatching { Api.delete("/v1/blocks/$id") }; loadBlocked() } }) {
+                                Text("Desbloquear", color = PiColors.White)
+                            }
+                        }
+                    }
+                    Section("Mensagens temporárias")
+                    SettingsInfo("Duração das mensagens", "A duração das mensagens temporárias é configurada dentro de cada conversa, através das opções dessa conversa.")
+                }
+                "lists" -> SettingsInfo("Pessoas e grupos", "As conversas individuais e os grupos que criar ou integrar aparecem no ecrã principal do PiMsg. A gestão de listas personalizadas ainda não está disponível.")
+                "conversations" -> SettingsInfo("Personalização das conversas", "As opções de tema, fundos e histórico de conversas ainda não estão disponíveis nesta versão.")
+                "appearance" -> SettingsInfo("Personalizar o PiMsg", "A escolha do tema da aplicação, do fundo das conversas e do ícone da app ainda não está disponível nesta versão.")
+                "notifications" -> {
+                    SettingsInfo("Notificações push", "Permita notificações para receber alertas de novas mensagens mesmo quando o PiMsg não está aberto.")
+                    Text(
+                        if (pushEnabled) "Permissão de notificações: ativada" else "Permissão de notificações: desativada",
+                        color = if (pushEnabled) Color(0xFF9AA0A6) else PiColors.TextSecondary,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(vertical = 12.dp),
+                    )
+                    PiButton(
+                        if (pushEnabled) "Registar este dispositivo" else "Ativar notificações",
+                        {
+                            if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                                pushPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else scope.launch {
+                                try { Push.register(context); pushEnabled = true; msg = "Dispositivo registado para notificações push." }
+                                catch (_: Exception) { msg = "Não foi possível registar as notificações. Verifique a ligação e tente novamente." }
+                            }
+                        },
+                        primary = false,
+                    )
+                    SettingsInfo("Toques e categorias", "Os controlos separados para toques de mensagens, grupos e chamadas ainda não estão ligados ao sistema de notificações.")
+                }
+                "storage" -> SettingsInfo("Armazenamento e dados", "Os ficheiros multimédia são enviados quando escolhe partilhá-los. O descarregamento automático e o relatório detalhado de utilização da rede ainda não estão disponíveis.")
+                "accessibility" -> SettingsInfo("Acessibilidade", "As opções de contraste reforçado e redução de animações ainda não estão disponíveis nesta versão.")
+                "language" -> SettingsInfo("Idioma da aplicação", "Português (Portugal) — a aplicação acompanha o idioma do dispositivo nesta versão.")
+                "help" -> {
+                    SettingsInfo("Centro de Ajuda", "Consulte os documentos oficiais ou contacte a equipa PiMsg.")
+                    listOf(
+                        "Centro de Ajuda" to "$SITE/support",
+                        "Contacte-nos" to "mailto:suporte@tchilopop.com",
+                        "Política de Privacidade" to "$SITE/privacy",
+                    ).forEach { (label, url) ->
+                        Text(label, color = PiColors.White, fontSize = 15.sp, modifier = Modifier.fillMaxWidth().clickable { openUrl(context, url) }.padding(vertical = 13.dp))
+                    }
                 }
             }
+            msg?.let { Text(it, color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp)) }
         }
+        Spacer(Modifier.height(24.dp))
+    }
 
-        Section("Informações legais")
-        listOf("Termos de uso" to "terms", "Política de privacidade" to "privacy", "Política de reembolso" to "refund", "Regras da comunidade" to "community", "Suporte" to "support").forEach { (label, path) ->
-            Text(label, color = PiColors.White, fontSize = 16.sp, modifier = Modifier.fillMaxWidth().clickable { openUrl(context, "$SITE/$path") }.padding(vertical = 12.dp))
-        }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            containerColor = PiColors.Surface,
+            title = { Text("Apagar conta", color = PiColors.White) },
+            text = {
+                Text(
+                    "O pedido fica pendente durante 14 dias. Se entrar de novo nesse período, pode cancelar. Depois, os seus dados são removidos.",
+                    color = PiColors.TextSecondary,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDelete = false
+                    scope.launch {
+                        try { Api.post("/v1/me/delete", JSONObject()); onSignOut() }
+                        catch (e: Exception) { msg = "Não foi possível enviar o pedido." }
+                    }
+                }) { Text("Apagar", color = PiColors.Danger) }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancelar", color = PiColors.White) } },
+        )
+    }
+}
 
-        Section("Conta")
-        Text("Sair", color = PiColors.White, fontSize = 16.sp, modifier = Modifier.fillMaxWidth().clickable { onSignOut() }.padding(vertical = 12.dp))
-        Text("Apagar conta", color = PiColors.Danger, fontSize = 16.sp, modifier = Modifier.fillMaxWidth().clickable { confirmDelete = true }.padding(vertical = 12.dp))
+// ---------------------------------------------------------------- Meus links
+, color = PiColors.Danger, fontSize = 16.sp, modifier = Modifier.fillMaxWidth().clickable { confirmDelete = true }.padding(vertical = 12.dp))
         msg?.let { Text(it, color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp)) }
     }
 
