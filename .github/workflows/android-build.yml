@@ -82,10 +82,30 @@ jobs:
               exit 1
             fi
           done
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/pimsg-release.jks
+          python3 - <<'PY'
+          import base64
+          import os
+          from pathlib import Path
+
+          encoded = "".join(os.environ["ANDROID_KEYSTORE_BASE64"].split())
+          try:
+              decoded = base64.b64decode(
+                  encoded + "=" * (-len(encoded) % 4),
+                  altchars=b"-_",
+                  validate=True,
+              )
+          except Exception:
+              raise SystemExit(
+                  "ANDROID_KEYSTORE_BASE64 is invalid. Re-encode the original .jks as "
+                  "single-line Base64 and update this GitHub Actions secret."
+              )
+          if not decoded:
+              raise SystemExit("ANDROID_KEYSTORE_BASE64 decoded to an empty keystore.")
+          Path("android/app/pimsg-release.jks").write_bytes(decoded)
+          PY
           test -s android/app/pimsg-release.jks
           echo "ANDROID_KEYSTORE_PATH=$GITHUB_WORKSPACE/android/app/pimsg-release.jks" >> "$GITHUB_ENV"
-          echo "Keystore decoded successfully."
+          echo "Keystore decoded. Its password and alias will be checked next."
 
       - name: Print signing certificate SHA fingerprints
         env:
