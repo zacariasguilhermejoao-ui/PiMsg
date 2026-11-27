@@ -132,15 +132,6 @@ private fun EmptyTabState(tab: Tab, onOpenBots: () -> Unit) {
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(Modifier.size(54.dp).clickable { onOpenBots() }, contentAlignment = Alignment.Center) {
-                RoboMascoteAnimado(estaEscrevendo = false, tamanho = 50.dp)
-            }
-            PresenteAnimado(tamanho = 50.dp)
-        }
     }
 }
 
@@ -414,6 +405,18 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+
+        Row(
+            Modifier.fillMaxWidth().padding(top = 2.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(44.dp).clickable { onNavigate("bot") }, contentAlignment = Alignment.Center) {
+                RoboMascoteAnimado(estaEscrevendo = false, tamanho = 42.dp)
+            }
+            Spacer(Modifier.width(22.dp))
+            PresenteAnimado(tamanho = 38.dp)
         }
 
         Image(
