@@ -753,8 +753,21 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
         }
 
         Section("Conta")
-        Text("Sair", color = PiColors.White, fontSize = 16.sp, modifier = Modifier.fillMaxWidth().clickable { onSignOut() }.padding(vertical = 12.dp))
-        Text("Apagar conta", color = PiColors.Danger, fontSize = 16.sp, modifier = Modifier.fillMaxWidth().clickable { confirmDelete = true }.padding(vertical = 12.dp))
+        Text("Terminar sessão", color = PiColors.White, fontSize = 16.sp, modifier = Modifier.fillMaxWidth().clickable { onSignOut() }.padding(vertical = 12.dp))
+
+        Spacer(Modifier.height(22.dp))
+        Column(
+            Modifier.fillMaxWidth()
+                .background(Color(0xFF2A171A), androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                .border(1.dp, PiColors.Danger.copy(alpha = 0.55f), androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                .padding(16.dp)
+        ) {
+            Text("ZONA DE PERIGO", color = PiColors.Danger, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("Apagar conta", color = PiColors.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
+            Text("Esta acção agenda a eliminação da conta. O pedido pode ser cancelado ao voltar a iniciar sessão nos 14 dias seguintes.", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+            Text("Apagar a minha conta", color = PiColors.Danger, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.fillMaxWidth().clickable { confirmDelete = true }.padding(top = 14.dp))
+        }
         msg?.let { Text(it, color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp)) }
     }
 
