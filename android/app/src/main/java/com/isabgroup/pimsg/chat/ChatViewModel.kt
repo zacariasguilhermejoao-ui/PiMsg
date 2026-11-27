@@ -93,7 +93,7 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                         }
                 }
             }
-            val combined = (serverMessages + local.pending(convId)).sortedByDescending { it.createdAt }
+            val combined = local.read(convId).sortedByDescending { it.createdAt }
             val typingName = runCatching {
                 val typing = Api.get("/v1/chats/$convId/typing").getJSONArray("typing")
                 if (typing.length() > 0) typing.getJSONObject(0).optString("display_name").takeIf { it.isNotBlank() } else null
