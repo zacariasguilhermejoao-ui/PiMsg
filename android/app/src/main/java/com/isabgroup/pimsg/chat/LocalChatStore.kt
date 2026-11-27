@@ -109,6 +109,11 @@ internal class LocalChatStore(context: Context) :
     }
 
     @Synchronized
+    fun deleteMessage(messageId: String) {
+        writableDatabase.delete("messages", "id = ?", arrayOf(messageId))
+    }
+
+    @Synchronized
     fun clearPending(conversationId: String) {
         writableDatabase.delete("messages", "conversation_id = ? AND pending = 1", arrayOf(conversationId))
     }
