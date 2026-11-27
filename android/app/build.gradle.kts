@@ -51,7 +51,7 @@ kotlin {
     }
 }
 
-sourceSets.getByName("main").res.srcDir(layout.buildDirectory.dir("generated/pimsgHomeRes"))
+android.sourceSets.getByName("main").res.srcDir(layout.buildDirectory.dir("generated/pimsgHomeRes"))
 
 tasks.register<Copy>("copyPiMsgHomeIllustrations") {
     from(rootProject.file("../")) {
