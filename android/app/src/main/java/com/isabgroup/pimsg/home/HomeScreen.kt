@@ -643,6 +643,7 @@ fun HomeScreen(
             title = { Text("Novo grupo", color = PiColors.White) },
             text = {
                 OutlinedTextField(
+            shape = RoundedCornerShape(22.dp),
                     value = newGroupName, onValueChange = { newGroupName = it.take(60) }, singleLine = true,
                     label = { Text("Nome do grupo") }, colors = piFieldColors(),
                 )
