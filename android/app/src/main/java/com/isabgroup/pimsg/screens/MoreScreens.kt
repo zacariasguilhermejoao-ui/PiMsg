@@ -66,7 +66,7 @@ import com.isabgroup.pimsg.ui.playClick
 import com.isabgroup.pimsg.ui.piFieldColors
 import kotlinx.coroutines.launch
 import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodecanner.ScanOptions
+import com.journeyapps.barcodescanner.ScanOptions
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
