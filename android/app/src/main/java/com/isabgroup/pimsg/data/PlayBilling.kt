@@ -111,7 +111,7 @@ class PlayBilling(
 
     override fun onPurchasesUpdated(
         result: com.android.billingclient.api.BillingResult,
-        purchases: MutableList<Purchase>?,
+        purchases: List<Purchase>?,
     ) {
         when (result.responseCode) {
             BillingClient.BillingResponseCode.OK -> purchases.orEmpty().forEach(::processPurchase)
