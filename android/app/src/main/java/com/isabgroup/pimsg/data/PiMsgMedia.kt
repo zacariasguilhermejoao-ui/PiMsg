@@ -72,6 +72,15 @@ object PiMsgMedia {
         return file
     }
 
+    fun wasSavedToGallery(context: Context, mediaId: String): Boolean =
+        preferences(context).getStringSet("saved_gallery_ids", emptySet())?.contains(mediaId) == true
+
+    fun markSavedToGallery(context: Context, mediaId: String) {
+        val ids = preferences(context).getStringSet("saved_gallery_ids", emptySet())?.toMutableSet() ?: mutableSetOf()
+        ids.add(mediaId)
+        preferences(context).edit().putStringSet("saved_gallery_ids", ids).apply()
+    }
+
     fun saveToGallery(context: Context, file: File, mime: String, displayName: String): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
         val cleanMime = mime.substringBefore(";").ifBlank { "application/octet-stream" }
