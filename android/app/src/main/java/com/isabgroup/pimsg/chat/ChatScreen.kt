@@ -379,7 +379,7 @@ private fun Bubble(m: Message, mine: Boolean, vm: ChatViewModel) {
                 "text", "system" -> {
                     Text(m.body.orEmpty(), color = fg, fontSize = 16.sp)
                     if (!mine && !m.translatedBody.isNullOrBlank()) {
-                        Text("Traduzido automaticamente", color = sub, fontSize = 10.sp, modifier = Modifier.padding(top = 7.dp))
+                        Text("TR · Traduzido", color = sub, fontSize = 10.sp, modifier = Modifier.padding(top = 7.dp))
                         Text(m.translatedBody, color = fg, fontSize = 15.sp, modifier = Modifier.padding(top = 2.dp))
                     }
                 }
