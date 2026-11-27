@@ -57,6 +57,7 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     val images = mutableStateMapOf<String, Bitmap>()
     private var lastNewestId: String? = null
     private var syncing = false
+    private var refreshing = false
     private var identityVerified = false
     private val mediaInFlight = mutableSetOf<String>()
     private var typingActive = false
@@ -140,6 +141,9 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
             }
         } catch (_: Exception) {
             _state.update { it.copy(messages = local.read(convId), loading = false) }
+        }
+        } finally {
+            refreshing = false
         }
     }
 
