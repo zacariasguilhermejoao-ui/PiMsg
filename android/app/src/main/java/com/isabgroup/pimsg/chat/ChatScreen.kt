@@ -650,11 +650,7 @@ fun ChatScreen(
                     attachmentConfirmOpen = false
                     pendingAttachments = emptyList()
                     onShareConsumed()
-                    selected.forEach { uri ->
-                        val mime = cr.getType(uri).orEmpty()
-                        val hint = if (mime.startsWith("audio/")) "music" else "file"
-                        vm.sendMedia(cr, uri, hint)
-                    }
+                    vm.sendMediaBatch(cr, selected)
                 }) { Text("Enviar", color = PiColors.White) }
             },
             dismissButton = {
