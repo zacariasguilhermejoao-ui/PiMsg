@@ -113,6 +113,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
     var showPhone by remember { mutableStateOf(false) }
     var showOnlineStatus by remember { mutableStateOf(true) }
     var phoneVerified by remember { mutableStateOf(false) }
+    var phoneContact by remember { mutableStateOf<String?>(null) }
     var avatarKey by remember { mutableStateOf<String?>(null) }
     var avatarBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var email by remember { mutableStateOf("") }
@@ -176,6 +177,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 showPhone = c.optBoolean("show_phone")
                 showOnlineStatus = c.optBoolean("show_online_status", true)
                 phoneVerified = c.optBoolean("phone_verified")
+                phoneContact = c.optString("phone_contact").takeIf { it.isNotBlank() && it != "null" }
                 avatarKey = c.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
                 val encoded = c.optString("avatar_jpeg")
                 if (encoded.isNotBlank()) {
@@ -205,6 +207,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             showPhone = j.optBoolean("show_phone")
             showOnlineStatus = j.optBoolean("show_online_status", true)
             phoneVerified = j.optBoolean("phone_verified")
+            phoneContact = j.strOrNull("phone_contact")
             avatarKey = j.strOrNull("avatar_key")
             // Mostra já os dados básicos; os elementos secundários são sincronizados depois.
             loading = false
@@ -229,6 +232,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 .put("name", name).put("bio", bio).put("email", email)
                 .put("email_verified", emailVerified).put("intro_video_key", introVideoKey)
                 .put("code", code).put("show_phone", showPhone).put("show_online_status", showOnlineStatus).put("phone_verified", phoneVerified)
+                .put("phone_contact", phoneContact)
                 .put("avatar_key", avatarKey)
             avatarBitmap?.let { bitmap ->
                 val scaled = Bitmap.createScaledBitmap(bitmap, 256, 256, true)
@@ -398,10 +402,10 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Mostrar o meu número no perfil", color = PiColors.White, fontSize = 16.sp)
-                if (!phoneVerified) Text("Disponível quando o número estiver confirmado.", color = PiColors.Gray, fontSize = 13.sp)
+                Text(phoneContact ?: if (phoneVerified) "Número confirmado" else "Nenhum contacto adicionado.", color = PiColors.Gray, fontSize = 13.sp)
             }
             Switch(
-                checked = showPhone, onCheckedChange = { showPhone = it }, enabled = phoneVerified,
+                checked = showPhone, onCheckedChange = { showPhone = it }, enabled = phoneVerified || !phoneContact.isNullOrBlank(),
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.Black, checkedTrackColor = PiColors.White,
                     uncheckedThumbColor = PiColors.Gray, uncheckedTrackColor = PiColors.SurfaceHigh,
