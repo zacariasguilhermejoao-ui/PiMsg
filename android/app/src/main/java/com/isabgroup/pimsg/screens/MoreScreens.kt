@@ -1225,7 +1225,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
             Text("PiMsg Plus", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text("Para quem conversa e trabalha diariamente.", color = PiColors.TextSecondary, fontSize = 12.sp)
-            listOf("Mensagens sem limite diário", "Até 1.500 respostas de links por mês", "Pi AI e Pi Reminder", "5 pedidos de IA por dia", "25 traduções por dia", "Sem bots personalizados nem Pi Business").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
+            listOf("Mensagens sem limite diário", "Respostas ilimitadas através dos links personalizados", "Pi AI e Pi Reminder", "5 pedidos de IA por dia", "25 traduções por dia", "Sem bots personalizados nem Pi Business").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
             SubscriptionProductButton("Mensal", PlayBilling.PLUS_MONTHLY, products[PlayBilling.PLUS_MONTHLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
             SubscriptionProductButton("Anual", PlayBilling.PLUS_YEARLY, products[PlayBilling.PLUS_YEARLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
