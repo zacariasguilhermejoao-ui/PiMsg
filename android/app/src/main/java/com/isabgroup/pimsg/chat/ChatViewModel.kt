@@ -53,6 +53,8 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     val images = mutableStateMapOf<String, Bitmap>()
     private var lastNewestId: String? = null
     private var syncing = false
+    private var typingActive = false
+    private var lastTypingPingAt = 0L
     private val translationCache = mutableMapOf<String, String?>()
     private val translationInFlight = mutableSetOf<String>()
 
@@ -152,6 +154,16 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     }
 
     fun setTyping(typing: Boolean) {
+        val now = System.currentTimeMillis()
+        if (typing) {
+            if (typingActive && now - lastTypingPingAt < 2000L) return
+            typingActive = true
+            lastTypingPingAt = now
+        } else {
+            if (!typingActive) return
+            typingActive = false
+            lastTypingPingAt = 0L
+        }
         viewModelScope.launch {
             runCatching {
                 Api.post("/v1/chats/$convId/typing", JSONObject().put("typing", typing))
