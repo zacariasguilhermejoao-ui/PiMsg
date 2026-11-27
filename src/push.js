@@ -42,7 +42,7 @@ export async function pushToUsers(env, userIds, title, body, data = {}) {
     const sa = JSON.parse(env.FCM_SERVICE_ACCOUNT);
     const marks = userIds.map(() => "?").join(",");
     const rows = await env.DB.prepare(
-      `SELECT d.id, d.fcm_token, u.popup_enabled FROM devices d JOIN users u ON u.id = d.user_id WHERE d.user_id IN (${marks}) AND d.fcm_token IS NOT NULL AND u.push_enabled = 1 LIMIT 100`
+      `SELECT d.id, d.fcm_token, u.popup_enabled FROM devices d JOIN users u ON u.id = d.user_id WHERE d.user_id IN (${marks}) AND d.fcm_token IS NOT NULL AND u.push_enabled = 1 AND u.status = 'active' LIMIT 100`
     ).bind(...userIds).all();
     if (!rows.results.length) return;
     const at = await accessToken(sa);
