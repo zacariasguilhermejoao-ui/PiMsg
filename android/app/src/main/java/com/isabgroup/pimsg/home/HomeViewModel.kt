@@ -156,7 +156,7 @@ class HomeViewModel : ViewModel() {
 
     fun postStory(contentResolver: ContentResolver, uri: Uri) {
         viewModelScope.launch {
-            _state.update { it.copy(notice = null) }
+            _state.update { it.copy(notice = "A preparar e carregar o story...") }
             try {
                 val uploaded = uploadUri(contentResolver, uri)
                 if (!uploaded.mime.startsWith("image/") && !uploaded.mime.startsWith("video/")) {
