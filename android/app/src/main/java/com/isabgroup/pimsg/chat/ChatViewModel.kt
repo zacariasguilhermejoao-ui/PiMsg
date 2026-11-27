@@ -134,8 +134,9 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                                 })
                             }
                         }
-                    } catch (_: Exception) {
-                        // Uma falha de tradução não bloqueia a conversa; tenta novamente na próxima sincronização.
+                    } catch (error: Exception) {
+                        // Ao esgotar as quatro traduções gratuitas, não repetir o pedido em cada sincronização.
+                        if (error is ApiException && error.reason == "translation_daily_limit") break
                     } finally {
                         translationInFlight.remove(cacheKey)
                     }
