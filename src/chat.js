@@ -380,7 +380,7 @@ export async function handleChat(request, env, me, path, method) {
   }
 
   if (path === "/v1/media" && method === "PUT") {
-    const size = Number(request.headers.get("content-length"));
+    const size = Number(request.headers.get("content-length") || request.headers.get("x-file-size"));
     if (!size || size > MAX_MEDIA_BYTES) return fail(413, "ficheiro inválido ou demasiado grande (máximo 50 MB)");
     const mime = request.headers.get("content-type") || "application/octet-stream";
     const quota = await mediaStorageLimit(env, me.id, now);
