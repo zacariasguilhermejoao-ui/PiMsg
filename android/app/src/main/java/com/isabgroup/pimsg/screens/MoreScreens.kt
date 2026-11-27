@@ -6,6 +6,9 @@ import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
+import java.io.File
+import java.io.FileOutputStream
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -454,10 +457,19 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val share = Intent(Intent.ACTION_SEND).setType("text/plain")
-                        .putExtra(Intent.EXTRA_TEXT, "Encontra-me no PiMsg: $name\nCódigo: $code")
-                    context.startActivity(Intent.createChooser(share, "Partilhar perfil"))
-                }) { Text("Partilhar", color = PiColors.White) }
+                    runCatching {
+                        val imageFile = File(context.cacheDir, "pimsg_profile_qr.png")
+                        FileOutputStream(imageFile).use { output ->
+                            qrBitmap!!.compress(Bitmap.CompressFormat.PNG, 100, output)
+                        }
+                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", imageFile)
+                        val share = Intent(Intent.ACTION_SEND).setType("image/png")
+                            .putExtra(Intent.EXTRA_STREAM, uri)
+                            .putExtra(Intent.EXTRA_TEXT, "Encontra-me no PiMsg: $name")
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        context.startActivity(Intent.createChooser(share, "Partilhar QR do perfil"))
+                    }.onFailure { msg = "Não foi possível partilhar o QR." }
+                }) { Text("Partilhar QR", color = PiColors.White) }
             },
             dismissButton = { TextButton(onClick = { qrOpen = false }) { Text("Fechar", color = PiColors.TextSecondary) } },
         )
