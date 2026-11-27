@@ -116,7 +116,7 @@ async function monthlyLinkReplyUsage(env, userId, now) {
     `SELECT COUNT(*) AS n FROM messages m JOIN conversations c ON c.id = m.conversation_id
      JOIN contact_links l ON l.id = c.link_id
      WHERE l.user_id = ? AND m.sender_id = ? AND m.kind <> 'system'
-       AND m.deleted_at IS NULL AND m.created_at >= ? AND m.created_at < ?`
+       AND m.created_at >= ? AND m.created_at < ?`
   ).bind(userId, userId, start, resetsAt).first();
   return { used: row?.n || 0, resets_at: resetsAt };
 }
