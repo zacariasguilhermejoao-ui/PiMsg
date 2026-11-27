@@ -102,6 +102,7 @@ fun HomeScreen(
     var publicProfile by remember { mutableStateOf<JSONObject?>(null) }
     var publicAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var ownProfileName by remember { mutableStateOf("O meu perfil") }
+    var ownPlan by remember { mutableStateOf("free") }
     var ownProfileAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var profileLoading by remember { mutableStateOf(false) }
     var newGroupOpen by remember { mutableStateOf(false) }
@@ -177,6 +178,7 @@ fun HomeScreen(
         runCatching {
             val me = Api.get("/v1/me")
             ownProfileName = me.optString("name", "O meu perfil")
+            ownPlan = runCatching { Api.get("/v1/plan").optString("current_plan", "free") }.getOrDefault("free")
             val key = me.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
             if (key != null) {
                 val downloaded = Api.download("/v1/media/$key")
@@ -324,6 +326,7 @@ fun HomeScreen(
             hasMyStory = myStories.isNotEmpty(),
             profileName = ownProfileName,
             profileAvatar = ownProfileAvatar,
+            profilePlan = ownPlan,
             onDismiss = { menuOpen = false },
             onItem = { key ->
                 when (key) {
