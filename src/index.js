@@ -93,6 +93,8 @@ async function authenticate(request, env) {
       env.DB.prepare(
         "INSERT INTO user_codes (id, user_id, code, is_active, created_at) VALUES (?,?,?,1,?)"
       ).bind(crypto.randomUUID(), id, randomCode(8), now),
+      env.DB.prepare("INSERT INTO ai_credits (user_id, balance, updated_at) VALUES (?, 15, ?)")
+        .bind(id, now),
     ]);
     user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(id).first();
   }
