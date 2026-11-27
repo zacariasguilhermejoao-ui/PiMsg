@@ -173,6 +173,12 @@ fun ChatScreen(
             }
         }
 
+        if (state.busy) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = PiColors.White)
+                Text("A preparar e enviar ficheiro...", color = PiColors.TextSecondary, fontSize = 12.sp)
+            }
+        }
         info?.let {
             Text(it, color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.fillMaxWidth().clickable { info = null }.padding(horizontal = 20.dp, vertical = 6.dp))
         }
