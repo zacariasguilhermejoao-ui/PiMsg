@@ -46,6 +46,47 @@ export async function handleBots(request, env, me, path, method) {
     });
   }
 
+  const translationMatch = path.match(/^\\/v1\\/chats\\/([\\w-]+)\\/messages\\/([\\w-]+)\\/translate$/);
+  if (translationMatch && method === "POST") {
+    if (!env.AI) return fail(503, "O serviço de tradução ainda não está disponível.");
+    const conversationId = translationMatch[1];
+    const messageId = translationMatch[2];
+    const body = await request.json().catch(() => ({}));
+    const language = ["pt", "en", "es", "fr"].includes(body.language) ? body.language : "pt";
+    const membership = await env.DB.prepare(
+      "SELECT 1 AS ok FROM conversation_members WHERE conversation_id = ? AND user_id = ? AND left_at IS NULL"
+    ).bind(conversationId, me.id).first();
+    if (!membership) return fail(404, "conversa não encontrada");
+    const message = await env.DB.prepare(
+      "SELECT body, sender_id, kind FROM messages WHERE id = ? AND conversation_id = ? AND deleted_at IS NULL"
+    ).bind(messageId, conversationId).first();
+    if (!message || message.sender_id === me.id || message.kind !== "text" || !message.body) return fail(404, "mensagem não disponível para tradução");
+    const cached = await env.DB.prepare(
+      "SELECT translated_body FROM message_translations WHERE user_id = ? AND message_id = ? AND language = ?"
+    ).bind(me.id, messageId, language).first();
+    if (cached) return json({ translated: cached.translated_body !== "__SAME_LANGUAGE__", translation: cached.translated_body === "__SAME_LANGUAGE__" ? null : cached.translated_body, cached: true });
+    const languageName = ({ pt: "português", en: "inglês", es: "espanhol", fr: "francês" })[language];
+    try {
+      const result = await env.AI.run(MODEL, {
+        messages: [
+          { role: "system", content: "És um tradutor de mensagens. Detecta o idioma do texto. Se já estiver no idioma de destino, responde exatamente __SAME_LANGUAGE__. Caso contrário, traduz para o idioma pedido preservando significado, tom, nomes, emojis e formatação. Responde apenas com a tradução, sem comentários, rótulos ou aspas." },
+          { role: "user", content: "Idioma de destino: " + languageName + "\\nMensagem: " + message.body.slice(0, 4000) }
+        ],
+        max_tokens: 512,
+        temperature: 0.1,
+      });
+      const translated = (typeof result?.response === "string" ? result.response : "").trim();
+      if (!translated) throw new Error("empty translation");
+      await env.DB.prepare(
+        "INSERT OR REPLACE INTO message_translations (user_id, message_id, language, translated_body, created_at) VALUES (?,?,?,?,?)"
+      ).bind(me.id, messageId, language, translated, Date.now()).run();
+      return json({ translated: translated !== "__SAME_LANGUAGE__", translation: translated === "__SAME_LANGUAGE__" ? null : translated, cached: false });
+    } catch (error) {
+      console.error("PiMsg translation failed:", String(error));
+      return fail(502, "Não foi possível traduzir esta mensagem.");
+    }
+  }
+
   if (path !== "/v1/bots/pi-ai/chat") return null;
   if (method !== "POST") return fail(405, "metodo nao permitido");
   if (!env.AI) return fail(503, "O serviço de IA ainda não está configurado na Cloudflare.");
