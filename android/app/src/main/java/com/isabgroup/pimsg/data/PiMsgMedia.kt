@@ -90,6 +90,17 @@ object PiMsgMedia {
         return file
     }
 
+    fun storeFromFile(context: Context, mediaId: String, mime: String, displayName: String, source: File): File {
+        findCached(context, mediaId)?.let { if (it.length() > 0L) return it }
+        val extension = android.webkit.MimeTypeMap.getSingleton()
+            .getExtensionFromMimeType(mime.substringBefore(";"))
+        val safe = displayName.replace(Regex("[^A-Za-z0-9._-]"), "_").take(80).ifBlank { "ficheiro" }
+        val suffix = if (extension != null && !safe.endsWith(".$extension")) ".$extension" else ""
+        val target = File(folderForMime(context, mime), "${mediaId}_$safe$suffix")
+        FileInputStream(source).use { input -> target.outputStream().use { output -> input.copyTo(output) } }
+        return target
+    }
+
     fun wasSavedToGallery(context: Context, mediaId: String): Boolean =
         preferences(context).getStringSet("saved_gallery_ids", emptySet())?.contains(mediaId) == true
 
