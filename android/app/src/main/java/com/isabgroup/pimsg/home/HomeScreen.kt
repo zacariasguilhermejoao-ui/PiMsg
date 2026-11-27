@@ -535,7 +535,7 @@ fun HomeScreen(
                         Icon(androidx.compose.material.icons.Icons.Filled.Person, contentDescription = "Avatar", tint = PiColors.Gray, modifier = Modifier.size(46.dp))
                     }
                     if (profileLoading) Text("A carregar perfil...", color = PiColors.TextSecondary)
-                    else if (profile == null) Text("Não foi possível carregar este perfil.", color = PiColors.TextSecondary)
+                    else if (profile == null) Text("Não foi possível carregar as informações deste perfil. Verifique a ligação à internet e tente novamente.", color = PiColors.TextSecondary)
                     else {
                         val bio = profile.optString("bio")
                         if (bio.isNotBlank() && bio != "null") Text(bio, color = PiColors.TextSecondary)
