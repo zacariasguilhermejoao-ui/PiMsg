@@ -183,7 +183,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
         if (localNumber.length !in 6..14) { error = "Verifique o número de telefone."; return }
         val number = "+$dialCode$localNumber"
         scope.launch {
-            if (!legalAccepted) { error = "Leia e aceite os Termos de Utilização e a Política de Privacidade."; return }
+            if (!legalAccepted) { error = "Leia e aceite os Termos de Utilização e a Política de Privacidade."; return@launch }
             busy = true
             error = null
             try {
