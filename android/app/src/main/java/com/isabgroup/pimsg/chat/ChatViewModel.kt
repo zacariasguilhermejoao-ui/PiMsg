@@ -54,6 +54,7 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     val images = mutableStateMapOf<String, Bitmap>()
     private var lastNewestId: String? = null
     private var syncing = false
+    private val mediaInFlight = mutableSetOf<String>()
     private var typingActive = false
     private var lastTypingPingAt = 0L
     private val translationCache = mutableMapOf<String, String?>()
@@ -221,6 +222,11 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                     return@launch
                 }
                 val mediaId = Api.upload({ cr.openInputStream(uri) }, size, mime)
+                runCatching {
+                    cr.openInputStream(uri)?.use { input ->
+                        PiMsgMedia.store(appContext, mediaId, mime, name ?: "ficheiro", input.readBytes())
+                    }
+                }
                 val kind = when {
                     hint == "music" -> "music"
                     mime.startsWith("image/") -> "image"
@@ -244,12 +250,26 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     suspend fun downloadMedia(message: Message): File {
         val mediaId = message.mediaId ?: throw IllegalStateException("Ficheiro indisponível.")
         PiMsgMedia.findCached(appContext, mediaId)?.let { return it }
-        val data = Api.download("/v1/media/$mediaId")
-        return PiMsgMedia.store(
-            appContext, mediaId, data.mime,
-            message.body?.takeIf { it.isNotBlank() } ?: mediaId,
-            data.bytes,
-        )
+        synchronized(mediaInFlight) {
+            if (!mediaInFlight.add(mediaId)) {
+                repeat(20) {
+                    PiMsgMedia.findCached(appContext, mediaId)?.let { return it }
+                    kotlinx.coroutines.delay(150)
+                }
+                PiMsgMedia.findCached(appContext, mediaId)?.let { return it }
+            }
+        }
+        try {
+            PiMsgMedia.findCached(appContext, mediaId)?.let { return it }
+            val data = Api.download("/v1/media/$mediaId")
+            return PiMsgMedia.store(
+                appContext, mediaId, data.mime,
+                message.body?.takeIf { it.isNotBlank() } ?: mediaId,
+                data.bytes,
+            )
+        } finally {
+            synchronized(mediaInFlight) { mediaInFlight.remove(mediaId) }
+        }
     }
 
     private fun saveCachedMediaToGallery(message: Message, file: File): Boolean {
