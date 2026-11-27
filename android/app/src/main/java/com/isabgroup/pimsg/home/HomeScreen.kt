@@ -55,6 +55,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -69,12 +70,58 @@ import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiIcons
 import com.isabgroup.pimsg.ui.openUrl
 import com.isabgroup.pimsg.ui.playClick
+import com.isabgroup.pimsg.ui.components.PresenteAnimado
+import com.isabgroup.pimsg.ui.components.RoboMascoteAnimado
 import com.isabgroup.pimsg.ui.piFieldColors
 import kotlinx.coroutines.delay
 import org.json.JSONArray
 import org.json.JSONObject
 
 private const val SITE = "https://pimsg.tchilopop.com"
+
+@Composable
+private fun EmptyTabState(tab: Tab, onOpenBots: () -> Unit) {
+    val image = when (tab) {
+        Tab.All -> R.drawable.icone_sem_conversas
+        Tab.New -> R.drawable.icone_novas_pro
+        Tab.Favorites -> R.drawable.icone_favoritos_estrela
+        Tab.Groups -> R.drawable.icone_grupos_pro
+    }
+    val message = when (tab) {
+        Tab.All -> "Ainda não tens conversas. Pesquisa uma pessoa para começar."
+        Tab.New -> "Não tens novas conversas por enquanto."
+        Tab.Favorites -> "As tuas conversas favoritas aparecerão aqui."
+        Tab.Groups -> "Ainda não participas em nenhum grupo."
+    }
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Image(
+            painter = painterResource(image),
+            contentDescription = null,
+            modifier = Modifier.size(190.dp),
+            contentScale = ContentScale.Fit,
+        )
+        Text(
+            message,
+            color = PiColors.TextSecondary,
+            fontSize = 15.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(54.dp).clickable { onOpenBots() }, contentAlignment = Alignment.Center) {
+                RoboMascoteAnimado(estaEscrevendo = false, tamanho = 50.dp)
+            }
+            PresenteAnimado(tamanho = 50.dp)
+        }
+    }
+}
 
 private fun parseColor(hex: String?): Color =
     try { Color(android.graphics.Color.parseColor(hex)) } catch (e: Exception) { PiColors.Gray }
@@ -120,8 +167,11 @@ fun HomeScreen(
         runCatching {
             val saved = context.getSharedPreferences("pimsg_offline", android.content.Context.MODE_PRIVATE)
                 .getString("chats", null)
-            if (!saved.isNullOrBlank()) {
-                val array = JSONArray(saved)
+            val tabKey = "chats_${state.tab.key}"
+            val cachedJson = context.getSharedPreferences("pimsg_offline", android.content.Context.MODE_PRIVATE)
+                .getString(tabKey, null) ?: saved
+            if (!cachedJson.isNullOrBlank()) {
+                val array = JSONArray(cachedJson)
                 val cached = (0 until array.length()).map { index ->
                     val item = array.getJSONObject(index)
                     ChatItem(
@@ -157,7 +207,7 @@ fun HomeScreen(
     }
     LaunchedEffect(Unit) {
         while (true) {
-            delay(3000)
+            delay(15000)
             vm.load(silent = true)
         }
     }
@@ -178,7 +228,7 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(state.chats) {
+    LaunchedEffect(state.chats, state.tab) {
         if (state.chats.isNotEmpty()) {
             val array = JSONArray()
             state.chats.forEach { item ->
@@ -188,7 +238,7 @@ fun HomeScreen(
                     .put("otherId", item.otherId).put("inviteCode", item.inviteCode))
             }
             context.getSharedPreferences("pimsg_offline", android.content.Context.MODE_PRIVATE)
-                .edit().putString("chats", array.toString()).apply()
+                .edit().putString("chats_${state.tab.key}", array.toString()).putString("chats", array.toString()).apply()
         }
     }
 
@@ -327,9 +377,9 @@ fun HomeScreen(
                 }
                 state.loading -> Column { repeat(8) { ChatRowSkeleton() } }
                 state.error != null -> Hint(state.error!!)
-                state.chats.isEmpty() -> Hint(
-                    if (state.tab == Tab.All) "Nenhuma conversa ainda. Pesquise um nome ou código para começar."
-                    else "Nada por aqui."
+                state.chats.isEmpty() -> EmptyTabState(
+                    tab = state.tab,
+                    onOpenBots = { onNavigate("bot") },
                 )
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     items(state.chats, key = { it.id }) { c ->
