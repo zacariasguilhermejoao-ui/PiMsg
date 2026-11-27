@@ -55,6 +55,8 @@ import com.isabgroup.pimsg.ui.playClick
 import com.isabgroup.pimsg.ui.piFieldColors
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.tasks.await
 
 private const val SITE = "https://pimsg.tchilopop.com"
 
@@ -226,8 +228,32 @@ fun ProfileScreen(onBack: () -> Unit) {
         OutlinedTextField(value = bio, onValueChange = { bio = it.take(300) }, label = { Text("Biografia / apresentação") }, minLines = 3, supportingText = { Text("${bio.length}/300") }, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
 
         Section("E-mail e verificação")
-        Text(email.ifBlank { "Nenhum e-mail associado" }, color = PiColors.White, fontSize = 15.sp)
-        Text(if (emailVerified) "E-mail confirmado · Perfil profissional activo" else "O e-mail ainda não está confirmado.", color = if (emailVerified) Color(0xFF8AB4F8) else PiColors.TextSecondary, fontSize = 12.sp)
+        OutlinedTextField(value = email, onValueChange = { email = it.take(180) }, label = { Text("E-mail") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        Text(if (emailVerified) "E-mail confirmado · Perfil profissional activo" else "Confirme o seu e-mail para activar o perfil profissional.", color = if (emailVerified) Color(0xFF8AB4F8) else PiColors.TextSecondary, fontSize = 12.sp)
+        if (!emailVerified) {
+            PiButton("Enviar confirmação", {
+                scope.launch {
+                    try {
+                        val user = FirebaseAuth.getInstance().currentUser ?: throw IllegalStateException("Sessão indisponível")
+                        if (email.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) throw IllegalArgumentException("Introduza um e-mail válido.")
+                        if (user.email != email.trim()) user.updateEmail(email.trim()).await()
+                        user.sendEmailVerification().await()
+                        msg = "Enviámos uma ligação de confirmação para o seu e-mail."
+                    } catch (e: Exception) { msg = e.localizedMessage ?: "Não foi possível enviar a confirmação. Volte a iniciar sessão e tente novamente." }
+                }
+            }, primary = false)
+            TextButton(onClick = {
+                scope.launch {
+                    try {
+                        val user = FirebaseAuth.getInstance().currentUser ?: throw IllegalStateException("Sessão indisponível")
+                        user.reload().await()
+                        user.getIdToken(true).await()
+                        emailVerified = Api.get("/v1/me").optBoolean("email_verified")
+                        msg = if (emailVerified) "E-mail confirmado. O perfil profissional está activo." else "Ainda não recebemos a confirmação. Abra a ligação enviada por e-mail e tente novamente."
+                    } catch (_: Exception) { msg = "Não foi possível verificar o estado do e-mail." }
+                }
+            }) { Text("Já confirmei o e-mail", color = PiColors.White) }
+        }
 
         Section("Vídeo de apresentação")
         Text("Apresente-se às pessoas que visitam o seu perfil.", color = PiColors.TextSecondary, fontSize = 13.sp)
