@@ -358,10 +358,17 @@ fun HomeScreen(
                     else {
                         val bio = profile.optString("bio")
                         if (bio.isNotBlank() && bio != "null") Text(bio, color = PiColors.TextSecondary)
-                        listOf("Instagram" to profile.optString("instagram_url"), "Facebook" to profile.optString("facebook_url"), "TikTok" to profile.optString("tiktok_url"), "YouTube" to profile.optString("youtube_url"), "Website" to profile.optString("website_url"))
-                            .filter { it.second.isNotBlank() && it.second != "null" }.forEach { (label, link) ->
-                                Text("$label · $link", color = PiColors.White, modifier = Modifier.fillMaxWidth().clickable { openUrl(context, link) }.padding(vertical = 3.dp))
-                            }
+                        if (profile.optBoolean("professional_profile")) Text("Perfil profissional", color = Color(0xFF8AB4F8), fontSize = 12.sp)
+                        if (profile.optBoolean("verified_badge")) Text("✓ Perfil verificado", color = Color(0xFF8AB4F8), fontSize = 12.sp)
+                        val links = profile.optJSONArray("social_links") ?: JSONArray()
+                        (0 until links.length()).forEach { index ->
+                            val item = links.optJSONObject(index) ?: return@forEach
+                            val label = item.optString("label")
+                            val link = item.optString("url")
+                            if (link.startsWith("https://")) Text("$label · $link", color = PiColors.White, modifier = Modifier.fillMaxWidth().clickable { openUrl(context, link) }.padding(vertical = 3.dp))
+                        }
+                        val introVideo = profile.optString("intro_video_key")
+                        if (introVideo.isNotBlank() && introVideo != "null") Text("Ver vídeo de apresentação", color = PiColors.White, modifier = Modifier.fillMaxWidth().clickable { openUrl(context, "$SITE/public-media/$introVideo") }.padding(vertical = 6.dp))
                     }
                 }
             },
