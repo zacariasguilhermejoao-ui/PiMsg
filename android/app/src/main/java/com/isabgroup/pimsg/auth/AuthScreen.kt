@@ -20,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -91,13 +92,16 @@ fun AuthScreen(onSignedIn: () -> Unit) {
     val dialCode = remember(context) { detectDialCode(context).second }
     var phone by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
+    var legalAccepted by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var mfaResolver by remember { mutableStateOf<MultiFactorResolver?>(null) }
     var mfaCode by remember { mutableStateOf("") }
 
     suspend fun signIn(credential: AuthCredential) {
         try {
+            if (!legalAccepted) throw IllegalStateException("Leia e aceite os Termos de Utilização e a Política de Privacidade.")
             auth.signInWithCredential(credential).await()
+            Api.post("/v1/legal/accept", JSONObject().put("terms_version", "1.3").put("privacy_version", "1.3"))
             onSignedIn()
         } catch (e: FirebaseAuthMultiFactorException) {
             mfaResolver = e.resolver
@@ -123,6 +127,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
             try {
                 val assertion = TotpMultiFactorGenerator.getAssertionForSignIn(hint.uid, mfaCode)
                 resolver.resolveSignIn(assertion).await()
+                Api.post("/v1/legal/accept", JSONObject().put("terms_version", "1.3").put("privacy_version", "1.3"))
                 mfaResolver = null
                 onSignedIn()
             } catch (e: Exception) {
@@ -178,6 +183,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
         if (localNumber.length !in 6..14) { error = "Verifique o número de telefone."; return }
         val number = "+$dialCode$localNumber"
         scope.launch {
+            if (!legalAccepted) { error = "Leia e aceite os Termos de Utilização e a Política de Privacidade."; return }
             busy = true
             error = null
             try {
@@ -187,6 +193,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
                     auth.signInAnonymously().await()
                 }
                 Api.patch("/v1/me", JSONObject().put("phone_e164", number))
+                Api.post("/v1/legal/accept", JSONObject().put("terms_version", "1.3").put("privacy_version", "1.3"))
                 onSignedIn()
             } catch (e: Exception) {
                 error = when (e) {
@@ -209,9 +216,27 @@ fun AuthScreen(onSignedIn: () -> Unit) {
         Spacer(Modifier.height(10.dp))
         Spacer(Modifier.height(40.dp))
 
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(
+                checked = legalAccepted,
+                onCheckedChange = { legalAccepted = it },
+                enabled = !busy,
+            )
+            Text(
+                "Li e aceito os Termos de Utilização e a Política de Privacidade do PiMsg.",
+                color = PiColors.TextSecondary,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                modifier = Modifier.weight(1f).clickable { legalAccepted = !legalAccepted },
+            )
+        }
+
         Button(
             onClick = ::googleSignIn,
-            enabled = !busy && mfaResolver == null,
+            enabled = !busy && mfaResolver == null && legalAccepted,
             modifier = Modifier.fillMaxWidth().height(52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = PiColors.White, contentColor = Color(0xFF1F1F1F)),
         ) {
@@ -239,7 +264,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
         Spacer(Modifier.height(8.dp))
         Spacer(Modifier.height(12.dp))
         Button(
-            onClick = ::continueWithPhone, enabled = !busy && mfaResolver == null,
+            onClick = ::continueWithPhone, enabled = !busy && mfaResolver == null && legalAccepted,
             modifier = Modifier.fillMaxWidth().height(52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = PiColors.SurfaceHigh, contentColor = PiColors.White),
         ) { Text("Criar conta com número", fontSize = 16.sp) }
@@ -273,7 +298,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
         }
         Spacer(Modifier.height(22.dp))
         Text(
-            "Ao continuar, confirma que leu e aceita os Termos de Utilização e a Política de Privacidade do PiMsg.",
+            "A tua aceitação é registada com a versão dos documentos e a data da confirmação.",
             color = PiColors.TextSecondary, fontSize = 12.sp, lineHeight = 18.sp,
             modifier = Modifier.fillMaxWidth(),
         )
