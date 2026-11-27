@@ -245,8 +245,12 @@ fun HomeScreen(
             }
         }
         val filter = IntentFilter("com.isabgroup.pimsg.MESSAGE_RECEIVED")
-        if (Build.VERSION.SDK_INT >= 33) context.registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
-        else @Suppress("DEPRECATION") context.registerReceiver(receiver, filter)
+        if (Build.VERSION.SDK_INT >= 33) {
+            context.registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            context.registerReceiver(receiver, filter)
+        }
         onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
     LaunchedEffect(initialContactCode, initialContactSlug, initialGroupCode) {
