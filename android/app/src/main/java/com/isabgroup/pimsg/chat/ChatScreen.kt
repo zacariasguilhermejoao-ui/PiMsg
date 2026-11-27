@@ -114,6 +114,8 @@ fun ChatScreen(
     val cr = context.contentResolver
     val view = LocalView.current
     var text by remember { mutableStateOf("") }
+    var pendingAttachments by remember { mutableStateOf<List<android.net.Uri>>(emptyList()) }
+    var attachmentConfirmOpen by remember { mutableStateOf(false) }
     LaunchedEffect(pendingShare) {
         val share = pendingShare ?: return@LaunchedEffect
         if (!share.text.isNullOrBlank() && text.isEmpty()) {
@@ -125,8 +127,6 @@ fun ChatScreen(
         }
     }
     var attachOpen by remember { mutableStateOf(false) }
-    var pendingAttachments by remember { mutableStateOf<List<android.net.Uri>>(emptyList()) }
-    var attachmentConfirmOpen by remember { mutableStateOf(false) }
     var optionsOpen by remember { mutableStateOf(false) }
     var reportOpen by remember { mutableStateOf(false) }
     var disappearingOpen by remember { mutableStateOf(false) }
@@ -415,6 +415,8 @@ fun ChatScreen(
         }
     }
 
+    if (peerProfileOpen) {
+        val profile = peerProfile
         Dialog(
             onDismissRequest = { peerProfileOpen = false },
             properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -455,32 +457,6 @@ fun ChatScreen(
             }
         }
     }
-                    if (peerAvatar != null) Image(peerAvatar!!.asImageBitmap(), "Fotografia de perfil", Modifier.size(88.dp).clip(CircleShape), contentScale = ContentScale.Crop)
-                    else Box(Modifier.size(88.dp).clip(CircleShape).background(PiColors.SurfaceHigh), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.Person, "Avatar", tint = PiColors.Gray, modifier = Modifier.size(44.dp))
-                    }
-                    if (peerProfileLoading) Text("A carregar perfil...", color = PiColors.TextSecondary)
-                    else if (profile == null) Text("Não foi possível carregar o perfil. Verifique a ligação e tente novamente.", color = PiColors.TextSecondary)
-                    else {
-                        val bio = profile.optString("bio")
-                        if (bio.isNotBlank() && bio != "null") Text(bio, color = PiColors.TextSecondary)
-                        val phone = profile.optString("phone")
-                        if (phone.isNotBlank() && phone != "null") Text("Contacto: $phone", color = PiColors.White)
-                        val links = profile.optJSONArray("social_links") ?: org.json.JSONArray()
-                        for (i in 0 until links.length()) {
-                            val link = links.optJSONObject(i) ?: continue
-                            val url = link.optString("url")
-                            if (url.startsWith("https://")) Text(link.optString("label", "Abrir ligação"), color = PiColors.White,
-                                modifier = Modifier.clickable { context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))) })
-                        }
-                        val video = profile.optString("intro_video_key")
-                        if (video.isNotBlank() && video != "null") Text("Ver vídeo de apresentação", color = PiColors.White,
-                            modifier = Modifier.clickable { context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://pimsg.tchilopop.com/public-media/$video"))) })
-                    }
-                }
-            },
-    }
-
     if (optionsOpen) {
         AlertDialog(
             onDismissRequest = { optionsOpen = false },
