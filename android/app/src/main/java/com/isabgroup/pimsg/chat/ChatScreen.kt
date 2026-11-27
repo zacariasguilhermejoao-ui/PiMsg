@@ -92,6 +92,7 @@ fun ChatScreen(
     val cr = context.contentResolver
     val view = LocalView.current
     var text by remember { mutableStateOf("") }
+    var isTypingNow by remember { mutableStateOf(false) }
     LaunchedEffect(pendingShare) {
         val share = pendingShare ?: return@LaunchedEffect
         if (!share.text.isNullOrBlank() && text.isEmpty()) {
@@ -133,11 +134,14 @@ fun ChatScreen(
 
     LaunchedEffect(text, convId) {
         if (text.isBlank()) {
+            isTypingNow = false
             vm.setTyping(false)
             return@LaunchedEffect
         }
+        isTypingNow = true
         vm.setTyping(true)
         delay(5000)
+        isTypingNow = false
         vm.setTyping(false)
     }
     DisposableEffect(convId) {
@@ -186,7 +190,7 @@ fun ChatScreen(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(Modifier.size(48.dp).clickable { view.playClick(); onOpenBots() }, contentAlignment = Alignment.Center) {
-                    RoboMascoteAnimado(estaEscrevendo = text.isNotBlank(), progressoTexto = (text.length / 2000f).coerceIn(0f, 1f), tamanho = 46.dp)
+                    RoboMascoteAnimado(estaEscrevendo = isTypingNow, progressoTexto = (text.length / 2000f).coerceIn(0f, 1f), tamanho = 46.dp)
                 }
                 PresenteAnimado(tamanho = 42.dp)
             }
