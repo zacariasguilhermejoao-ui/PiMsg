@@ -101,6 +101,7 @@ fun HomeScreen(
     var profileTarget by remember { mutableStateOf<UserItem?>(null) }
     var publicProfile by remember { mutableStateOf<JSONObject?>(null) }
     var publicAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var publicSocialIcons by remember { mutableStateOf<Map<String, android.graphics.Bitmap>>(emptyMap()) }
     var ownProfileName by remember { mutableStateOf("O meu perfil") }
     var ownPlan by remember { mutableStateOf("free") }
     var ownProfileAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
@@ -192,9 +193,21 @@ fun HomeScreen(
         profileLoading = true
         publicProfile = null
         publicAvatar = null
+        publicSocialIcons = emptyMap()
         try {
             val profile = Api.get("/v1/users/\u0024{target.id}")
             publicProfile = profile
+            val socialLinks = profile.optJSONArray("social_links") ?: JSONArray()
+            val icons = mutableMapOf<String, android.graphics.Bitmap>()
+            for (index in 0 until socialLinks.length()) {
+                val link = socialLinks.optJSONObject(index)?.optString("url") ?: continue
+                if (!link.startsWith("https://")) continue
+                runCatching {
+                    val data = Api.download("/v1/favicon?url=" + Api.encode(link))
+                    android.graphics.BitmapFactory.decodeByteArray(data.bytes, 0, data.bytes.size)?.let { icons[link] = it }
+                }
+            }
+            publicSocialIcons = icons
             val key = if (profile.isNull("avatar_key")) null else profile.optString("avatar_key").takeIf { it.isNotBlank() }
             if (key != null) runCatching {
                 val downloaded = Api.download("/v1/media/\u0024key")
@@ -365,7 +378,10 @@ fun HomeScreen(
                             val item = links.optJSONObject(index) ?: return@forEach
                             val label = item.optString("label")
                             val link = item.optString("url")
-                            if (link.startsWith("https://")) Text("$label · $link", color = PiColors.White, modifier = Modifier.fillMaxWidth().clickable { openUrl(context, link) }.padding(vertical = 3.dp))
+                            if (link.startsWith("https://")) Row(Modifier.fillMaxWidth().clickable { openUrl(context, link) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                                publicSocialIcons[link]?.let { Image(it.asImageBitmap(), contentDescription = null, modifier = Modifier.size(22.dp).clip(CircleShape)) }
+                                Text(label, color = PiColors.White)
+                            }
                         }
                         val introVideo = profile.optString("intro_video_key")
                         if (introVideo.isNotBlank() && introVideo != "null") Text("Ver vídeo de apresentação", color = PiColors.White, modifier = Modifier.fillMaxWidth().clickable { openUrl(context, "$SITE/public-media/$introVideo") }.padding(vertical = 6.dp))
