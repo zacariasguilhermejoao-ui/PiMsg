@@ -168,6 +168,7 @@ async function handle(request, env) {
     const aiUsage = await env.DB.prepare(
       "SELECT requests FROM bot_daily_usage WHERE user_id = ? AND day = ?"
     ).bind(me.id, day).first();
+    const aiCredits = await env.DB.prepare("SELECT balance FROM ai_credits WHERE user_id = ?").bind(me.id).first();
     return json({
       current_plan: sub ? sub.plan : "free",
       subscription_status: sub?.status || "free",
@@ -179,10 +180,11 @@ async function handle(request, env) {
       personalized_link_reply_limit: sub ? null : 500,
       personalized_link_reply_remaining: sub ? null : Math.max(0, 500 - linkUsage.used),
       personalized_link_reply_resets_at: linkUsage.resets_at,
-      ai_usage: aiUsage?.requests || 0,
-      ai_limit: sub ? 30 : 5,
+      ai_usage: sub ? (aiUsage?.requests || 0) : Math.max(0, 15 - (aiCredits?.balance ?? 15)),
+      ai_limit: sub ? 30 : 15,
+      ai_credit_balance: sub ? null : (aiCredits?.balance ?? 15),
       plans: {
-        free: { contacts: 30, messages_per_day: 30, personalized_link_replies_per_month: 500, pi_ai_per_day: 5 },
+        free: { contacts: 30, messages_per_day: 30, personalized_link_replies_per_month: 500, pi_ai_credits: 15 },
         pro: { messages_per_day: null, personalized_link_replies_per_month: null, pi_ai_per_day: 30, profile_video: true }
       }
     });
