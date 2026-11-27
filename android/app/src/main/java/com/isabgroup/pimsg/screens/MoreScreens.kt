@@ -632,7 +632,9 @@ fun PlansScreen(onBack: () -> Unit) {
     var messageUsage by remember { mutableStateOf(0) }
     var aiUsage by remember { mutableStateOf(0) }
     var messageLimit by remember { mutableStateOf<Int?>(30) }
-    var aiLimit by remember { mutableStateOf(5) }\n    var linkReplyUsage by remember { mutableStateOf(0) }\n    var linkReplyLimit by remember { mutableStateOf<Int?>(500) }
+    var aiLimit by remember { mutableStateOf(5) }
+    var linkReplyUsage by remember { mutableStateOf(0) }
+    var linkReplyLimit by remember { mutableStateOf<Int?>(500) }
     var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
@@ -644,7 +646,9 @@ fun PlansScreen(onBack: () -> Unit) {
             messageUsage = data.optInt("message_usage")
             aiUsage = data.optInt("ai_usage")
             messageLimit = if (data.isNull("message_limit")) null else data.optInt("message_limit")
-            aiLimit = data.optInt("ai_limit", 5)\n            linkReplyUsage = data.optInt("personalized_link_reply_usage", 0)\n            linkReplyLimit = if (data.isNull("personalized_link_reply_limit")) null else data.optInt("personalized_link_reply_limit")
+            aiLimit = data.optInt("ai_limit", 5)
+            linkReplyUsage = data.optInt("personalized_link_reply_usage", 0)
+            linkReplyLimit = if (data.isNull("personalized_link_reply_limit")) null else data.optInt("personalized_link_reply_limit")
         } catch (e: Exception) { error = "Não foi possível consultar o plano da conta." }
         finally { loading = false }
     }
@@ -660,7 +664,8 @@ fun PlansScreen(onBack: () -> Unit) {
             )
             Spacer(Modifier.height(12.dp))
             Text("Mensagens hoje: $messageUsage" + (messageLimit?.let { " / $it" } ?: " · sem limite diário"), color = PiColors.White, fontSize = 13.sp)
-            Text("Pi AI hoje: $aiUsage / $aiLimit respostas", color = PiColors.White, fontSize = 13.sp)\n            Text("Respostas através dos links este mês: $linkReplyUsage" + (linkReplyLimit?.let { " / $it" } ?: " · sem limite"), color = PiColors.White, fontSize = 13.sp)
+            Text("Pi AI hoje: $aiUsage / $aiLimit respostas", color = PiColors.White, fontSize = 13.sp)
+            Text("Respostas através dos links este mês: $linkReplyUsage" + (linkReplyLimit?.let { " / $it" } ?: " · sem limite"), color = PiColors.White, fontSize = 13.sp)
             if (expiresAt != null) {
                 val date = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(expiresAt!!))
                 Text("Válido até $date", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
