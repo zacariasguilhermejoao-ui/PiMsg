@@ -31,7 +31,7 @@ function html(title, body, status = 200, footerLinks = ["terms", "privacy", "com
 
 const COPY_JS = `<script>function copyCode(id,btn){var t=document.getElementById(id).textContent;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){btn.textContent='Copiado'}).catch(function(){btn.textContent='Selecione e copie o texto acima'})}</script>`;
 
-const steps = `<ol><li>Instale o PiMsg na Play Store.</li><li>Entre com a sua conta Google ou com o seu número.</li><li>Toque na lupa, no topo, e cole o código.</li></ol>`;
+const steps = `<ol><li>Instale o PiMsg pela Play Store usando o botão desta página.</li><li>Quando a instalação terminar, toque em <b>Abrir</b> na Play Store.</li><li>Entre ou crie a sua conta. O PiMsg recupera o destino deste link e encaminha-o automaticamente para a conversa ou grupo.</li></ol><p class="muted">Por segurança, o Android não permite que uma página web abra a aplicação sozinha no fim da instalação. É necessário tocar em Abrir.</p>`;
 
 const CONTACTS = [
   ["Suporte", "suporte@tchilopop.com"],
