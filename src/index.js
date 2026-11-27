@@ -461,7 +461,8 @@ export default {
   },
   async scheduled(controller, env) {
     const now = Date.now();
-    await refreshExpiringSubscriptions(env, now);
+    try { await refreshExpiringSubscriptions(env, now); }
+    catch (error) { console.error("PiMsg scheduled subscription refresh failed:", String(error)); }
     const due = await env.DB.prepare(
       "SELECT id, user_id, title FROM bot_reminders WHERE status = 'active' AND notified_at IS NULL AND due_at <= ? ORDER BY due_at ASC LIMIT 100"
     ).bind(now).all();
