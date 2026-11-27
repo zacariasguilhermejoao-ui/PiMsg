@@ -17,3 +17,12 @@ CREATE TABLE IF NOT EXISTS ai_credits (
 );
 INSERT OR IGNORE INTO ai_credits (user_id, balance, updated_at)
 SELECT id, 15, CAST(strftime('%s','now') AS INTEGER) * 1000 FROM users;
+
+CREATE TABLE IF NOT EXISTS message_translations (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  language TEXT NOT NULL CHECK (language IN ('pt','en','es','fr')),
+  translated_body TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, message_id, language)
+);
