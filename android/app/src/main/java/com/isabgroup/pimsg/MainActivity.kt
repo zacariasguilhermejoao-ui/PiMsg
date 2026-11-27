@@ -252,6 +252,11 @@ private fun AppRoot(activity: MainActivity) {
 
     fun signOut() {
         FirebaseAuth.getInstance().signOut()
+        activity.getSharedPreferences("pimsg_local", android.content.Context.MODE_PRIVATE).edit().remove("my_id").apply()
+        activity.getSharedPreferences("pimsg_offline", android.content.Context.MODE_PRIVATE).edit().clear().apply()
+        activity.getSharedPreferences("pimsg_home_profile", android.content.Context.MODE_PRIVATE).edit().clear().apply()
+        activity.getSharedPreferences("pimsg_profile_cache", android.content.Context.MODE_PRIVATE).edit().clear().apply()
+        activity.getSharedPreferences("pimsg_public_profiles", android.content.Context.MODE_PRIVATE).edit().clear().apply()
         signedIn = false
         screen = Screen.Home
         activity.clearShare()
