@@ -362,7 +362,7 @@ fun HomeScreen(
             title = { Text(profile?.optString("name")?.takeIf { !it.isNullOrBlank() } ?: target.name, color = PiColors.White) },
             text = {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (publicAvatar != null) Image(bitmap = publicAvatar!!.asImageBitmap(), contentDescription = "Fotografia do perfil", modifier = Modifier.size(88.dp).border(3.dp, parseColor(profile?.optString("ring_color")), CircleShape).clip(CircleShape), contentScale = ContentScale.Crop)
+                    if (publicAvatar != null) Image(bitmap = publicAvatar!!.asImageBitmap(), contentDescription = "Fotografia do perfil", modifier = Modifier.size(88.dp).clip(CircleShape), contentScale = ContentScale.Crop)
                     else Box(Modifier.size(88.dp).clip(CircleShape).background(PiColors.SurfaceHigh), contentAlignment = Alignment.Center) {
                         Icon(androidx.compose.material.icons.Icons.Filled.Person, contentDescription = "Avatar", tint = PiColors.Gray, modifier = Modifier.size(46.dp))
                     }
