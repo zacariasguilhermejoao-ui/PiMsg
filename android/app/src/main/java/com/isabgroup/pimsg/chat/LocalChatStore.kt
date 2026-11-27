@@ -10,7 +10,7 @@ import android.database.sqlite.SQLiteOpenHelper
  * A base fica no armazenamento privado da aplicação e sobrevive ao fecho/reinício do telefone.
  */
 internal class LocalChatStore(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "pimsg_local.db", null, 1) {
+    SQLiteOpenHelper(context.applicationContext, "pimsg_local.db", null, 2) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -27,9 +27,16 @@ internal class LocalChatStore(context: Context) :
             )"""
         )
         db.execSQL("CREATE INDEX messages_conversation_time ON messages(conversation_id, created_at DESC)")
+        db.execSQL("CREATE TABLE hidden_messages (message_id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, hidden_at INTEGER NOT NULL)")
+        db.execSQL("CREATE INDEX hidden_messages_conversation ON hidden_messages(conversation_id)")
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS hidden_messages (message_id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, hidden_at INTEGER NOT NULL)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS hidden_messages_conversation ON hidden_messages(conversation_id)")
+        }
+    }
 
     @Synchronized
     fun read(conversationId: String): List<Message> {
@@ -106,6 +113,26 @@ internal class LocalChatStore(context: Context) :
     @Synchronized
     fun markSent(localId: String) {
         writableDatabase.delete("messages", "id = ? AND pending = 1", arrayOf(localId))
+    }
+
+    @Synchronized
+    fun hideMessage(conversationId: String, messageId: String) {
+        val values = ContentValues().apply {
+            put("message_id", messageId)
+            put("conversation_id", conversationId)
+            put("hidden_at", System.currentTimeMillis())
+        }
+        writableDatabase.insertWithOnConflict("hidden_messages", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+        writableDatabase.delete("messages", "id = ?", arrayOf(messageId))
+    }
+
+    @Synchronized
+    fun isHidden(conversationId: String, messageId: String): Boolean {
+        readableDatabase.query(
+            "hidden_messages", arrayOf("message_id"),
+            "conversation_id = ? AND message_id = ?", arrayOf(conversationId, messageId),
+            null, null, null, "1"
+        ).use { return it.moveToFirst() }
     }
 
     @Synchronized
