@@ -374,6 +374,24 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
         Text(code, color = PiColors.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp)
         Text("Partilhe este código para que outras pessoas o encontrem no PiMsg.", color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(vertical = 8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PiButton("Mostrar QR", {
+                qrBitmap = runCatching { createPiMsgQr(context, code, name) }.getOrNull()
+                qrOpen = qrBitmap != null
+                if (qrBitmap == null) msg = "Não foi possível gerar o QR."
+            }, Modifier.weight(1f), primary = false, enabled = code.isNotBlank())
+            PiButton("Ler QR", {
+                val activity = context as? Activity
+                if (activity != null) {
+                    val intent = IntentIntegrator(activity)
+                        .setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
+                        .setPrompt("Aponta a câmara para o QR de uma conta PiMsg")
+                        .setBeepEnabled(false)
+                        .createScanIntent()
+                    qrScanner.launch(intent)
+                } else msg = "Não foi possível abrir a câmara."
+            }, Modifier.weight(1f), primary = false)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             PiButton("Copiar", { copy(context, "codigo", code); msg = "Código copiado." }, Modifier.weight(1f), primary = false)
             PiButton("Gerar novo", {
                 scope.launch {
