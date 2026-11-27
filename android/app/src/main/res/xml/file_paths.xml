@@ -3,4 +3,5 @@
     <cache-path name="shared" path="shared/" />
     <files-path name="pimsg" path="PiMsg/" />
     <external-files-path name="pimsg_external" path="PiMsg/" />
+    <external-path name="pimsg_media" path="Android/media/com.pimsg.isabstudio/PiMsg/" />
 </paths>
