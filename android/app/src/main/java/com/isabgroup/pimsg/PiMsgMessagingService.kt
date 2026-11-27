@@ -28,7 +28,8 @@ class PiMsgMessagingService : FirebaseMessagingService() {
 
         val prefs = getSharedPreferences("pimsg_notifications", MODE_PRIVATE)
         if (!prefs.getBoolean("push_enabled", true)) return
-        val popupEnabled = prefs.getBoolean("popup_enabled", true)
+        val popupEnabled = data["popup_enabled"]?.toBooleanStrictOrNull()
+            ?: prefs.getBoolean("popup_enabled", true)
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(NotificationChannel("messages", "Mensagens", NotificationManager.IMPORTANCE_HIGH))
         manager.createNotificationChannel(NotificationChannel("messages_silent", "Mensagens silenciosas", NotificationManager.IMPORTANCE_LOW))
