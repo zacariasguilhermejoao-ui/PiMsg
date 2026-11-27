@@ -172,7 +172,7 @@ fun HomeScreen(
     var ownPlan by remember { mutableStateOf("free") }
     var ownProfileAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var profileLoading by remember { mutableStateOf(false) }
-    var initialSkeleton by remember { mutableStateOf(true) }
+    var initialSkeleton by remember { mutableStateOf(false) }
     var newGroupOpen by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
     val focus = remember { FocusRequester() }
@@ -450,8 +450,8 @@ fun HomeScreen(
                     items(state.results, key = { "u" + it.id }) { u ->
                         PersonRow(
                             title = u.name,
-                            subtitle = u.linkSubject?.let { "Assunto: $it" } ?: "Toque para conversar",
-                            ring = null, unread = 0,
+                            subtitle = u.bio?.takeIf { it.isNotBlank() } ?: (u.linkSubject?.let { "Assunto: $it" } ?: "Ver perfil"),
+                            ring = null, unread = 0, avatarKey = u.avatarKey,
                             onClick = { profileTarget = u },
                         )
                     }
@@ -551,6 +551,8 @@ fun HomeScreen(
                                 Text(label, color = PiColors.White)
                             }
                         }
+                        val phone = profile.optString("phone")
+                        if (phone.isNotBlank() && phone != "null") Text("Contacto: $phone", color = PiColors.White, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
                         val introVideo = profile.optString("intro_video_key")
                         if (introVideo.isNotBlank() && introVideo != "null") Text("Ver vídeo de apresentação", color = PiColors.White, modifier = Modifier.fillMaxWidth().clickable { openUrl(context, "$SITE/public-media/$introVideo") }.padding(vertical = 6.dp))
                     }
