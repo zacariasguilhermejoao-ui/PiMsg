@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.File
+import java.io.FileInputStream
 
 data class Message(
     val id: String,
@@ -229,22 +230,30 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                     _state.update { it.copy(busy = false, error = "O ficheiro passa de 50 MB.") }
                     return@launch
                 }
-                val mediaId = Api.upload({ cr.openInputStream(uri) }, size, mime)
-                runCatching {
-                    cr.openInputStream(uri)?.use { input ->
-                        PiMsgMedia.store(appContext, mediaId, mime, name ?: "ficheiro", input.readBytes())
+                val staged = File(appContext.cacheDir, "pimsg_upload_${java.util.UUID.randomUUID()}")
+                try {
+                    cr.openInputStream(uri)?.use { input -> staged.outputStream().use { output -> input.copyTo(output) } }
+                        ?: throw ApiException(400, "ficheiro ilegivel")
+                    val actualSize = staged.length()
+                    if (actualSize <= 0L || actualSize > MAX_MEDIA) throw ApiException(413, "ficheiro invalido ou demasiado grande")
+                    val mediaId = Api.upload({ FileInputStream(staged) }, actualSize, mime)
+                    val cached = PiMsgMedia.storeFromFile(appContext, mediaId, mime, name ?: "ficheiro", staged)
+                    if (mime.startsWith("image/")) {
+                        BitmapFactory.decodeFile(cached.absolutePath)?.let { images[mediaId] = it }
                     }
                     _state.update { it.copy(mediaRevision = it.mediaRevision + 1) }
+                    val kind = when {
+                        hint == "music" -> "music"
+                        mime.startsWith("image/") -> "image"
+                        mime.startsWith("video/") -> "video"
+                        mime.startsWith("audio/") -> "audio"
+                        else -> "file"
+                    }
+                    Api.post("/v1/chats/$convId/messages", JSONObject().put("kind", kind)
+                        .put("media_id", mediaId).put("body", name ?: ""))
+                } finally {
+                    staged.delete()
                 }
-                val kind = when {
-                    hint == "music" -> "music"
-                    mime.startsWith("image/") -> "image"
-                    mime.startsWith("video/") -> "video"
-                    mime.startsWith("audio/") -> "audio"
-                    else -> "file"
-                }
-                Api.post("/v1/chats/$convId/messages", JSONObject().put("kind", kind)
-                    .put("media_id", mediaId).put("body", name ?: ""))
                 _state.update { it.copy(busy = false) }
                 refresh()
             } catch (e: Exception) {
