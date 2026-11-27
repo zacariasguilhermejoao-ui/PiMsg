@@ -476,10 +476,21 @@ private fun FileBody(m: Message, vm: ChatViewModel, fg: Color, sub: Color) {
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Text(if (cached) "Abrir" else "Descarregar", color = fg, fontSize = 12.sp,
                 modifier = Modifier.clickable(enabled = m.mediaId != null) { scope.launch { openMedia(context, m, vm) } }.padding(top = 8.dp))
-            if (cached && PiMsgMedia.saveToGallery(context)) Text("Guardar no telemóvel", color = fg, fontSize = 12.sp,
+            if (cached && PiMsgMedia.saveToGallery(context)) Text(
+                when (m.kind) {
+                    "image", "video" -> "Guardar na galeria"
+                    "audio", "music" -> "Guardar nas músicas"
+                    else -> "Guardar nos ficheiros"
+                },
+                color = fg, fontSize = 12.sp,
                 modifier = Modifier.clickable { scope.launch {
                     val ok = runCatching { vm.saveMediaToGallery(m) }.getOrDefault(false)
-                    vm.showError(if (ok) "Ficheiro guardado nas pastas PiMsg da galeria." else "Não foi possível guardar. Verifique o formato e o espaço disponível.")
+                    val destination = when (m.kind) {
+                        "image", "video" -> "galeria"
+                        "audio", "music" -> "músicas"
+                        else -> "ficheiros"
+                    }
+                    vm.showError(if (ok) "Ficheiro guardado em PiMsg/$destination." else "Não foi possível guardar. Verifique o formato e o espaço disponível.")
                 } }.padding(top = 8.dp))
         }
     }
