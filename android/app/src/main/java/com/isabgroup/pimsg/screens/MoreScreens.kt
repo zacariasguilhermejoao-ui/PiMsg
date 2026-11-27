@@ -397,6 +397,34 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
     var soundEnabled by remember { mutableStateOf(PiFeedback.soundEnabled(context)) }
     var hapticEnabled by remember { mutableStateOf(PiFeedback.hapticEnabled(context)) }
     var showLanguagePicker by remember { mutableStateOf(false) }
+    var pushEnabled by remember { mutableStateOf(true) }
+    var popupEnabled by remember { mutableStateOf(true) }
+
+    suspend fun loadNotificationPreferences() {
+        try {
+            val prefs = Api.get("/v1/me/notifications")
+            pushEnabled = prefs.optBoolean("push_enabled", true)
+            popupEnabled = prefs.optBoolean("popup_enabled", true)
+            context.getSharedPreferences("pimsg_notifications", Context.MODE_PRIVATE).edit()
+                .putBoolean("push_enabled", pushEnabled)
+                .putBoolean("popup_enabled", popupEnabled)
+                .apply()
+        } catch (_: Exception) { }
+    }
+
+    fun saveNotificationPreferences() {
+        context.getSharedPreferences("pimsg_notifications", Context.MODE_PRIVATE).edit()
+            .putBoolean("push_enabled", pushEnabled)
+            .putBoolean("popup_enabled", popupEnabled)
+            .apply()
+        scope.launch {
+            runCatching {
+                Api.put("/v1/me/notifications", JSONObject()
+                    .put("push_enabled", pushEnabled)
+                    .put("popup_enabled", popupEnabled))
+            }.onFailure { msg = "Não foi possível guardar as preferências de notificação." }
+        }
+    }
 
     suspend fun loadBlocked() {
         try {
@@ -404,7 +432,7 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
             blocked = (0 until arr.length()).map { arr.getJSONObject(it).let { o -> o.getString("id") to o.getString("name") } }
         } catch (e: Exception) { /* lista vazia */ }
     }
-    LaunchedEffect(Unit) { loadBlocked() }
+    LaunchedEffect(Unit) { loadBlocked(); loadNotificationPreferences() }
 
     ScreenFrame("Definições", onBack) {
         Section("Idioma")
@@ -415,6 +443,29 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
             }
             androidx.compose.material3.Icon(Icons.Filled.Add, contentDescription = "Escolher idioma", tint = PiColors.TextSecondary)
         }
+        Section("Notificações")
+        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Notificações push", color = PiColors.White, fontSize = 16.sp)
+                Text("Receber alertas de mensagens mesmo com o PiMsg fechado", color = PiColors.TextSecondary, fontSize = 12.sp)
+            }
+            Switch(checked = pushEnabled, onCheckedChange = {
+                pushEnabled = it
+                if (it) runCatching { Push.register(context) }
+                saveNotificationPreferences()
+            }, colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = PiColors.White))
+        }
+        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Avisos pop-up", color = PiColors.White, fontSize = 16.sp)
+                Text("Mostrar alertas destacados no ecrã; desligar mantém notificações silenciosas", color = PiColors.TextSecondary, fontSize = 12.sp)
+            }
+            Switch(checked = popupEnabled, onCheckedChange = {
+                popupEnabled = it
+                saveNotificationPreferences()
+            }, enabled = pushEnabled, colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = PiColors.White))
+        }
+
         Section("Som e vibração")
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
