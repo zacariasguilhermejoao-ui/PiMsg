@@ -103,13 +103,14 @@ export async function handleChat(request, env, me, path, method) {
         (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.created_at > cm.last_read_at
            AND m.sender_id <> ?1 AND m.deleted_at IS NULL) AS unread,
         (SELECT kind FROM messages m WHERE m.conversation_id = c.id AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 1) AS last_kind,
-        (SELECT body FROM messages m WHERE m.conversation_id = c.id AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 1) AS last_body
+        (SELECT body FROM messages m WHERE m.conversation_id = c.id AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 1) AS last_body,
+        EXISTS (SELECT 1 FROM typing_states ts WHERE ts.conversation_id = c.id AND ts.user_id <> ?1 AND ts.updated_at > ?2) AS other_typing
        FROM conversation_members cm
        JOIN conversations c ON c.id = cm.conversation_id
        LEFT JOIN users u ON c.type = 'direct' AND u.id = (CASE WHEN c.user_a_id = ?1 THEN c.user_b_id ELSE c.user_a_id END)
        WHERE cm.user_id = ?1 AND cm.left_at IS NULL
-       ORDER BY COALESCE(c.last_message_at, c.created_at) DESC LIMIT 100`
-    ).bind(me.id).all();
+       ORDER BY other_typing DESC, COALESCE(c.last_message_at, c.created_at) DESC LIMIT 100`
+    ).bind(me.id, now - 6000).all();
     let list = rows.results;
     if (tab === "new") list = list.filter((r) => r.unread > 0);
     else if (tab === "favorites") list = list.filter((r) => r.is_favorite);
@@ -232,12 +233,29 @@ export async function handleChat(request, env, me, path, method) {
     return json({ id: g.id });
   }
 
-  const sub = path.match(/^\/v1\/chats\/([\w-]+)\/(messages|read|favorite|leave|disappearing)$/);
+  const sub = path.match(/^\/v1\/chats\/([\w-]+)\/(messages|read|favorite|leave|disappearing|typing)$/);
   if (sub) {
     const convId = sub[1];
     const action = sub[2];
     const mem = await membership(env, convId, me.id);
     if (!mem) return fail(404, "conversa nao encontrada");
+
+    if (action === "typing" && method === "POST") {
+      const b = await request.json().catch(() => ({}));
+      if (b.typing === true) {
+        await env.DB.prepare("INSERT INTO typing_states (conversation_id, user_id, updated_at) VALUES (?,?,?) ON CONFLICT(conversation_id,user_id) DO UPDATE SET updated_at = excluded.updated_at")
+          .bind(convId, me.id, now).run();
+      } else {
+        await env.DB.prepare("DELETE FROM typing_states WHERE conversation_id = ? AND user_id = ?").bind(convId, me.id).run();
+      }
+      return json({ ok: true });
+    }
+    if (action === "typing" && method === "GET") {
+      const rows = await env.DB.prepare(
+        "SELECT u.id, u.display_name FROM typing_states t JOIN users u ON u.id = t.user_id WHERE t.conversation_id = ? AND t.user_id <> ? AND t.updated_at > ? ORDER BY t.updated_at DESC LIMIT 10"
+      ).bind(convId, me.id, now - 6000).all();
+      return json({ typing: rows.results || [] });
+    }
 
     if (action === "disappearing" && method === "GET") {
       const setting = await env.DB.prepare("SELECT disappearing_seconds FROM conversations WHERE id = ?")
