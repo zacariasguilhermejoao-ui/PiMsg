@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.ApiException
+import com.isabgroup.pimsg.data.PiMsgMedia
 import com.isabgroup.pimsg.ui.PiI18n
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -80,6 +81,19 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                     if (o.isNull("expires_at")) null else o.optLong("expires_at"))
             }
             local.saveServer(convId, serverMessages)
+            if (PiMsgMedia.shouldAutoDownload(appContext)) {
+                viewModelScope.launch {
+                    serverMessages.asSequence().filter { it.mediaId != null }
+                        .take(12).forEach { message ->
+                            runCatching {
+                                val file = downloadMedia(message)
+                                if (PiMsgMedia.saveToGallery(appContext)) {
+                                    saveCachedMediaToGallery(message, file)
+                                }
+                            }
+                        }
+                }
+            }
             val combined = (serverMessages + local.pending(convId)).sortedByDescending { it.createdAt }
             val typingName = runCatching {
                 val typing = Api.get("/v1/chats/$convId/typing").getJSONArray("typing")
@@ -227,17 +241,49 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
         }
     }
 
+    fun isMediaCached(mediaId: String?): Boolean =
+        mediaId != null && PiMsgMedia.findCached(appContext, mediaId) != null
+
+    suspend fun downloadMedia(message: Message): File {
+        val mediaId = message.mediaId ?: throw IllegalStateException("Ficheiro indisponível.")
+        PiMsgMedia.findCached(appContext, mediaId)?.let { return it }
+        val data = Api.download("/v1/media/$mediaId")
+        return PiMsgMedia.store(
+            appContext, mediaId, data.mime,
+            message.body?.takeIf { it.isNotBlank() } ?: mediaId,
+            data.bytes,
+        )
+    }
+
+    private fun saveCachedMediaToGallery(message: Message, file: File): Boolean {
+        val mediaId = message.mediaId ?: return false
+        if (PiMsgMedia.wasSavedToGallery(appContext, mediaId)) return true
+        val mime = when (message.kind) {
+            "image" -> "image/jpeg"
+            "video" -> "video/mp4"
+            "audio", "music" -> "audio/mpeg"
+            else -> "application/octet-stream"
+        }
+        val saved = PiMsgMedia.saveToGallery(appContext, file, mime, message.body?.takeIf { it.isNotBlank() } ?: file.name)
+        if (saved) PiMsgMedia.markSavedToGallery(appContext, mediaId)
+        return saved
+    }
+
+    suspend fun saveMediaToGallery(message: Message): Boolean {
+        val file = downloadMedia(message)
+        return saveCachedMediaToGallery(message, file)
+    }
+
     suspend fun loadImage(mediaId: String) {
         if (images.containsKey(mediaId)) return
         try {
-            val dir = File(appContext.getExternalFilesDir(null) ?: appContext.filesDir, "PiMsg/Images").apply { mkdirs() }
-            val cached = File(dir, "$mediaId.img")
-            val bytes = if (cached.exists()) cached.readBytes() else {
-                Api.download("/v1/media/$mediaId").bytes.also { cached.writeBytes(it) }
+            val file = PiMsgMedia.findCached(appContext, mediaId) ?: run {
+                val data = Api.download("/v1/media/$mediaId")
+                PiMsgMedia.store(appContext, mediaId, data.mime, mediaId, data.bytes)
             }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.let { images[mediaId] = it }
+            BitmapFactory.decodeFile(file.absolutePath)?.let { images[mediaId] = it }
         } catch (_: Exception) {
-            _state.update { it.copy(error = "Não foi possível abrir a foto. Se estiver offline, descarregue-a quando tiver Internet.") }
+            _state.update { it.copy(error = "Esta fotografia ainda não está guardada. Liga-te à Internet para a descarregar.") }
         }
     }
 
