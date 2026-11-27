@@ -66,6 +66,7 @@ import com.isabgroup.pimsg.chat.ChatRef
 import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.PiMsgMedia
 import com.isabgroup.pimsg.data.uploadBitmap
+import com.isabgroup.pimsg.data.decodeBitmapUri
 import com.isabgroup.pimsg.ui.components.ImageCropDialog
 import com.isabgroup.pimsg.data.PlayBilling
 import com.android.billingclient.api.ProductDetails
@@ -157,10 +158,8 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
     val imagePicker = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri ->
-        if (uri != null) {
-            val selected = runCatching {
-                context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
-            }.getOrNull()
+        if (uri != null) scope.launch {
+            val selected = runCatching { decodeBitmapUri(context.contentResolver, uri) }.getOrNull()
             if (selected == null) msg = "Não foi possível abrir esta fotografia."
             else avatarCropSource = selected
         }
