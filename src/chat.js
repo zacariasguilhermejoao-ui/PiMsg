@@ -32,6 +32,17 @@ async function isPro(env, userId, now) {
   return !!r;
 }
 
+async function mediaStorageLimit(env, userId, now) {
+  const sub = await env.DB.prepare(
+    "SELECT plan FROM subscriptions WHERE user_id = ? AND status IN ('active','grace') AND expires_at > ? ORDER BY expires_at DESC LIMIT 1"
+  ).bind(userId, now).first();
+  const plan = String(sub?.plan || "");
+  if (plan.startsWith("business")) return 20 * 1024 * 1024 * 1024;
+  if (plan.startsWith("pro")) return 5 * 1024 * 1024 * 1024;
+  if (plan.startsWith("plus")) return 2 * 1024 * 1024 * 1024;
+  return 250 * 1024 * 1024;
+}
+
 
 function localMonthWindow(now) {
   const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Africa/Luanda", year: "numeric", month: "2-digit" }).formatToParts(new Date(now));
@@ -370,14 +381,32 @@ export async function handleChat(request, env, me, path, method) {
 
   if (path === "/v1/media" && method === "PUT") {
     const size = Number(request.headers.get("content-length"));
-    if (!size || size > MAX_MEDIA_BYTES) return fail(413, "ficheiro invalido ou demasiado grande");
+    if (!size || size > MAX_MEDIA_BYTES) return fail(413, "ficheiro inválido ou demasiado grande (máximo 50 MB)");
     const mime = request.headers.get("content-type") || "application/octet-stream";
+    const quota = await mediaStorageLimit(env, me.id, now);
+    const current = await env.DB.prepare("SELECT COALESCE(SUM(size_bytes), 0) AS used FROM media WHERE owner_id = ?").bind(me.id).first();
+    const usedBefore = Number(current?.used || 0);
+    if (usedBefore + size > quota) return fail(413, "Atingiste o espaço de armazenamento do teu plano. Liberta espaço ou muda de plano.", { reason: "storage_quota_exceeded", used_bytes: usedBefore, limit_bytes: quota });
+    const reservation = await env.DB.prepare(
+      `INSERT INTO user_storage_usage (user_id, used_bytes, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET used_bytes = user_storage_usage.used_bytes + ?, updated_at = ?
+       WHERE user_storage_usage.used_bytes + ? <= ? RETURNING used_bytes`
+    ).bind(me.id, usedBefore + size, now, size, now, size, quota).first();
+    if (!reservation) return fail(413, "Atingiste o espaço de armazenamento do teu plano. Liberta espaço ou muda de plano.", { reason: "storage_quota_exceeded", limit_bytes: quota });
     const id = crypto.randomUUID();
     const key = `${me.id}/${id}`;
-    await env.MEDIA.put(key, request.body, { httpMetadata: { contentType: mime } });
-    await env.DB.prepare("INSERT INTO media (id, owner_id, r2_key, mime, size_bytes, created_at) VALUES (?,?,?,?,?,?)")
-      .bind(id, me.id, key, mime, size, now).run();
-    return json({ id }, 201);
+    try {
+      await env.MEDIA.put(key, request.body, { httpMetadata: { contentType: mime } });
+      await env.DB.prepare("INSERT INTO media (id, owner_id, r2_key, mime, size_bytes, created_at) VALUES (?,?,?,?,?,?)")
+        .bind(id, me.id, key, mime, size, now).run();
+      return json({ id, used_bytes: reservation.used_bytes, limit_bytes: quota }, 201);
+    } catch (error) {
+      await env.DB.batch([
+        env.DB.prepare("UPDATE user_storage_usage SET used_bytes = CASE WHEN used_bytes >= ? THEN used_bytes - ? ELSE 0 END, updated_at = ? WHERE user_id = ?").bind(size, size, Date.now(), me.id),
+      ]);
+      await env.MEDIA.delete(key).catch(() => {});
+      throw error;
+    }
   }
 
   const mediaGet = path.match(/^\/v1\/media\/([\w-]+)$/);
