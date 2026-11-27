@@ -1,12 +1,9 @@
 package com.isabgroup.pimsg.ui
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.unit.dp
 
 object PiColors {
     val Background = Color(0xFF000000)
@@ -32,9 +29,5 @@ private val scheme = darkColorScheme(
 
 @Composable
 fun PiMsgTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = scheme,
-        shapes = Shapes(small = RoundedCornerShape(22.dp)),
-        content = content,
-    )
+    MaterialTheme(colorScheme = scheme, content = content)
 }
