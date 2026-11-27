@@ -219,7 +219,7 @@ async function handle(request, env) {
       bots_available: !!sub,
       plans: {
         free: { contacts: 30, messages_per_day: 30, personalized_link_replies_per_month: 500, translations_per_day: 4, ai_requests_per_day: 0 },
-        plus: { messages_per_day: null, personalized_link_replies_per_month: 1500, translations_per_day: 25, ai_requests_per_day: 5, reminder: true },
+        plus: { messages_per_day: null, personalized_link_replies_per_month: null, translations_per_day: 25, ai_requests_per_day: 5, reminder: true },
         pro: { messages_per_day: null, personalized_link_replies_per_month: null, translations_per_day: 75, ai_requests_per_day: 20, reminder: true, custom_bots: 5, profile_video: true },
         business: { messages_per_day: null, personalized_link_replies_per_month: null, translations_per_day: 150, ai_requests_per_day: 50, reminder: true, custom_bots: 20, pi_business: true, profile_video: true }
       }
