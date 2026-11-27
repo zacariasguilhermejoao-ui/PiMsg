@@ -88,6 +88,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.PiMsgMedia
+import com.isabgroup.pimsg.data.decodeBitmapUri
 import org.json.JSONObject
 import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiIcons
@@ -730,7 +731,7 @@ private fun AttachmentPreview(context: Context, uri: android.net.Uri) {
         preview = withContext(Dispatchers.IO) {
             runCatching {
                 if (mime.startsWith("image/")) {
-                    context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                    decodeBitmapUri(context.contentResolver, uri)
                 } else if (mime.startsWith("video/")) {
                     val retriever = MediaMetadataRetriever()
                     try {
