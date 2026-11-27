@@ -5,8 +5,13 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), {
 const fail = (status, error) => json({ error }, status);
 const PACKAGE_NAME = "com.pimsg.isabstudio";
 const PRODUCTS = {
+  pimsg_plus_monthly: "plus",
+  pimsg_plus_yearly: "plus",
   pimsg_pro_weekly: "pro_weekly",
   pimsg_pro_monthly: "pro_monthly",
+  pimsg_pro_yearly: "pro",
+  pimsg_business_monthly: "business",
+  pimsg_business_yearly: "business",
 };
 let cachedGoogleToken = null;
 
