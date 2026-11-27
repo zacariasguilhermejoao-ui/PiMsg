@@ -275,8 +275,7 @@ fun ProfileScreen(onBack: () -> Unit) {
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { socialUrl = ""; addSocialOpen = true }) { Icon(Icons.Filled.Add, contentDescription = "Adicionar redes sociais", tint = PiColors.White) }
-            Text("Adicionar Redes Sociais", color = PiColors.White, fontSize = 13.sp, modifier = Modifier.clickable { socialUrl = ""; socialLabel = ""; addSocialOpen = true })
+            IconButton(onClick = { socialUrl = ""; addSocialOpen = true }) { Icon(Icons.Filled.Add, contentDescription = "Adicionar Redes Sociais", tint = PiColors.White) }
         }
         Section("O meu código PiMsg")
         Text(code, color = PiColors.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp)
