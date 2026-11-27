@@ -874,6 +874,7 @@ private fun ImageBody(m: Message, vm: ChatViewModel, fg: Color) {
 @Composable
 private fun VideoBody(m: Message, vm: ChatViewModel, fg: Color) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val state by vm.state.collectAsStateWithLifecycle()
     val id = m.mediaId
     LaunchedEffect(id, state.mediaRevision) {
@@ -884,7 +885,7 @@ private fun VideoBody(m: Message, vm: ChatViewModel, fg: Color) {
         Box(
             Modifier.fillMaxWidth().height(164.dp).clip(RoundedCornerShape(12.dp))
                 .background(PiColors.SurfaceHigh)
-                .clickable(enabled = id != null) { scope.launch { openMedia(LocalContext.current, m, vm) } },
+                .clickable(enabled = id != null) { scope.launch { openMedia(context, m, vm) } },
             contentAlignment = Alignment.Center,
         ) {
             if (thumbnail != null) {
