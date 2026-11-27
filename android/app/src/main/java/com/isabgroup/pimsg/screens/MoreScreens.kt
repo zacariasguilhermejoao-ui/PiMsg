@@ -31,6 +31,10 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.AlertDialog
@@ -691,11 +695,28 @@ fun ToolsScreen(
 ) {
     ScreenFrame("Ferramentas", onBack) {
         Text("Acesso rápido às ferramentas disponíveis no PiMsg.", color = PiColors.TextSecondary, fontSize = 13.sp)
-        Spacer(Modifier.height(12.dp))
-        PiButton("Código QR", onQr, primary = false)
-        PiButton("PiBot", onPiBot, primary = false)
-        PiButton("Meus links", onLinks, primary = false)
-        PiButton("Planos e funcionalidades", onPlans, primary = false)
+        Spacer(Modifier.height(22.dp))
+        @Composable
+        fun ToolItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, action: () -> Unit) {
+            Column(
+                Modifier.weight(1f).clip(RoundedCornerShape(20.dp)).clickable { action() }.padding(vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Box(Modifier.size(62.dp).clip(RoundedCornerShape(21.dp)).background(PiColors.SurfaceHigh), contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = label, tint = PiColors.White, modifier = Modifier.size(29.dp))
+                }
+                Text(label, color = PiColors.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            ToolItem(Icons.Filled.QrCode2, "Código QR", onQr)
+            ToolItem(Icons.Filled.SmartToy, "PiBot", onPiBot)
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            ToolItem(Icons.Filled.Link, "Meus links", onLinks)
+            ToolItem(Icons.Filled.WorkspacePremium, "Planos", onPlans)
+        }
     }
 }
 
