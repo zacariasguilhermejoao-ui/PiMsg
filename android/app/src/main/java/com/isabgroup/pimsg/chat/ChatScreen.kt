@@ -32,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import com.isabgroup.pimsg.ui.PiText as Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,6 +65,8 @@ import org.json.JSONObject
 import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiIcons
 import com.isabgroup.pimsg.ui.playClick
+import com.isabgroup.pimsg.ui.components.PresenteAnimado
+import com.isabgroup.pimsg.ui.components.RoboMascoteAnimado
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
@@ -79,6 +82,7 @@ fun ChatScreen(
     onBack: () -> Unit,
     pendingShare: com.isabgroup.pimsg.ShareIncoming? = null,
     onShareConsumed: () -> Unit = {},
+    onOpenBots: () -> Unit = {},
 ) {
     val convId = ref.id
     val title = ref.title
@@ -127,6 +131,25 @@ fun ChatScreen(
         }
     }
 
+    LaunchedEffect(text, convId) {
+        if (text.isBlank()) {
+            vm.setTyping(false)
+            return@LaunchedEffect
+        }
+        try {
+            delay(450)
+            while (true) {
+                vm.setTyping(true)
+                delay(3000)
+            }
+        } finally {
+            vm.setTyping(false)
+        }
+    }
+    DisposableEffect(convId) {
+        onDispose { vm.setTyping(false) }
+    }
+
     val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) { attachOpen = false; vm.sendMedia(cr, uri, "file") }
     }
@@ -157,6 +180,22 @@ fun ChatScreen(
         }
         state.error?.let {
             Text(it, color = PiColors.Danger, fontSize = 14.sp, modifier = Modifier.fillMaxWidth().clickable { vm.clearError() }.padding(horizontal = 20.dp, vertical = 6.dp))
+        }
+
+        state.typingName?.let { name ->
+            Text("$name está a escrever…", color = PiColors.TextSecondary, fontSize = 12.sp,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 3.dp))
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PresenteAnimado(tamanho = 44.dp)
+            Spacer(Modifier.size(12.dp))
+            Box(Modifier.size(52.dp).clickable { view.playClick(); onOpenBots() }, contentAlignment = Alignment.Center) {
+                RoboMascoteAnimado(estaEscrevendo = text.isNotBlank(), progressoTexto = (text.length / 2000f).coerceIn(0f, 1f), tamanho = 50.dp)
+            }
         }
 
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.Bottom) {
