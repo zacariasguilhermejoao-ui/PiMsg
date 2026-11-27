@@ -174,7 +174,7 @@ fun ChatScreen(
         if (file != null && file.exists() && file.length() > 1024L) {
             runCatching {
                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
-                vm.sendMedia(cr, uri, "audio")
+                vm.sendMedia(cr, uri, "audio") { file.delete() }
             }.onFailure { vm.showError("Não foi possível preparar a mensagem de voz.") }
         } else {
             file?.delete()
