@@ -79,6 +79,27 @@ import org.json.JSONObject
 
 private const val SITE = "https://pimsg.tchilopop.com"
 
+private fun readCachedChats(context: android.content.Context, tab: Tab): List<ChatItem> {
+    return runCatching {
+        val raw = context.getSharedPreferences("pimsg_offline", android.content.Context.MODE_PRIVATE)
+            .getString("chats_${tab.key}", null) ?: return@runCatching emptyList()
+        val array = JSONArray(raw)
+        (0 until array.length()).map { index ->
+            val item = array.getJSONObject(index)
+            ChatItem(
+                id = item.getString("id"),
+                title = item.optString("title", "Conversa"),
+                preview = item.optString("preview", ""),
+                unread = item.optInt("unread", 0),
+                isGroup = item.optBoolean("isGroup", false),
+                ringColor = item.optString("ringColor").takeIf { it.isNotBlank() },
+                otherId = item.optString("otherId").takeIf { it.isNotBlank() },
+                inviteCode = item.optString("inviteCode").takeIf { it.isNotBlank() },
+            )
+        }
+    }.getOrDefault(emptyList())
+}
+
 @Composable
 private fun EmptyTabState(tab: Tab, onOpenBots: () -> Unit) {
     val image = when (tab) {
@@ -343,7 +364,7 @@ fun HomeScreen(
                 Tab.values().forEach { tab ->
                     val selected = tab == state.tab
                     Column(
-                        Modifier.clip(RoundedCornerShape(10.dp)).clickable { view.playClick(); vm.selectTab(tab) }.padding(horizontal = 10.dp, vertical = 8.dp),
+                        Modifier.clip(RoundedCornerShape(10.dp)).clickable { view.playClick(); vm.selectTab(tab, readCachedChats(context, tab)) }.padding(horizontal = 10.dp, vertical = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
