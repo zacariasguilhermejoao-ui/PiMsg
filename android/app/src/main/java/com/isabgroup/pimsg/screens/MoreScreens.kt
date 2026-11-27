@@ -1164,12 +1164,14 @@ fun PlansScreen(onBack: () -> Unit) {
     var storageLimitBytes by remember { mutableStateOf(250L * 1024L * 1024L) }
     var businessTools by remember { mutableStateOf(false) }
     var billingReady by remember { mutableStateOf(false) }
+    var emailVerified by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
     suspend fun refreshPlan() {
         try {
             val data = Api.get("/v1/plan")
             billingReady = data.optBoolean("billing_ready", false)
+            emailVerified = data.optBoolean("email_verified", false)
             current = data.optString("current_plan", "free")
             currentTier = data.optString("current_tier", "free")
             if (currentTier != "free") context.getSharedPreferences("pimsg_translation", Context.MODE_PRIVATE).edit().remove("blocked_day").apply()
@@ -1228,6 +1230,13 @@ fun PlansScreen(onBack: () -> Unit) {
         }
 
         Spacer(Modifier.height(18.dp))
+        if (!emailVerified) {
+            Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).padding(14.dp)) {
+                Text("Confirma o teu e-mail para aderir", color = PiColors.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text("Antes de iniciar uma subscrição, associa um e-mail à conta e confirma-o em Perfil > E-mail e verificação. O PiMsg só permite compras depois de o servidor confirmar a verificação.", color = PiColors.TextSecondary, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 6.dp))
+            }
+            Spacer(Modifier.height(14.dp))
+        }
         Text("PLANOS DISPONÍVEIS", color = PiColors.Gray, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
