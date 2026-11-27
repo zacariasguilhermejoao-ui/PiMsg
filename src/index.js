@@ -217,7 +217,7 @@ async function handle(request, env) {
       instagram_url: me.instagram_url, facebook_url: me.facebook_url,
       tiktok_url: me.tiktok_url, youtube_url: me.youtube_url, website_url: me.website_url,
       email: me.email, email_verified: !!me.email_verified, professional_profile: !!me.email_verified, phone_verified: !!me.phone_verified,
-      show_phone: !!me.show_phone, show_online_status: me.show_online_status !== 0, intro_video_key: me.intro_video_key, timezone: me.timezone, code: code?.code,
+      phone_contact: me.phone_contact || null, show_phone: !!me.show_phone, show_online_status: me.show_online_status !== 0, intro_video_key: me.intro_video_key, timezone: me.timezone, code: code?.code,
     });
   }
   const publicProfileMatch = path.match(/^\/v1\/users\/([\w-]+)$/);
