@@ -78,8 +78,9 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
             }
             local.saveServer(convId, serverMessages)
             val targetLanguage = PiI18n.language
+            val translationCandidates = serverMessages.take(15).map { it.id }.toSet()
             val translatedMessages = serverMessages.map { message ->
-                if (message.senderId != _state.value.myId && message.kind == "text" && !message.body.isNullOrBlank()) {
+                if (message.id in translationCandidates && message.senderId != _state.value.myId && message.kind == "text" && !message.body.isNullOrBlank()) {
                     val cacheKey = "${message.id}:$targetLanguage"
                     val translated = if (translationCache.containsKey(cacheKey)) translationCache[cacheKey] else {
                         runCatching {
