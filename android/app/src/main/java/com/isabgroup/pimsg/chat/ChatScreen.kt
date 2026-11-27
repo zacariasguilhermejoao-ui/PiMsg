@@ -12,6 +12,7 @@ import android.os.Build
 import android.content.Intent
 import android.webkit.MimeTypeMap
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -249,6 +250,13 @@ fun ChatScreen(
         onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
 
+    val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
+        if (uris.isNotEmpty()) {
+            attachOpen = false
+            pendingAttachments = uris
+            attachmentConfirmOpen = true
+        }
+    }
     val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isNotEmpty()) {
             attachOpen = false
@@ -664,7 +672,9 @@ fun ChatScreen(
     if (attachOpen) {
         AttachSheet(
             onDismiss = { attachOpen = false },
-            onPickMedia = { uris -> attachOpen = false; pendingAttachments = uris; attachmentConfirmOpen = true },
+            onPickMedia = {
+                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+            },
             onPickFile = { pickFile.launch(arrayOf("*/*")) },
             onPickMusic = { pickMusic.launch(arrayOf("audio/*")) },
         )
