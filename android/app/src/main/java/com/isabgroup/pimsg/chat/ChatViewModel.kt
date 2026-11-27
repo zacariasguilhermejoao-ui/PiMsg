@@ -87,14 +87,12 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                     if (o.isNull("expires_at")) null else o.optLong("expires_at"))
             }
             local.saveServer(convId, serverMessages)
-            if (PiMsgMedia.shouldAutoDownload(appContext)) {
+            val mediaToReceive = serverMessages.filter { it.mediaId != null && !isMediaCached(it.mediaId) }.take(12)
+            if (PiMsgMedia.shouldAutoDownload(appContext) && mediaToReceive.isNotEmpty()) {
                 viewModelScope.launch {
                     _state.update { it.copy(receivingMedia = true) }
                     try {
-                        serverMessages.asSequence().filter { it.mediaId != null }
-                            .take(12).forEach { message ->
-                                runCatching { downloadMedia(message) }
-                            }
+                        mediaToReceive.forEach { message -> runCatching { downloadMedia(message) } }
                     } finally {
                         _state.update { it.copy(receivingMedia = false) }
                     }
