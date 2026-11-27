@@ -129,7 +129,7 @@ export async function handleBots(request, env, me, path, method) {
     ).bind(creditCost, now, me.id, creditCost).first();
     if (!debit) {
       const current = await env.DB.prepare("SELECT balance FROM ai_credits WHERE user_id = ?").bind(me.id).first();
-      return fail(402, "Os créditos de IA terminaram. Ative o Pro ou aguarde a disponibilização de créditos.", {
+      return fail(402, "Os créditos de IA terminaram. Ative o Pro para continuar a utilizar o Pi AI.", {
         reason: "ai_credits_empty", balance: current?.balance || 0, required: creditCost,
       });
     }
