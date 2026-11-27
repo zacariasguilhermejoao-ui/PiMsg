@@ -1,0 +1,106 @@
+PI MSG — INSTRUÇÕES PARA CONFIGURAR AS SUBSCRIÇÕES NA GOOGLE PLAY
+Versão do documento: 1.0
+
+OBJECTIVO
+Criar ou confirmar os produtos de subscrição do PiMsg na Google Play Console.
+Não criar produtos duplicados. Os IDs de produtos são permanentes e devem ser escritos exactamente como indicado.
+
+APLICAÇÃO
+Nome: PiMsg
+Application ID / package name: com.pimsg.isabstudio
+Moeda de referência para os preços abaixo: AOA (Kwanza angolano)
+Tipo de produto: Subscrição com renovação automática.
+
+PRODUTOS E BASE PLANS
+
+1) PI MSG PLUS — MENSAL
+Product ID: pimsg_plus_monthly
+Base plan ID: monthly
+Período: 1 mês
+Preço de referência: 1.500 AOA
+Renovação: automática
+
+2) PI MSG PLUS — ANUAL
+Product ID: pimsg_plus_yearly
+Base plan ID: yearly
+Período: 1 ano
+Preço de referência: 15.000 AOA
+Renovação: automática
+
+3) PI MSG PRO — SEMANAL
+Product ID: pimsg_pro_weekly
+Base plan ID: weekly
+Período: 1 semana
+Preço de referência: 1.000 AOA
+Renovação: automática
+NOTA: Este produto já foi previsto como produto Pro existente. Confirmar se já existe antes de tentar criar.
+
+4) PI MSG PRO — MENSAL
+Product ID: pimsg_pro_monthly
+Base plan ID: monthly
+Período: 1 mês
+Preço de referência: 3.500 AOA
+Renovação: automática
+NOTA: Este produto já foi previsto como produto Pro existente. Confirmar se já existe antes de tentar criar.
+
+5) PI MSG PRO — ANUAL
+Product ID: pimsg_pro_yearly
+Base plan ID: yearly
+Período: 1 ano
+Preço de referência: 35.000 AOA
+Renovação: automática
+
+6) PI MSG BUSINESS — MENSAL
+Product ID: pimsg_business_monthly
+Base plan ID: monthly
+Período: 1 mês
+Preço de referência: 7.500 AOA
+Renovação: automática
+
+7) PI MSG BUSINESS — ANUAL
+Product ID: pimsg_business_yearly
+Base plan ID: yearly
+Período: 1 ano
+Preço de referência: 75.000 AOA
+Renovação: automática
+
+INSTRUÇÕES PARA A IA DA PLAY CONSOLE
+1. Abrir a aplicação PiMsg (com.pimsg.isabstudio) na Google Play Console.
+2. Ir a Monetização > Produtos > Subscrições.
+3. Consultar primeiro os produtos existentes.
+4. Para cada ID acima que ainda não exista, criar uma subscrição com o Product ID exacto.
+5. Para cada produto, criar o base plan indicado, com o período indicado e renovação automática.
+6. Configurar o preço de Angola em AOA usando os valores de referência acima, se AOA estiver disponível para o país. Se a Play Console não permitir AOA, não converter nem escolher outra moeda sem pedir confirmação ao proprietário.
+7. Activar cada base plan e cada produto depois de validar nome, período, país e preço.
+8. Não criar ofertas promocionais, períodos de teste, planos pré-pagos, nem outros base plans sem autorização.
+9. Não alterar os IDs de produtos existentes.
+10. No final, devolver uma tabela com Product ID, base plan ID, estado, país/preço e indicar quais já existiam e quais foram criados.
+
+REGRAS IMPORTANTES
+- Não publicar a aplicação nem iniciar rollout do AAB.
+- Não alterar package name, assinatura, versão, permissões ou configuração técnica da aplicação.
+- Não criar produtos com IDs diferentes dos sete IDs indicados.
+- Não activar produtos com preços, períodos ou países incorrectos.
+- Se um ID já existir, inspeccionar e corrigir apenas o base plan necessário; não duplicar.
+- Os preços acima são preços iniciais de referência e devem ser confirmados pelo proprietário antes de activar.
+- A Google Play apresenta o preço final, impostos e condições de renovação ao utilizador antes de confirmar a compra.
+
+CONFIGURAÇÃO TÉCNICA FORA DA PLAY CONSOLE
+A verificação segura de compras também requer uma conta de serviço Google Play Developer API:
+1. Criar/seleccionar uma service account com acesso à Google Play Developer API.
+2. Conceder à service account as permissões necessárias para consultar e gerir encomendas/subscrições desta aplicação.
+3. Guardar o JSON da chave como secret no Cloudflare Worker pimsg-api, com o nome exacto:
+   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
+4. Nunca colocar o JSON no GitHub, no AAB, no código Android, em mensagens públicas ou em variáveis de texto simples.
+5. Depois de configurar o secret, testar compras com utilizadores de teste da Google Play: compra, confirmação, restauro, cancelamento, renovação, expiração e troca de conta.
+
+IDS QUE O CÓDIGO ANDROID RECONHECE
+pimsg_plus_monthly
+pimsg_plus_yearly
+pimsg_pro_weekly
+pimsg_pro_monthly
+pimsg_pro_yearly
+pimsg_business_monthly
+pimsg_business_yearly
+
+FIM DO DOCUMENTO
