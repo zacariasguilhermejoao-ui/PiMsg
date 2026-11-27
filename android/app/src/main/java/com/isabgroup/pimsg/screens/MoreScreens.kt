@@ -1236,7 +1236,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
             Text("PiMsg Plus", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text("Para quem conversa e trabalha diariamente.", color = PiColors.TextSecondary, fontSize = 12.sp)
-            listOf("Mensagens sem limite diário", "Respostas ilimitadas através dos links personalizados", "Pi AI e Pi Reminder", "5 pedidos de IA por dia", "25 traduções por dia", "2 GB para ficheiros e multimédia", "Sem bots personalizados nem Pi Business").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
+            listOf("Mensagens sem limite diário", "Respostas ilimitadas através dos links personalizados", "Pi AI e Pi Reminder (até 20 lembretes activos)", "5 pedidos de IA por dia", "25 traduções por dia", "2 GB para ficheiros e multimédia", "Sem bots personalizados nem Pi Business").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
             SubscriptionProductButton("Mensal", PlayBilling.PLUS_MONTHLY, products[PlayBilling.PLUS_MONTHLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
             SubscriptionProductButton("Anual", PlayBilling.PLUS_YEARLY, products[PlayBilling.PLUS_YEARLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
@@ -1247,7 +1247,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
             Text("PiMsg Pro", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text("Para utilizadores avançados e criadores.", color = PiColors.TextSecondary, fontSize = 12.sp)
-            listOf("Mensagens e respostas de links sem limite mensal", "Todos os bots, excepto ferramentas exclusivas Business", "20 pedidos de IA por dia", "75 traduções por dia", "Até 5 bots personalizados", "5 GB para ficheiros e multimédia", "Vídeo de apresentação no perfil").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
+            listOf("Mensagens e respostas de links sem limite mensal", "Todos os bots, excepto ferramentas exclusivas Business", "20 pedidos de IA por dia", "75 traduções por dia", "Até 5 bots personalizados", "Até 100 lembretes activos", "5 GB para ficheiros e multimédia", "Vídeo de apresentação no perfil").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
             SubscriptionProductButton("Semanal", PlayBilling.WEEKLY, products[PlayBilling.WEEKLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
             SubscriptionProductButton("Mensal", PlayBilling.MONTHLY, products[PlayBilling.MONTHLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
@@ -1259,7 +1259,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
             Text("PiMsg Business", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text("Para lojas, marcas, profissionais e equipas que vendem.", color = PiColors.TextSecondary, fontSize = 12.sp)
-            listOf("Tudo do Pro", "Pi Business para preparar respostas comerciais", "50 pedidos de IA por dia", "150 traduções por dia", "Até 20 bots personalizados", "20 GB para ficheiros e multimédia", "Ferramentas para organizar informações, produtos, preços e contactos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
+            listOf("Tudo do Pro", "Pi Business para preparar respostas comerciais", "50 pedidos de IA por dia", "150 traduções por dia", "Até 20 bots personalizados", "Até 500 lembretes activos", "20 GB para ficheiros e multimédia", "Ferramentas para organizar informações, produtos, preços e contactos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
             SubscriptionProductButton("Mensal", PlayBilling.BUSINESS_MONTHLY, products[PlayBilling.BUSINESS_MONTHLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
             SubscriptionProductButton("Anual", PlayBilling.BUSINESS_YEARLY, products[PlayBilling.BUSINESS_YEARLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
