@@ -61,6 +61,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import com.isabgroup.pimsg.data.Api
+import com.isabgroup.pimsg.data.PiMsgMedia
 import org.json.JSONObject
 import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiIcons
@@ -403,7 +404,18 @@ private fun ImageBody(m: Message, vm: ChatViewModel, fg: Color) {
     val id = m.mediaId
     val bmp = id?.let { vm.images[it] }
     if (bmp != null) {
-        Image(bmp.asImageBitmap(), null, Modifier.widthIn(max = 260.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.FillWidth)
+        Column {
+            Image(bmp.asImageBitmap(), null, Modifier.widthIn(max = 260.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.FillWidth)
+            if (PiMsgMedia.saveToGallery(LocalContext.current)) {
+                Text("Guardar na galeria", color = fg, fontSize = 12.sp,
+                    modifier = Modifier.clickable {
+                        scope.launch {
+                            val ok = runCatching { vm.saveMediaToGallery(m) }.getOrDefault(false)
+                            vm.showError(if (ok) "Fotografia guardada na pasta PiMsg da galeria." else "Não foi possível guardar a fotografia.")
+                        }
+                    }.padding(top = 6.dp))
+            }
+        }
     } else {
         Column(
             Modifier.size(width = 220.dp, height = 150.dp).clip(RoundedCornerShape(12.dp)).background(PiColors.SurfaceHigh)
@@ -432,7 +444,7 @@ private fun FileBody(m: Message, vm: ChatViewModel, fg: Color, sub: Color) {
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Text(if (cached) "Abrir" else "Descarregar", color = fg, fontSize = 12.sp,
                 modifier = Modifier.clickable(enabled = m.mediaId != null) { scope.launch { openMedia(context, m, vm) } }.padding(top = 8.dp))
-            if (cached) Text("Guardar no telemóvel", color = fg, fontSize = 12.sp,
+            if (cached && PiMsgMedia.saveToGallery(context)) Text("Guardar no telemóvel", color = fg, fontSize = 12.sp,
                 modifier = Modifier.clickable { scope.launch {
                     val ok = runCatching { vm.saveMediaToGallery(m) }.getOrDefault(false)
                     vm.showError(if (ok) "Ficheiro guardado nas pastas PiMsg da galeria." else "Não foi possível guardar. Verifique o formato e o espaço disponível.")
