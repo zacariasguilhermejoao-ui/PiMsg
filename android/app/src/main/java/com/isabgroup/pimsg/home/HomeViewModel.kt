@@ -95,9 +95,9 @@ class HomeViewModel : ViewModel() {
         load()
     }
 
-    fun load() {
+    fun load(silent: Boolean = false) {
         val tab = _state.value.tab
-        _state.update { it.copy(loading = true, error = null) }
+        if (!silent) _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             try {
                 val json = Api.get("/v1/chats?tab=${tab.key}")
@@ -119,9 +119,9 @@ class HomeViewModel : ViewModel() {
                 }
                 _state.update { it.copy(loading = false, chats = list) }
             } catch (e: Exception) {
-                _state.update { it.copy(loading = false, error = "Não foi possível carregar as conversas.") }
+                if (!silent) _state.update { it.copy(loading = false, error = "Não foi possível carregar as conversas.") }
             }
-            loadStories()
+            if (!silent) loadStories()
         }
     }
 
