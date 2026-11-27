@@ -51,6 +51,24 @@ object PiI18n {
 
     fun translate(source: String): String {
         if (language == "pt") return source
+        Regex("""^(\\d+) / 500 respostas utilizadas este mês$""").matchEntire(source)?.let { match ->
+            val count = match.groupValues[1]
+            return when (language) {
+                "en" -> "$count / 500 replies used this month"
+                "es" -> "$count / 500 respuestas utilizadas este mes"
+                "fr" -> "$count / 500 réponses utilisées ce mois-ci"
+                else -> source
+            }
+        }
+        if (source.startsWith("Respostas através dos links este mês: ")) {
+            val value = source.substringAfter(": ")
+            return when (language) {
+                "en" -> "Replies through links this month: $value"
+                "es" -> "Respuestas a través de enlaces este mes: $value"
+                "fr" -> "Réponses via les liens ce mois-ci : $value"
+                else -> source
+            }
+        }
         return translations[source]?.get(language) ?: source
     }
 
