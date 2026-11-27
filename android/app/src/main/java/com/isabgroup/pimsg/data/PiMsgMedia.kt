@@ -44,6 +44,7 @@ object PiMsgMedia {
         listOf("Media", "Images", "Videos", "Audio", "Documents").forEach {
             File(root(context), it).mkdirs()
         }
+        File(mediaDir(context), ".nomedia").takeIf { !it.exists() }?.createNewFile()
     }
 
     fun isWifi(context: Context): Boolean {
