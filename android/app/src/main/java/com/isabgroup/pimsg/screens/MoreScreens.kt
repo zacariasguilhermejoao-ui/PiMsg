@@ -207,6 +207,19 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             email = j.strOrNull("email").orEmpty()
             emailVerified = j.optBoolean("email_verified")
             introVideoKey = j.strOrNull("intro_video_key")
+            bio = j.strOrNull("bio").orEmpty()
+            code = j.strOrNull("code").orEmpty()
+            showPhone = j.optBoolean("show_phone")
+            phoneVerified = j.optBoolean("phone_verified")
+            avatarKey = j.strOrNull("avatar_key")
+            // Mostra já os dados básicos; os elementos secundários são sincronizados depois.
+            loading = false
+            avatarKey?.let { key ->
+                try {
+                    val d = Api.download("/v1/media/$key")
+                    avatarBitmap = android.graphics.BitmapFactory.decodeByteArray(d.bytes, 0, d.bytes.size)
+                } catch (_: Exception) { }
+            }
             val linksResponse = Api.get("/v1/me/social-links")
             val rawLinks = linksResponse.optJSONArray("links") ?: org.json.JSONArray()
             val loadedLinks = (0 until rawLinks.length()).mapNotNull { index ->
@@ -217,17 +230,6 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 val icon = runCatching { Api.download("/v1/favicon?url=" + Api.encode(link.url)) }.getOrNull()
                 val bitmap = icon?.let { android.graphics.BitmapFactory.decodeByteArray(it.bytes, 0, it.bytes.size) }
                 link.copy(favicon = bitmap)
-            }
-            bio = j.strOrNull("bio").orEmpty()
-            code = j.strOrNull("code").orEmpty()
-            showPhone = j.optBoolean("show_phone")
-            phoneVerified = j.optBoolean("phone_verified")
-            avatarKey = j.strOrNull("avatar_key")
-            avatarKey?.let { key ->
-                try {
-                    val d = Api.download("/v1/media/$key")
-                    avatarBitmap = android.graphics.BitmapFactory.decodeByteArray(d.bytes, 0, d.bytes.size)
-                } catch (_: Exception) { }
             }
             val cache = JSONObject()
                 .put("name", name).put("bio", bio).put("email", email)
