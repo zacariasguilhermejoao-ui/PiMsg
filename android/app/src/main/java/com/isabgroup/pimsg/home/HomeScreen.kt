@@ -166,6 +166,7 @@ fun HomeScreen(
     var ownPlan by remember { mutableStateOf("free") }
     var ownProfileAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var profileLoading by remember { mutableStateOf(false) }
+    var initialSkeleton by remember { mutableStateOf(true) }
     var newGroupOpen by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
     val focus = remember { FocusRequester() }
@@ -173,6 +174,11 @@ fun HomeScreen(
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     val pickStory = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) vm.postStory(context.contentResolver, uri)
+    }
+
+    LaunchedEffect(Unit) {
+        delay(550)
+        initialSkeleton = false
     }
 
     LaunchedEffect(Unit) {
@@ -389,7 +395,7 @@ fun HomeScreen(
                         PersonRow(title = g.name, subtitle = "Grupo, toque para entrar", ring = null, unread = 0, onClick = { joinTarget = g })
                     }
                 }
-                state.loading -> Column { repeat(8) { ChatRowSkeleton() } }
+                state.loading || initialSkeleton -> Column { repeat(8) { ChatRowSkeleton() } }
                 state.error != null -> Hint(state.error!!)
                 state.chats.isEmpty() -> EmptyTabState(
                     tab = state.tab,
