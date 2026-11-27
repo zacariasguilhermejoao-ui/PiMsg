@@ -72,6 +72,7 @@ dependencies {
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("com.android.installreferrer:installreferrer:2.2")
     implementation("com.android.billingclient:billing-ktx:9.1.0")
+    implementation("com.google.android.play:review:2.0.2")
     implementation("com.google.android.play:review-ktx:2.0.2")
     implementation("com.googlecode.libphonenumber:libphonenumber:8.13.55")
 }
