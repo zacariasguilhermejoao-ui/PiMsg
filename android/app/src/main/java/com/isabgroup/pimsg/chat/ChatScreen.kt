@@ -296,11 +296,12 @@ fun ChatScreen(
                             val avatarKey = profile.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
                             peerAvatar = avatarKey?.let { key ->
                                 val cached = PiMsgMedia.findCached(context, key)
-                                val file = cached ?: run {
+                                if (cached != null) android.graphics.BitmapFactory.decodeFile(cached.absolutePath)
+                                if (Api.hasInternet(context)) {
                                     val downloaded = Api.download("/v1/media/$key")
-                                    PiMsgMedia.store(context, key, downloaded.mime, "avatar", downloaded.bytes)
-                                }
-                                android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                                    val file = PiMsgMedia.store(context, key, downloaded.mime, "avatar", downloaded.bytes)
+                                    android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                                } else null
                             }
                         } catch (_: Exception) {
                             if (peerProfile == null) peerProfileLoading = false
