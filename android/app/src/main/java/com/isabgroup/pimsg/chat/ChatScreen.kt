@@ -113,18 +113,13 @@ fun ChatScreen(
             text = share.text
         }
         if (share.uris.isNotEmpty()) {
-            for (uri in share.uris) {
-                val mime = cr.getType(uri).orEmpty()
-                val hint = when {
-                    mime.startsWith("audio/") -> "music"
-                    else -> "file"
-                }
-                vm.sendMedia(cr, uri, hint)
-            }
-            onShareConsumed()
+            pendingAttachments = share.uris
+            attachmentConfirmOpen = true
         }
     }
     var attachOpen by remember { mutableStateOf(false) }
+    var pendingAttachments by remember { mutableStateOf<List<android.net.Uri>>(emptyList()) }
+    var attachmentConfirmOpen by remember { mutableStateOf(false) }
     var optionsOpen by remember { mutableStateOf(false) }
     var reportOpen by remember { mutableStateOf(false) }
     var disappearingOpen by remember { mutableStateOf(false) }
@@ -243,11 +238,19 @@ fun ChatScreen(
         onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
 
-    val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) { attachOpen = false; vm.sendMedia(cr, uri, "file") }
+    val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isNotEmpty()) {
+            attachOpen = false
+            pendingAttachments = uris
+            attachmentConfirmOpen = true
+        }
     }
-    val pickMusic = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) { attachOpen = false; vm.sendMedia(cr, uri, "music") }
+    val pickMusic = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isNotEmpty()) {
+            attachOpen = false
+            pendingAttachments = uris
+            attachmentConfirmOpen = true
+        }
     }
 
     Column(Modifier.fillMaxSize().background(PiColors.Background).systemBarsPadding().imePadding()) {
@@ -528,12 +531,52 @@ fun ChatScreen(
         )
     }
 
+    if (attachmentConfirmOpen && pendingAttachments.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { attachmentConfirmOpen = false; pendingAttachments = emptyList(); onShareConsumed() },
+            containerColor = PiColors.Surface,
+            title = { Text("Confirmar envio", color = PiColors.White) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("${pendingAttachments.size} ficheiro(s) seleccionado(s).", color = PiColors.TextSecondary)
+                    pendingAttachments.take(5).forEach { uri ->
+                        val name = runCatching {
+                            cr.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                                if (cursor.moveToFirst()) cursor.getString(0) else null
+                            }
+                        }.getOrNull() ?: uri.lastPathSegment ?: "Ficheiro"
+                        Text(name, color = PiColors.White, fontSize = 13.sp, maxLines = 1)
+                    }
+                    if (pendingAttachments.size > 5) Text("E mais ${pendingAttachments.size - 5} ficheiro(s)…", color = PiColors.Gray, fontSize = 12.sp)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val selected = pendingAttachments
+                    attachmentConfirmOpen = false
+                    pendingAttachments = emptyList()
+                    onShareConsumed()
+                    selected.forEach { uri ->
+                        val mime = cr.getType(uri).orEmpty()
+                        val hint = if (mime.startsWith("audio/")) "music" else "file"
+                        vm.sendMedia(cr, uri, hint)
+                    }
+                }) { Text("Enviar", color = PiColors.White) }
+            },
+            dismissButton = {
+                TextButton(onClick = { attachmentConfirmOpen = false; pendingAttachments = emptyList(); onShareConsumed() }) {
+                    Text("Cancelar", color = PiColors.TextSecondary)
+                }
+            },
+        )
+    }
+
     if (attachOpen) {
         AttachSheet(
             onDismiss = { attachOpen = false },
-            onPickMedia = { uri -> attachOpen = false; vm.sendMedia(cr, uri, "file") },
-            onPickFile = { pickFile.launch("*/*") },
-            onPickMusic = { pickMusic.launch("audio/*") },
+            onPickMedia = { uris -> attachOpen = false; pendingAttachments = uris; attachmentConfirmOpen = true },
+            onPickFile = { pickFile.launch(arrayOf("*/*")) },
+            onPickMusic = { pickMusic.launch(arrayOf("audio/*")) },
         )
     }
 }
