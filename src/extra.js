@@ -21,6 +21,22 @@ async function isPro(env, userId, now) {
   return !!r;
 }
 
+
+async function monthlyLinkReplies(env, userId, now) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Africa/Luanda", year: "numeric", month: "2-digit" }).formatToParts(new Date(now));
+  const year = Number(parts.find((p) => p.type === "year")?.value);
+  const month = Number(parts.find((p) => p.type === "month")?.value);
+  const start = Date.UTC(year, month - 1, 1) - 3600000;
+  const end = Date.UTC(year, month, 1) - 3600000;
+  const row = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM messages m JOIN conversations c ON c.id = m.conversation_id
+     JOIN contact_links l ON l.id = c.link_id
+     WHERE l.user_id = ? AND m.sender_id = ? AND m.kind <> 'system'
+       AND m.deleted_at IS NULL AND m.created_at >= ? AND m.created_at < ?`
+  ).bind(userId, userId, start, end).first();
+  return row?.n || 0;
+}
+
 export async function handleExtra(request, env, me, path, method) {
   const now = Date.now();
   const url = new URL(request.url);
@@ -195,6 +211,10 @@ export async function handleExtra(request, env, me, path, method) {
     return json({ links: r.results.map((l) => ({ ...l, url: `https://pimsg.tchilopop.com/u/${l.slug}` })) });
   }
   if (path === "/v1/links" && method === "POST") {
+    if (!(await isPro(env, me.id, now))) {
+      const used = await monthlyLinkReplies(env, me.id, now);
+      if (used >= 500) return fail(402, "Atingiu as 500 respostas mensais dos links personalizados. Poderá criar novos links novamente no dia 1, às 00h00 (hora de Angola), ou ativar o plano Pro.", { reason: "limit_link_replies", limit: 500, used });
+    }
     const b = await request.json().catch(() => ({}));
     const subject = typeof b.subject === "string" ? b.subject.trim().slice(0, 80) : "";
     if (!subject) return fail(400, "assunto obrigatorio");
