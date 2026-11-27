@@ -234,6 +234,22 @@ export async function handleChat(request, env, me, path, method) {
     return json({ id: g.id });
   }
 
+  const messageItem = path.match(/^\/v1\/chats\/([\\w-]+)\/messages\/([\\w-]+)$/);
+  if (messageItem && method === "DELETE") {
+    const convId = messageItem[1];
+    const messageId = messageItem[2];
+    const mem = await membership(env, convId, me.id);
+    if (!mem) return fail(404, "conversa nao encontrada");
+    const message = await env.DB.prepare(
+      "SELECT sender_id FROM messages WHERE id = ? AND conversation_id = ? AND deleted_at IS NULL"
+    ).bind(messageId, convId).first();
+    if (!message) return fail(404, "mensagem nao encontrada");
+    if (message.sender_id !== me.id) return fail(403, "so podes apagar as tuas mensagens");
+    await env.DB.prepare("UPDATE messages SET deleted_at = ? WHERE id = ? AND conversation_id = ?")
+      .bind(now, messageId, convId).run();
+    return json({ ok: true });
+  }
+
   const sub = path.match(/^\/v1\/chats\/([\w-]+)\/(messages|read|favorite|leave|disappearing|typing)$/);
   if (sub) {
     const convId = sub[1];
