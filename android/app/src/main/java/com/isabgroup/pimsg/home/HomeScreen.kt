@@ -407,16 +407,19 @@ fun HomeScreen(
             }
         }
 
-        Row(
-            Modifier.fillMaxWidth().padding(top = 2.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
+            Modifier.fillMaxWidth().padding(top = 2.dp, end = 16.dp),
+            contentAlignment = Alignment.CenterEnd,
         ) {
-            Box(Modifier.size(44.dp).clickable { onNavigate("bot") }, contentAlignment = Alignment.Center) {
-                RoboMascoteAnimado(estaEscrevendo = false, tamanho = 42.dp)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(0.dp),
+            ) {
+                Box(Modifier.size(42.dp).clickable { onNavigate("bot") }, contentAlignment = Alignment.Center) {
+                    RoboMascoteAnimado(estaEscrevendo = false, tamanho = 40.dp)
+                }
+                PresenteAnimado(tamanho = 38.dp)
             }
-            Spacer(Modifier.width(22.dp))
-            PresenteAnimado(tamanho = 38.dp)
         }
 
         Image(
