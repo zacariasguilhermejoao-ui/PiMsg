@@ -267,6 +267,7 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     }
 
     suspend fun saveMediaToGallery(message: Message): Boolean {
+        if (!PiMsgMedia.saveToGallery(appContext)) return false
         val file = downloadMedia(message)
         return saveCachedMediaToGallery(message, file)
     }
