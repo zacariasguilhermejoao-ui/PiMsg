@@ -36,6 +36,7 @@ data class ChatState(
     val loading: Boolean = true,
     val busy: Boolean = false,
     val error: String? = null,
+    val typingName: String? = null,
 )
 
 private const val MAX_MEDIA = 50L * 1024 * 1024
@@ -74,7 +75,11 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
             }
             local.saveServer(convId, serverMessages)
             val combined = (serverMessages + local.pending(convId)).sortedByDescending { it.createdAt }
-            _state.update { it.copy(messages = combined, loading = false) }
+            val typingName = runCatching {
+                val typing = Api.get("/v1/chats/$convId/typing").getJSONArray("typing")
+                if (typing.length() > 0) typing.getJSONObject(0).optString("display_name").takeIf { it.isNotBlank() } else null
+            }.getOrNull()
+            _state.update { it.copy(messages = combined, loading = false, typingName = typingName) }
             val newest = serverMessages.firstOrNull()?.id
             if (newest != null && newest != lastNewestId) {
                 lastNewestId = newest
@@ -116,7 +121,16 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
         }
     }
 
+    fun setTyping(typing: Boolean) {
+        viewModelScope.launch {
+            runCatching {
+                Api.post("/v1/chats/$convId/typing", JSONObject().put("typing", typing))
+            }
+        }
+    }
+
     fun sendText(text: String) {
+        setTyping(false)
         val body = text.trim()
         if (body.isEmpty()) return
         val message = Message(
