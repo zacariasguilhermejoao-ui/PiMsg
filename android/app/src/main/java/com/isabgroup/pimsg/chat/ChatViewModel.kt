@@ -95,9 +95,19 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                     Api.post("/v1/chats/$convId/messages",
                         JSONObject().put("kind", "text").put("body", message.body.orEmpty()))
                     local.markSent(message.id)
-                } catch (_: Exception) {
-                    // Mantém na fila para tentar novamente na próxima sincronização.
-                    break
+                } catch (e: Exception) {
+                    if (e is ApiException && e.reason == "limit_link_replies") {
+                        local.clearPending(convId)
+                        _state.update { state ->
+                            state.copy(
+                                messages = state.messages.filterNot { it.pending },
+                                error = errorText(e, upload = false),
+                            )
+                        }
+                    } else {
+                        // Mantém na fila para tentar novamente na próxima sincronização.
+                        break
+                    }
                 }
             }
         } finally {
@@ -178,6 +188,8 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     fun clearError() = _state.update { it.copy(error = null) }
 
     private fun errorText(e: Exception, upload: Boolean): String = when {
+        e is ApiException && e.code == 402 && e.reason == "limit_link_replies" ->
+            "Atingiu as 500 respostas mensais através dos links personalizados. Poderá responder novamente no dia 1, às 00h00 (hora de Angola), ou ativar o Pro."
         e is ApiException && e.code == 402 && e.reason == "limit_messages" ->
             "Limite diário de mensagens atingido. Volte amanhã, compre créditos ou ative o plano Pro."
         e is ApiException && e.code == 403 -> "Mensagem não enviada."
