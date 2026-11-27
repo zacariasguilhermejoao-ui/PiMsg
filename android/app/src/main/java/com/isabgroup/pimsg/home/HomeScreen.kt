@@ -139,6 +139,13 @@ fun HomeScreen(
             }
         }
         vm.load()
+        runCatching {
+            val prefs = Api.get("/v1/me/notifications")
+            context.getSharedPreferences("pimsg_notifications", android.content.Context.MODE_PRIVATE).edit()
+                .putBoolean("push_enabled", prefs.optBoolean("push_enabled", true))
+                .putBoolean("popup_enabled", prefs.optBoolean("popup_enabled", true))
+                .apply()
+        }
         val pushEnabled = context.getSharedPreferences("pimsg_notifications", android.content.Context.MODE_PRIVATE)
             .getBoolean("push_enabled", true)
         if (pushEnabled) {
