@@ -180,6 +180,7 @@ async function handle(request, env) {
     const aiCredits = await env.DB.prepare("SELECT balance FROM ai_credits WHERE user_id = ?").bind(me.id).first();
     return json({
       current_plan: sub ? sub.plan : "free",
+      billing_ready: !!env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON,
       subscription_status: sub?.status || "free",
       expires_at: sub?.expires_at || null,
       auto_renewing: sub ? !!sub.auto_renewing : false,
