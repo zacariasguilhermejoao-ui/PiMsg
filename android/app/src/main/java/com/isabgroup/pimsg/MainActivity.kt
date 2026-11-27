@@ -39,6 +39,7 @@ import com.isabgroup.pimsg.screens.PlansScreen
 import com.isabgroup.pimsg.screens.ProfileScreen
 import com.isabgroup.pimsg.screens.SecurityScreen
 import com.isabgroup.pimsg.screens.SettingsScreen
+import com.isabgroup.pimsg.ui.PiI18n
 import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiMsgTheme
 import kotlinx.coroutines.delay
@@ -135,6 +136,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        PiI18n.init(this)
         // Evita zoom de sistema na interface
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         pendingShare = intent.parseShare()
