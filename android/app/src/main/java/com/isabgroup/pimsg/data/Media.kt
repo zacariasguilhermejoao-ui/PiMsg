@@ -8,27 +8,55 @@ import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import java.io.File
+import java.io.FileInputStream
+import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import android.graphics.Bitmap
 
 class Uploaded(val id: String, val mime: String, val name: String?)
 
 private const val MAX_BYTES = 50L * 1024 * 1024
 
-// Le o ficheiro escolhido no telemovel e envia-o para a API (R2)
-suspend fun uploadUri(cr: ContentResolver, uri: Uri): Uploaded {
+// Lê o conteúdo pelo ContentResolver. O URI pode apontar para a galeria, Documentos ou nuvem;
+ // não deve ser convertido num caminho de ficheiro local nem depender do tamanho informado pelo provider.
+suspend fun uploadUri(cr: ContentResolver, uri: Uri): Uploaded = withContext(Dispatchers.IO) {
     val mime = cr.getType(uri) ?: "application/octet-stream"
     var name: String? = null
-    var size = -1L
-    cr.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { c ->
-        if (c.moveToFirst()) {
-            name = c.getString(0)
-            if (!c.isNull(1)) size = c.getLong(1)
-        }
+    cr.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+        if (c.moveToFirst()) name = c.getString(0)
     }
-    if (size <= 0) size = cr.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
-    if (size <= 0) throw ApiException(400, "ficheiro invalido")
-    if (size > MAX_BYTES) throw ApiException(413, "ficheiro demasiado grande")
-    val id = Api.upload({ cr.openInputStream(uri) }, size, mime)
-    return Uploaded(id, mime, name)
+    val staged = File.createTempFile("pimsg_upload_", ".tmp")
+    try {
+        val input = cr.openInputStream(uri) ?: throw ApiException(400, "Não foi possível abrir o ficheiro seleccionado.")
+        input.use { source -> staged.outputStream().use { target -> source.copyTo(target) } }
+        val actualSize = staged.length()
+        if (actualSize <= 0L) throw ApiException(400, "O ficheiro está vazio ou não pode ser lido.")
+        if (actualSize > MAX_BYTES) throw ApiException(413, "ficheiro demasiado grande")
+        val id = Api.upload({ FileInputStream(staged) }, actualSize, mime)
+        Uploaded(id, mime, name)
+    } finally {
+        staged.delete()
+    }
+}
+
+// Envia uma imagem já recortada sem depender de um URI temporário da galeria.
+suspend fun uploadBitmap(context: Context, bitmap: Bitmap, displayName: String): Uploaded = withContext(Dispatchers.IO) {
+    val staged = File(context.cacheDir, "pimsg_crop_${UUID.randomUUID()}.jpg")
+    try {
+        staged.outputStream().use { output ->
+            if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 90, output)) {
+                throw ApiException(400, "Não foi possível preparar a fotografia.")
+            }
+        }
+        val size = staged.length()
+        if (size <= 0L) throw ApiException(400, "A fotografia está vazia.")
+        if (size > MAX_BYTES) throw ApiException(413, "ficheiro demasiado grande")
+        val id = Api.upload({ FileInputStream(staged) }, size, "image/jpeg")
+        Uploaded(id, "image/jpeg", displayName)
+    } finally {
+        staged.delete()
+    }
 }
 
 // Descarrega so quando o utilizador pede e abre com outra app do telemovel
