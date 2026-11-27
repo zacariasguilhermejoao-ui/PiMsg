@@ -40,6 +40,7 @@ import com.isabgroup.pimsg.home.StoryViewer
 import com.isabgroup.pimsg.screens.LinksScreen
 import com.isabgroup.pimsg.screens.PiBotScreen
 import com.isabgroup.pimsg.screens.PlansScreen
+import com.isabgroup.pimsg.screens.PiMsgBusinessScreen
 import com.isabgroup.pimsg.screens.ProfileScreen
 import com.isabgroup.pimsg.screens.QrScreen
 import com.isabgroup.pimsg.screens.SecurityScreen
@@ -205,6 +206,7 @@ private sealed interface Screen {
     data object Links : Screen
     data object PiBot : Screen
     data object Plans : Screen
+    data object Business : Screen
     data object Tools : Screen
     data object Accessibility : Screen
     data class Stories(val items: List<StoryItem>) : Screen
@@ -288,6 +290,7 @@ private fun AppRoot(activity: MainActivity) {
                                 "links" -> screen = Screen.Links
                                 "bot" -> screen = Screen.PiBot
                                 "plans" -> screen = Screen.Plans
+                                "business" -> screen = Screen.Business
                                 "tools" -> screen = Screen.Tools
                                 "accessibility" -> screen = Screen.Accessibility
                             }
@@ -320,6 +323,12 @@ private fun AppRoot(activity: MainActivity) {
                     is Screen.Links -> LinksScreen(onBack = { screen = Screen.Home })
                     is Screen.PiBot -> PiBotScreen(onBack = { screen = Screen.Home })
                     is Screen.Plans -> PlansScreen(onBack = { screen = Screen.Home })
+                    is Screen.Business -> PiMsgBusinessScreen(
+                        onBack = { screen = Screen.Home },
+                        onPlans = { screen = Screen.Plans },
+                        onLinks = { screen = Screen.Links },
+                        onBots = { screen = Screen.PiBot },
+                    )
                     is Screen.Tools -> ToolsScreen(
                         onBack = { screen = Screen.Home },
                         onQr = { screen = Screen.QR },
