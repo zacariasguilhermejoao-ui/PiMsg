@@ -828,6 +828,7 @@ fun LinksScreen(onBack: () -> Unit) {
     var intro by remember { mutableStateOf("") }
     var imageMediaId by remember { mutableStateOf<String?>(null) }
     var imagePreview by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var imageUploading by remember { mutableStateOf(false) }
     var msg by remember { mutableStateOf<String?>(null) }
     var linkReplyUsed by remember { mutableStateOf(0) }
     var linkReplyRemaining by remember { mutableStateOf<Int?>(500) }
@@ -836,15 +837,22 @@ fun LinksScreen(onBack: () -> Unit) {
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) scope.launch {
+            imageUploading = true
+            msg = "A preparar e enviar imagem..."
             try {
-                msg = "A enviar imagem..."
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    imagePreview = android.graphics.BitmapFactory.decodeStream(input)
+                }
                 val uploaded = com.isabgroup.pimsg.data.uploadUri(context.contentResolver, uri)
                 if (!uploaded.mime.startsWith("image/")) throw IllegalArgumentException("Escolha uma imagem.")
                 imageMediaId = uploaded.id
-                val downloaded = Api.download("/v1/media/\u0024{uploaded.id}")
-                imagePreview = android.graphics.BitmapFactory.decodeByteArray(downloaded.bytes, 0, downloaded.bytes.size)
-                msg = "Imagem adicionada ao link."
+                if (imagePreview == null) {
+                    val downloaded = Api.download("/v1/media/\u0024{uploaded.id}")
+                    imagePreview = android.graphics.BitmapFactory.decodeByteArray(downloaded.bytes, 0, downloaded.bytes.size)
+                }
+                msg = "Imagem adicionada ao link. Já podes ver a pré-visualização sem criar o link."
             } catch (e: Exception) { msg = "Não foi possível adicionar a imagem." }
+            finally { imageUploading = false }
         }
     }
 
@@ -882,7 +890,8 @@ fun LinksScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(value = intro, onValueChange = { intro = it.take(400) }, label = { Text("Descrição na página do link (opcional)") }, minLines = 2, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
-        PiButton("Adicionar fotografia ao link", { linkImagePicker.launch("image/*") }, primary = false)
+        PiButton(if (imageUploading) "A carregar fotografia..." else "Adicionar fotografia ao link", { linkImagePicker.launch("image/*") }, primary = false, enabled = !imageUploading)
+        if (imageUploading) androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = PiColors.White, trackColor = PiColors.SurfaceHigh)
         imagePreview?.let { bitmap ->
             androidx.compose.foundation.Image(
                 bitmap = bitmap.asImageBitmap(), contentDescription = "Imagem do link",
