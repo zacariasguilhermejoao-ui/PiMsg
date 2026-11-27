@@ -1,5 +1,8 @@
 package com.isabgroup.pimsg.data
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
@@ -17,6 +20,14 @@ class ApiException(val code: Int, message: String) : Exception(message) {
 class Downloaded(val bytes: ByteArray, val mime: String)
 
 object Api {
+    fun hasInternet(context: Context): Boolean {
+        val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
+        val network = manager.activeNetwork ?: return false
+        val capabilities = manager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
     private const val BASE = "https://pimsg.tchilopop.com"
 
     private suspend fun token(): String =
