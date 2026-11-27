@@ -252,14 +252,10 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     suspend fun downloadMedia(message: Message): File {
         val mediaId = message.mediaId ?: throw IllegalStateException("Ficheiro indisponível.")
         PiMsgMedia.findCached(appContext, mediaId)?.let { return it }
-        synchronized(mediaInFlight) {
-            if (!mediaInFlight.add(mediaId)) {
-                repeat(20) {
-                    PiMsgMedia.findCached(appContext, mediaId)?.let { return it }
-                    kotlinx.coroutines.delay(150)
-                }
-                PiMsgMedia.findCached(appContext, mediaId)?.let { return it }
-            }
+        val acquired = synchronized(mediaInFlight) { mediaInFlight.add(mediaId) }
+        if (!acquired) {
+            PiMsgMedia.findCached(appContext, mediaId)?.let { return it }
+            throw IllegalStateException("Este ficheiro já está a ser descarregado.")
         }
         try {
             PiMsgMedia.findCached(appContext, mediaId)?.let { return it }
