@@ -186,6 +186,10 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 if (encoded.isNotBlank()) {
                     val bytes = Base64.decode(encoded, Base64.DEFAULT)
                     avatarBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                } else {
+                    avatarKey?.let { key ->
+                        PiMsgMedia.findCached(context, key)?.let { avatarBitmap = BitmapFactory.decodeFile(it.absolutePath) }
+                    }
                 }
                 val links = c.optJSONArray("social_links") ?: org.json.JSONArray()
                 socialLinks = (0 until links.length()).map { i ->
@@ -215,9 +219,13 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             // Mostra já os dados básicos; os elementos secundários são sincronizados depois.
             loading = false
             avatarKey?.let { key ->
+                PiMsgMedia.findCached(context, key)?.let {
+                    avatarBitmap = BitmapFactory.decodeFile(it.absolutePath)
+                }
                 try {
                     val d = Api.download("/v1/media/$key")
-                    avatarBitmap = android.graphics.BitmapFactory.decodeByteArray(d.bytes, 0, d.bytes.size)
+                    val file = PiMsgMedia.store(context, key, d.mime, "avatar", d.bytes)
+                    avatarBitmap = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
                 } catch (_: Exception) { }
             }
             val linksResponse = Api.get("/v1/me/social-links")
