@@ -51,6 +51,33 @@ object PiI18n {
 
     fun translate(source: String): String {
         if (language == "pt") return source
+        Regex("""^(\d+) créditos$""").matchEntire(source)?.let { match ->
+            val count = match.groupValues[1]
+            return when (language) {
+                "en" -> "$count credits"
+                "es" -> "$count créditos"
+                "fr" -> "$count crédits"
+                else -> source
+            }
+        }
+        Regex("""^Créditos de IA · (\d+) / 15$""").matchEntire(source)?.let { match ->
+            val count = match.groupValues[1]
+            return when (language) {
+                "en" -> "AI credits · $count / 15"
+                "es" -> "Créditos de IA · $count / 15"
+                "fr" -> "Crédits IA · $count / 15"
+                else -> source
+            }
+        }
+        Regex("""^Pi AI Pro · (\d+) respostas disponíveis hoje$""").matchEntire(source)?.let { match ->
+            val count = match.groupValues[1]
+            return when (language) {
+                "en" -> "Pi AI Pro · $count replies available today"
+                "es" -> "Pi AI Pro · $count respuestas disponibles hoy"
+                "fr" -> "Pi AI Pro · $count réponses disponibles aujourd'hui"
+                else -> source
+            }
+        }
         Regex("""^(\d+) / 500 respostas utilizadas este mês$""").matchEntire(source)?.let { match ->
             val count = match.groupValues[1]
             return when (language) {
