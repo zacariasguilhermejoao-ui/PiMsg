@@ -110,6 +110,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
     var bio by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     var showPhone by remember { mutableStateOf(false) }
+    var showOnlineStatus by remember { mutableStateOf(true) }
     var phoneVerified by remember { mutableStateOf(false) }
     var avatarKey by remember { mutableStateOf<String?>(null) }
     var avatarBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
@@ -197,6 +198,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 introVideoKey = c.optString("intro_video_key").takeIf { it.isNotBlank() && it != "null" }
                 code = c.optString("code")
                 showPhone = c.optBoolean("show_phone")
+                showOnlineStatus = c.optBoolean("show_online_status", true)
                 phoneVerified = c.optBoolean("phone_verified")
                 avatarKey = c.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
                 val encoded = c.optString("avatar_jpeg")
@@ -225,6 +227,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             bio = j.strOrNull("bio").orEmpty()
             code = j.strOrNull("code").orEmpty()
             showPhone = j.optBoolean("show_phone")
+            showOnlineStatus = j.optBoolean("show_online_status", true)
             phoneVerified = j.optBoolean("phone_verified")
             avatarKey = j.strOrNull("avatar_key")
             // Mostra já os dados básicos; os elementos secundários são sincronizados depois.
@@ -249,7 +252,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             val cache = JSONObject()
                 .put("name", name).put("bio", bio).put("email", email)
                 .put("email_verified", emailVerified).put("intro_video_key", introVideoKey)
-                .put("code", code).put("show_phone", showPhone).put("phone_verified", phoneVerified)
+                .put("code", code).put("show_phone", showPhone).put("show_online_status", showOnlineStatus).put("phone_verified", phoneVerified)
                 .put("avatar_key", avatarKey)
             avatarBitmap?.let { bitmap ->
                 val scaled = Bitmap.createScaledBitmap(bitmap, 256, 256, true)
@@ -418,6 +421,20 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
         }
 
         Section("Privacidade")
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Mostrar quando estou online", color = PiColors.White, fontSize = 16.sp)
+                Text(if (showOnlineStatus) "As pessoas podem ver a bolinha azul quando estiveres activo." else "Modo anónimo activo: o teu estado online fica oculto.", color = PiColors.TextSecondary, fontSize = 12.sp)
+            }
+            Switch(checked = showOnlineStatus, onCheckedChange = { enabled ->
+                showOnlineStatus = enabled
+                scope.launch {
+                    runCatching { Api.patch("/v1/me", JSONObject().put("name", name).put("bio", bio).put("show_phone", showPhone).put("show_online_status", enabled)) }
+                        .onFailure { msg = "Não foi possível guardar a privacidade." }
+                }
+            }, colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = PiColors.White, uncheckedThumbColor = PiColors.Gray, uncheckedTrackColor = PiColors.SurfaceHigh))
+        }
+        Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Mostrar o meu número no perfil", color = PiColors.White, fontSize = 16.sp)
