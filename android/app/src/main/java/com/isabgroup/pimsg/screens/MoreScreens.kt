@@ -201,6 +201,10 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 loading = false
             }
         }
+        if (!Api.hasInternet(context)) {
+            loading = false
+            return@LaunchedEffect
+        }
         try {
             val j = Api.get("/v1/me")
             name = j.optString("name")
