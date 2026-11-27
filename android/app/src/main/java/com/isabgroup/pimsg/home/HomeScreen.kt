@@ -139,10 +139,14 @@ fun HomeScreen(
             }
         }
         vm.load()
-        if (Build.VERSION.SDK_INT >= 33 &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        runCatching { Push.register(context) }
+        val pushEnabled = context.getSharedPreferences("pimsg_notifications", android.content.Context.MODE_PRIVATE)
+            .getBoolean("push_enabled", true)
+        if (pushEnabled) {
+            if (Build.VERSION.SDK_INT >= 33 &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            runCatching { Push.register(context) }
+        }
     }
     LaunchedEffect(initialContactCode, initialContactSlug, initialGroupCode) {
         when {
