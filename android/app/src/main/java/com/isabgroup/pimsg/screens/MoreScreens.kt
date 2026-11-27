@@ -494,6 +494,129 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
     }
 }
 
+@Composable
+fun QrScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var name by remember { mutableStateOf("") }
+    var code by remember { mutableStateOf("") }
+    var qrBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var loading by remember { mutableStateOf(true) }
+    var notice by remember { mutableStateOf<String?>(null) }
+    var scannedUserId by remember { mutableStateOf<String?>(null) }
+    var scannedUserName by remember { mutableStateOf("") }
+
+    val scanner = rememberLauncherForActivityResult(ScanContract()) { result ->
+        val raw = result.contents
+        val payload = raw?.let { runCatching { JSONObject(it) }.getOrNull() }
+        val scannedCode = payload?.takeIf { it.optString("app") == "PiMsg" && it.optString("type") == "user" }
+            ?.optString("code")?.takeIf { it.isNotBlank() && it != "null" }
+        if (scannedCode != null) {
+            scannedUserName = payload.optString("name").ifBlank { "Utilizador PiMsg" }
+            scope.launch {
+                try {
+                    val found = Api.get("/v1/search?q=" + Api.encode(scannedCode)).getJSONArray("users")
+                    val user = (0 until found.length()).map { found.getJSONObject(it) }
+                        .firstOrNull { it.optString("id").isNotBlank() }
+                    if (user == null) notice = "Não encontrámos uma conta activa com este QR."
+                    else {
+                        scannedUserId = user.getString("id")
+                        scannedUserName = user.optString("name", scannedUserName)
+                    }
+                } catch (_: Exception) { notice = "Liga-te à Internet para localizar esta conta." }
+            }
+        } else if (!raw.isNullOrBlank()) notice = "Este QR não pertence a uma conta PiMsg."
+    }
+
+    LaunchedEffect(Unit) {
+        val cache = context.getSharedPreferences("pimsg_profile_cache", Context.MODE_PRIVATE)
+        runCatching {
+            val saved = cache.getString("profile", null)?.let { JSONObject(it) }
+            name = saved?.optString("name").orEmpty()
+            code = saved?.optString("code").orEmpty()
+        }
+        if (Api.hasInternet(context)) {
+            runCatching {
+                val me = Api.get("/v1/me")
+                name = me.optString("name")
+                code = me.optString("code")
+                val old = cache.getString("profile", null)?.let { JSONObject(it) } ?: JSONObject()
+                old.put("name", name).put("code", code)
+                cache.edit().putString("profile", old.toString()).apply()
+            }.onFailure { notice = "Não foi possível actualizar o teu QR. A mostrar os dados guardados." }
+        }
+        if (code.isNotBlank()) qrBitmap = runCatching { createPiMsgQr(context, code, name) }.getOrNull()
+        loading = false
+    }
+
+    ScreenFrame("Código QR", onBack) {
+        if (loading) {
+            androidx.compose.material3.CircularProgressIndicator(color = PiColors.White)
+        } else if (qrBitmap != null) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(name.ifBlank { "A tua conta PiMsg" }, color = PiColors.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Image(qrBitmap!!.asImageBitmap(), contentDescription = "Código QR PiMsg com logótipo", modifier = Modifier.size(260.dp))
+                Text("Mostra este código para as pessoas encontrarem a tua conta.", color = PiColors.TextSecondary, fontSize = 13.sp)
+                Spacer(Modifier.height(8.dp))
+                PiButton("Ler QR de outra conta", {
+                    val options = ScanOptions().apply {
+                        setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                        setPrompt("Aponta a câmara para o QR de uma conta PiMsg")
+                        setBeepEnabled(false)
+                        setOrientationLocked(true)
+                    }
+                    scanner.launch(options)
+                }, primary = false)
+                PiButton("Partilhar o meu QR", {
+                    runCatching {
+                        val imageFile = File(context.cacheDir, "pimsg_profile_qr.png")
+                        FileOutputStream(imageFile).use { output -> qrBitmap!!.compress(Bitmap.CompressFormat.PNG, 100, output) }
+                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", imageFile)
+                        val send = Intent(Intent.ACTION_SEND).setType("image/png")
+                            .putExtra(Intent.EXTRA_STREAM, uri)
+                            .putExtra(Intent.EXTRA_TEXT, "Encontra-me no PiMsg: $name")
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        context.startActivity(Intent.createChooser(send, "Partilhar QR do PiMsg"))
+                    }.onFailure { notice = "Não foi possível partilhar o QR." }
+                }, primary = false)
+            }
+        } else {
+            Text("Não foi possível gerar o teu QR. Verifica se tens ligação à Internet e tenta novamente.", color = PiColors.TextSecondary)
+        }
+        notice?.let { Text(it, color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp)) }
+    }
+
+    scannedUserId?.let { userId ->
+        AlertDialog(
+            onDismissRequest = { scannedUserId = null },
+            containerColor = PiColors.Surface,
+            title = { Text("Conta encontrada", color = PiColors.White) },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(scannedUserName, color = PiColors.White, fontWeight = FontWeight.Bold, fontSize = 19.sp)
+                    Text("Queres abrir uma conversa com esta pessoa?", color = PiColors.TextSecondary)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        try {
+                            val chat = Api.post("/v1/chats/direct", JSONObject().put("user_id", userId))
+                            scannedUserId = null
+                            onOpenChat(ChatRef(chat.getString("id"), scannedUserName, userId, null))
+                        } catch (_: Exception) {
+                            notice = "Não foi possível iniciar a conversa."
+                            scannedUserId = null
+                        }
+                    }
+                }) { Text("Abrir conversa", color = PiColors.White) }
+            },
+            dismissButton = { TextButton(onClick = { scannedUserId = null }) { Text("Cancelar", color = PiColors.TextSecondary) } },
+        )
+    }
+}
+
 private fun createPiMsgQr(context: Context, code: String, name: String): Bitmap {
     val payload = JSONObject().put("app", "PiMsg").put("type", "user")
         .put("code", code).put("name", name).toString()
