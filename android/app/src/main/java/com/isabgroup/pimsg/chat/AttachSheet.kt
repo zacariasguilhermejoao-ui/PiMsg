@@ -124,12 +124,13 @@ private suspend fun loadThumb(cr: ContentResolver, uri: Uri): Bitmap? = withCont
 @Composable
 fun AttachSheet(
     onDismiss: () -> Unit,
-    onPickMedia: (Uri) -> Unit,
+    onPickMedia: (List<Uri>) -> Unit,
     onPickFile: () -> Unit,
     onPickMusic: () -> Unit,
 ) {
     val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var galleryOpen by remember { mutableStateOf(false) }
+    var selectedUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -144,7 +145,21 @@ fun AttachSheet(
                 AttachOption("Música", Modifier.weight(1f)) { onPickMusic() }
             }
             Spacer(Modifier.height(14.dp))
-            if (galleryOpen) GalleryGrid(onPick = onPickMedia)
+            if (galleryOpen) {
+                GalleryGrid(
+                    selected = selectedUris.toSet(),
+                    onPick = { uri ->
+                        selectedUris = if (uri in selectedUris) selectedUris.filterNot { it == uri }
+                            else selectedUris + uri
+                    },
+                )
+                if (selectedUris.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    AttachOption("Adicionar ${selectedUris.size} seleccionado(s)", Modifier.fillMaxWidth(), selected = true) {
+                        onPickMedia(selectedUris)
+                    }
+                }
+            }
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -163,7 +178,7 @@ private fun AttachOption(label: String, modifier: Modifier, selected: Boolean = 
 }
 
 @Composable
-private fun GalleryGrid(onPick: (Uri) -> Unit) {
+private fun GalleryGrid(selected: Set<Uri>, onPick: (Uri) -> Unit) {
     val ctx = LocalContext.current
     var granted by remember { mutableStateOf(hasGalleryAccess(ctx)) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -197,6 +212,12 @@ private fun GalleryGrid(onPick: (Uri) -> Unit) {
             Box(Modifier.aspectRatio(1f).background(PiColors.SurfaceHigh).clickable { onPick(item.uri) }) {
                 thumb?.let {
                     Image(it.asImageBitmap(), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+                }
+                if (item.uri in selected) {
+                    Box(Modifier.align(Alignment.TopEnd).padding(6.dp).clip(RoundedCornerShape(20.dp))
+                        .background(PiColors.White).padding(horizontal = 8.dp, vertical = 3.dp)) {
+                        Text("✓", color = Color.Black, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
                 if (item.isVideo) {
                     Text(
