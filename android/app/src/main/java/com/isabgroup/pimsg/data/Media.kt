@@ -13,10 +13,26 @@ import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import kotlin.math.max
 
 class Uploaded(val id: String, val mime: String, val name: String?)
 
 private const val MAX_BYTES = 50L * 1024 * 1024
+
+// Decodifica fotografias em tamanho controlado para evitar falta de memória em telemóveis modestos.
+suspend fun decodeBitmapUri(cr: ContentResolver, uri: Uri, maxDimension: Int = 2048): Bitmap? = withContext(Dispatchers.IO) {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return@withContext null
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext null
+    var sample = 1
+    while (max(bounds.outWidth / sample, bounds.outHeight / sample) > maxDimension) sample *= 2
+    val options = BitmapFactory.Options().apply {
+        inSampleSize = sample
+        inPreferredConfig = Bitmap.Config.ARGB_8888
+    }
+    cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+}
 
 // Lê o conteúdo pelo ContentResolver. O URI pode apontar para a galeria, Documentos ou nuvem;
  // não deve ser convertido num caminho de ficheiro local nem depender do tamanho informado pelo provider.
