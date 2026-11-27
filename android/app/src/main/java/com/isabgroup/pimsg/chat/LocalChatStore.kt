@@ -62,8 +62,8 @@ internal class LocalChatStore(context: Context) :
         val db = writableDatabase
         db.beginTransaction()
         try {
-            // Remove apenas mensagens antigas confirmadas; a fila pendente nunca é apagada.
-            db.delete("messages", "conversation_id = ? AND pending = 0", arrayOf(conversationId))
+            // Faz upsert incremental: mensagens antigas já sincronizadas continuam disponíveis offline.
+            // Apenas a fila pendente é preservada sem ser substituída pelo servidor.
             messages.forEach { message ->
                 val values = ContentValues().apply {
                     put("id", message.id)
