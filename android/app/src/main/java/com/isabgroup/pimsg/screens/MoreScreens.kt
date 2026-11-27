@@ -92,6 +92,21 @@ fun ProfileScreen(onBack: () -> Unit) {
     var socialLabel by remember { mutableStateOf("") }
     var msg by remember { mutableStateOf<String?>(null) }
     var previewOpen by remember { mutableStateOf(false) }
+    val videoPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) scope.launch {
+            try {
+                msg = "A enviar vídeo..."
+                val uploaded = com.isabgroup.pimsg.data.uploadUri(context.contentResolver, uri)
+                Api.patch("/v1/me/media", JSONObject().put("intro_video_media_id", uploaded.id))
+                introVideoKey = uploaded.id
+                msg = "Vídeo de apresentação actualizado."
+            } catch (e: com.isabgroup.pimsg.data.ApiException) {
+                msg = if (e.code == 402) "O vídeo de apresentação está disponível no plano Pro." else "Não foi possível guardar o vídeo."
+            } catch (_: Exception) { msg = "Não foi possível guardar o vídeo." }
+        }
+    }
     val imagePicker = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri ->
@@ -112,6 +127,20 @@ fun ProfileScreen(onBack: () -> Unit) {
         try {
             val j = Api.get("/v1/me")
             name = j.optString("name")
+            email = j.strOrNull("email").orEmpty()
+            emailVerified = j.optBoolean("email_verified")
+            introVideoKey = j.strOrNull("intro_video_key")
+            val linksResponse = Api.get("/v1/me/social-links")
+            val rawLinks = linksResponse.optJSONArray("links") ?: org.json.JSONArray()
+            val loadedLinks = (0 until rawLinks.length()).mapNotNull { index ->
+                val item = rawLinks.optJSONObject(index) ?: return@mapNotNull null
+                SocialLinkUi(item.optString("id"), item.optString("label"), item.optString("url"))
+            }
+            socialLinks = loadedLinks.map { link ->
+                val icon = runCatching { Api.download("/v1/favicon?url=" + Api.encode(link.url)) }.getOrNull()
+                val bitmap = icon?.let { android.graphics.BitmapFactory.decodeByteArray(it.bytes, 0, it.bytes.size) }
+                link.copy(favicon = bitmap)
+            }
             bio = j.strOrNull("bio").orEmpty()
             code = j.strOrNull("code").orEmpty()
             showPhone = j.optBoolean("show_phone")
