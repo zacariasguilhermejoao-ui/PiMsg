@@ -367,6 +367,7 @@ fun ProfileScreen(onBack: () -> Unit) {
                     if (avatarBitmap != null) {
                         androidx.compose.foundation.Image(
                             bitmap = avatarBitmap!!.asImageBitmap(), contentDescription = "Fotografia pública",
+                            modifier = Modifier.size(96.dp).clip(androidx.compose.foundation.shape.CircleShape),
                             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                         )
                     } else {
@@ -374,7 +375,9 @@ fun ProfileScreen(onBack: () -> Unit) {
                     }
                     Text(name.ifBlank { "O teu nome" }, color = PiColors.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                     if (bio.isNotBlank()) Text(bio, color = PiColors.TextSecondary)
-                        .filter { it.second.isNotBlank() }.forEach { Text(it.first, color = PiColors.White) }
+                    if (emailVerified) Text("Perfil profissional", color = Color(0xFF8AB4F8), fontSize = 12.sp)
+                    socialLinks.forEach { Text(it.label, color = PiColors.White) }
+                    if (introVideoKey != null) Text("Vídeo de apresentação adicionado", color = PiColors.TextSecondary, fontSize = 12.sp)
                     Text("Esta é uma pré-visualização do que outras pessoas podem ver.", color = PiColors.TextSecondary, fontSize = 12.sp)
                 }
             },
