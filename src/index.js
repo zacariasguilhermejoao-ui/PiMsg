@@ -88,8 +88,8 @@ async function authenticate(request, env) {
     const name = claims.name || (claims.email ? claims.email.split("@")[0] : "Utilizador");
     await env.DB.batch([
       env.DB.prepare(
-        "INSERT INTO users (id, firebase_uid, email, phone_e164, phone_verified, display_name, created_at, last_seen_at) VALUES (?,?,?,?,?,?,?,?)"
-      ).bind(id, claims.sub, claims.email || null, phone, phone ? 1 : 0, name, now, now),
+        "INSERT INTO users (id, firebase_uid, email, email_verified, phone_e164, phone_verified, display_name, created_at, last_seen_at) VALUES (?,?,?,?,?,?,?,?,?)"
+      ).bind(id, claims.sub, claims.email || null, claims.email_verified ? 1 : 0, phone, phone ? 1 : 0, name, now, now),
       env.DB.prepare(
         "INSERT INTO user_codes (id, user_id, code, is_active, created_at) VALUES (?,?,?,1,?)"
       ).bind(crypto.randomUUID(), id, randomCode(8), now),
@@ -97,6 +97,11 @@ async function authenticate(request, env) {
     user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(id).first();
   }
   if (user.status !== "active") return { blocked: user.status };
+  if (claims.email && claims.email_verified && (!user.email_verified || user.email !== claims.email)) {
+    await env.DB.prepare("UPDATE users SET email = ?, email_verified = 1 WHERE id = ?").bind(claims.email, user.id).run();
+    user.email = claims.email;
+    user.email_verified = 1;
+  }
   return user;
 }
 
@@ -166,7 +171,7 @@ async function handle(request, env) {
       id: me.id, name: me.display_name, bio: me.bio, avatar_key: me.avatar_key,
       instagram_url: me.instagram_url, facebook_url: me.facebook_url,
       tiktok_url: me.tiktok_url, youtube_url: me.youtube_url, website_url: me.website_url,
-      ring_color: me.ring_color, phone_verified: !!me.phone_verified,
+      email: me.email, email_verified: !!me.email_verified, professional_profile: !!me.email_verified, phone_verified: !!me.phone_verified,
       show_phone: !!me.show_phone, timezone: me.timezone, code: code?.code,
     });
   }
