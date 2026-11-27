@@ -251,8 +251,15 @@ fun AuthScreen(onSignedIn: () -> Unit) {
         Spacer(Modifier.height(14.dp))
 
         val fieldColors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = PiColors.White, unfocusedBorderColor = PiColors.GrayDark,
-            focusedTextColor = PiColors.White, unfocusedTextColor = PiColors.White, cursorColor = PiColors.White,
+            focusedBorderColor = PiColors.White,
+            unfocusedBorderColor = PiColors.GrayDark,
+            focusedTextColor = PiColors.White,
+            unfocusedTextColor = PiColors.White,
+            cursorColor = PiColors.White,
+            focusedPlaceholderColor = PiColors.Gray,
+            unfocusedPlaceholderColor = PiColors.Gray,
+            focusedContainerColor = PiColors.Surface,
+            unfocusedContainerColor = PiColors.Surface,
         )
         OutlinedTextField(
             value = phone, onValueChange = { value -> phone = value.filter(Char::isDigit).take(14) }, singleLine = true, enabled = mfaResolver == null,
