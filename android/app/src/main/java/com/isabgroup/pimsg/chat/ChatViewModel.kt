@@ -22,6 +22,9 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 data class Message(
     val id: String,
@@ -66,6 +69,10 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     private var lastTypingPingAt = 0L
     private val translationCache = mutableMapOf<String, String?>()
     private val translationInFlight = mutableSetOf<String>()
+    private fun translationQuotaBlockedToday(): Boolean {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        return appContext.getSharedPreferences("pimsg_translation", Context.MODE_PRIVATE).getString("blocked_day", null) == today
+    }
 
     init {
         // O histórico aparece imediatamente, mesmo sem rede.
@@ -117,6 +124,7 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
             _state.update { it.copy(messages = combined, loading = false, typingName = typingName) }
             val targetLanguage = PiI18n.language
             viewModelScope.launch {
+                if (translationQuotaBlockedToday()) return@launch
                 for (message in serverMessages.take(15)) {
                     if (message.senderId == _state.value.myId || message.kind != "text" || message.body.isNullOrBlank()) continue
                     val cacheKey = "${message.id}:$targetLanguage"
@@ -136,7 +144,11 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                         }
                     } catch (error: Exception) {
                         // Ao esgotar as quatro traduções gratuitas, não repetir o pedido em cada sincronização.
-                        if (error is ApiException && error.reason == "translation_daily_limit") break
+                        if (error is ApiException && error.reason == "translation_daily_limit") {
+                            val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                            appContext.getSharedPreferences("pimsg_translation", Context.MODE_PRIVATE).edit().putString("blocked_day", today).apply()
+                            break
+                        }
                     } finally {
                         translationInFlight.remove(cacheKey)
                     }
