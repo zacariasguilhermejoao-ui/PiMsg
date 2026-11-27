@@ -3,6 +3,7 @@ package com.isabgroup.pimsg.screens
 import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -183,6 +184,7 @@ fun SecurityScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             Text("2. Confirme o código", color = PiColors.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             OutlinedTextField(
+            shape = RoundedCornerShape(22.dp),
                 value = otp, onValueChange = { otp = it.filter(Char::isDigit).take(6) },
                 label = { Text("Código de seis dígitos") }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
