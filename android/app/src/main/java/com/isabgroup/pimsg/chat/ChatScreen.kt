@@ -429,6 +429,10 @@ private fun Bubble(m: Message, mine: Boolean, vm: ChatViewModel) {
 private fun ImageBody(m: Message, vm: ChatViewModel, fg: Color) {
     val scope = rememberCoroutineScope()
     val id = m.mediaId
+    val vmState by vm.state.collectAsStateWithLifecycle()
+    LaunchedEffect(id, vmState.mediaRevision) {
+        if (id != null && vm.isMediaCached(id)) vm.loadImage(id)
+    }
     val bmp = id?.let { vm.images[it] }
     if (bmp != null) {
         Column {
