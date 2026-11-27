@@ -1,56 +1,85 @@
-// PiMsg Pi AI — inference exclusively through Cloudflare Workers AI.
+// PiMsg Bots — all inference runs through Cloudflare Workers AI.
 const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
-const PRO_DAILY_LIMIT = 30;
-const FREE_STARTING_AI_CREDITS = 15;
+const PAID_DAILY_AI_LIMIT = 30;
+const FREE_TRANSLATIONS_PER_DAY = 4;
 
-const json = (data, status = 200) =>
-  new Response(JSON.stringify(data), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
-  });
+const json = (data, status = 200) => new Response(JSON.stringify(data), {
+  status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+});
 const fail = (status, error, extra = {}) => json({ error, ...extra }, status);
 
 function localDay(timeZone) {
-  try {
-    return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
-  } catch {
-    return new Date().toISOString().slice(0, 10);
-  }
+  try { return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date()); }
+  catch { return new Date().toISOString().slice(0, 10); }
 }
-
-async function isPro(env, userId, now) {
-  const result = await env.DB.prepare(
+async function subscriptionFor(env, userId, now = Date.now()) {
+  return env.DB.prepare(
     "SELECT plan FROM subscriptions WHERE user_id = ? AND status IN ('active','grace') AND expires_at > ? ORDER BY expires_at DESC LIMIT 1"
   ).bind(userId, now).first();
-  return result || null;
+}
+async function reservePaidAi(env, me, now) {
+  const sub = await subscriptionFor(env, me.id, now);
+  if (!sub) return { error: fail(402, "Este bot está disponível apenas no plano pago do PiMsg.", { reason: "paid_plan_required" }) };
+  const day = localDay(me.timezone || "Africa/Luanda");
+  const usage = await env.DB.prepare(
+    `INSERT INTO bot_daily_usage (user_id, day, requests, updated_at) VALUES (?, ?, 1, ?)
+     ON CONFLICT(user_id, day) DO UPDATE SET requests = requests + 1, updated_at = excluded.updated_at
+     WHERE requests < ? RETURNING requests`
+  ).bind(me.id, day, now, PAID_DAILY_AI_LIMIT).first();
+  if (!usage) return { error: fail(429, "Atingiste o limite diário de utilização dos bots com IA.", { reason: "bot_daily_limit", limit: PAID_DAILY_AI_LIMIT, plan: sub.plan }) };
+  return { sub, day, requests: usage.requests };
+}
+async function releasePaidAi(env, me, day) {
+  await env.DB.prepare(
+    "UPDATE bot_daily_usage SET requests = CASE WHEN requests > 0 THEN requests - 1 ELSE 0 END, updated_at = ? WHERE user_id = ? AND day = ?"
+  ).bind(Date.now(), me.id, day).run();
+}
+async function runModel(env, messages, maxTokens = 650) {
+  const result = await env.AI.run(MODEL, { messages, max_tokens: maxTokens, temperature: 0.45, top_p: 0.9 });
+  const reply = typeof result?.response === "string" ? result.response.trim()
+    : typeof result?.choices?.[0]?.message?.content === "string" ? result.choices[0].message.content.trim() : "";
+  if (!reply) throw new Error("empty model response");
+  return reply;
+}
+function aiSystem() {
+  return "És um assistente do PiMsg. Responde em português usado em Angola, de forma clara, humana e profissional. Usa grafia portuguesa: contacto, utilizador, ficheiro, ecrã e telemóvel. Não inventes dados, preços, políticas nem ações que não executaste. Nunca peças palavras-passe, códigos de autenticação ou dados bancários.";
 }
 
 export async function handleBots(request, env, me, path, method) {
+  const now = Date.now();
+
   if (path === "/v1/bots" && method === "GET") {
-    await env.DB.prepare("INSERT OR IGNORE INTO ai_credits (user_id, balance, updated_at) VALUES (?, ?, ?)")
-      .bind(me.id, FREE_STARTING_AI_CREDITS, Date.now()).run();
-    const creditRow = await env.DB.prepare("SELECT balance FROM ai_credits WHERE user_id = ?").bind(me.id).first();
-    const subscription = await isPro(env, me.id, Date.now());
+    const sub = await subscriptionFor(env, me.id, now);
+    const paid = !!sub;
     const day = localDay(me.timezone || "Africa/Luanda");
-    const usage = subscription ? await env.DB.prepare("SELECT requests FROM bot_daily_usage WHERE user_id = ? AND day = ?").bind(me.id, day).first() : null;
+    const translation = await env.DB.prepare(
+      "SELECT translations FROM bot_translation_usage WHERE user_id = ? AND day = ?"
+    ).bind(me.id, day).first();
+    const aiUsage = paid ? await env.DB.prepare(
+      "SELECT requests FROM bot_daily_usage WHERE user_id = ? AND day = ?"
+    ).bind(me.id, day).first() : null;
+    const business = await env.DB.prepare("SELECT business_name, enabled FROM bot_business_profiles WHERE user_id = ?").bind(me.id).first();
+    const reminders = await env.DB.prepare("SELECT COUNT(*) AS n FROM bot_reminders WHERE user_id = ? AND status = 'active'").bind(me.id).first();
+    const custom = await env.DB.prepare("SELECT COUNT(*) AS n FROM custom_bots WHERE user_id = ?").bind(me.id).first();
     return json({
-      plan: subscription ? subscription.plan : "free",
-      ai_credits: creditRow?.balance ?? FREE_STARTING_AI_CREDITS,
-      remaining_today: subscription ? Math.max(0, PRO_DAILY_LIMIT - (usage?.requests || 0)) : null,
-      bots: [{
-        id: "pi-ai",
-        name: "Pi AI",
-        description: "Assistente para perguntas, escrita, ideias e explicações.",
-        available: !!env.AI,
-      }],
+      plan: paid ? sub.plan : "free",
+      paid_access: paid,
+      ai_remaining_today: paid ? Math.max(0, PAID_DAILY_AI_LIMIT - (aiUsage?.requests || 0)) : 0,
+      translation_remaining_today: paid ? null : Math.max(0, FREE_TRANSLATIONS_PER_DAY - (translation?.translations || 0)),
+      bots: [
+        { id: "pi-ai", name: "Pi AI", description: "Assistente inteligente para perguntas, escrita, ideias e análise.", available: paid, requires_paid: true },
+        { id: "pi-business", name: "Pi Business", description: "Atendimento automático para clientes, produtos, preços e pedidos.", available: paid, requires_paid: true, configured: !!business, business_name: business?.business_name || null },
+        { id: "pi-reminder", name: "Pi Reminder", description: "Organiza tarefas, compromissos, aniversários e lembretes.", available: paid, requires_paid: true, active_reminders: reminders?.n || 0 },
+        { id: "pi-translate", name: "Pi Translate", description: "Tradução automática de mensagens com aviso junto à mensagem.", available: true, requires_paid: false, remaining_today: paid ? null : Math.max(0, FREE_TRANSLATIONS_PER_DAY - (translation?.translations || 0)) },
+        { id: "pi-bots", name: "Pi Bots", description: "Cria e gere assistentes personalizados para o teu negócio ou trabalho.", available: paid, requires_paid: true, custom_bots: custom?.n || 0 },
+      ],
     });
   }
 
   const translationMatch = path.match(/^\/v1\/chats\/([\w-]+)\/messages\/([\w-]+)\/translate$/);
   if (translationMatch && method === "POST") {
     if (!env.AI) return fail(503, "O serviço de tradução ainda não está disponível.");
-    const conversationId = translationMatch[1];
-    const messageId = translationMatch[2];
+    const conversationId = translationMatch[1], messageId = translationMatch[2];
     const body = await request.json().catch(() => ({}));
     const language = ["pt", "en", "es", "fr"].includes(body.language) ? body.language : "pt";
     const membership = await env.DB.prepare(
@@ -65,117 +94,197 @@ export async function handleBots(request, env, me, path, method) {
       "SELECT translated_body FROM message_translations WHERE user_id = ? AND message_id = ? AND language = ?"
     ).bind(me.id, messageId, language).first();
     if (cached) return json({ translated: cached.translated_body !== "__SAME_LANGUAGE__", translation: cached.translated_body === "__SAME_LANGUAGE__" ? null : cached.translated_body, cached: true });
+    const sub = await subscriptionFor(env, me.id, now);
+    const day = localDay(me.timezone || "Africa/Luanda");
+    let usage = null;
+    if (!sub) {
+      usage = await env.DB.prepare(
+        `INSERT INTO bot_translation_usage (user_id, day, translations, updated_at) VALUES (?, ?, 1, ?)
+         ON CONFLICT(user_id, day) DO UPDATE SET translations = translations + 1, updated_at = excluded.updated_at
+         WHERE translations < ? RETURNING translations`
+      ).bind(me.id, day, now, FREE_TRANSLATIONS_PER_DAY).first();
+      if (!usage) return fail(429, "Atingiste as 4 traduções gratuitas de hoje. O limite será renovado à meia-noite (hora de Angola).", { reason: "translation_daily_limit", limit: FREE_TRANSLATIONS_PER_DAY, remaining: 0 });
+    }
     const languageName = ({ pt: "português", en: "inglês", es: "espanhol", fr: "francês" })[language];
     try {
-      const result = await env.AI.run(MODEL, {
-        messages: [
-          { role: "system", content: "És um tradutor de mensagens. Detecta o idioma do texto. Se já estiver no idioma de destino, responde exatamente __SAME_LANGUAGE__. Caso contrário, traduz para o idioma pedido preservando significado, tom, nomes, emojis e formatação. Responde apenas com a tradução, sem comentários, rótulos ou aspas." },
-          { role: "user", content: "Idioma de destino: " + languageName + "\nMensagem: " + message.body.slice(0, 4000) }
-        ],
-        max_tokens: 512,
-        temperature: 0.1,
-      });
-      const translated = (typeof result?.response === "string" ? result.response : "").trim();
-      if (!translated) throw new Error("empty translation");
+      const translated = await runModel(env, [
+        { role: "system", content: "És um tradutor de mensagens. Detecta o idioma do texto. Se já estiver no idioma de destino, responde exatamente __SAME_LANGUAGE__. Caso contrário, traduz preservando significado, tom, nomes, emojis e formatação. Responde apenas com a tradução, sem comentários, rótulos ou aspas." },
+        { role: "user", content: "Idioma de destino: " + languageName + "\nMensagem: " + message.body.slice(0, 4000) },
+      ], 512);
       await env.DB.prepare(
         "INSERT OR REPLACE INTO message_translations (user_id, message_id, language, translated_body, created_at) VALUES (?,?,?,?,?)"
-      ).bind(me.id, messageId, language, translated, Date.now()).run();
-      return json({ translated: translated !== "__SAME_LANGUAGE__", translation: translated === "__SAME_LANGUAGE__" ? null : translated, cached: false });
+      ).bind(me.id, messageId, language, translated, now).run();
+      return json({ translated: translated !== "__SAME_LANGUAGE__", translation: translated === "__SAME_LANGUAGE__" ? null : translated, cached: false, remaining_today: sub ? null : Math.max(0, FREE_TRANSLATIONS_PER_DAY - usage.translations) });
     } catch (error) {
+      if (!sub) await env.DB.prepare("UPDATE bot_translation_usage SET translations = CASE WHEN translations > 0 THEN translations - 1 ELSE 0 END, updated_at = ? WHERE user_id = ? AND day = ?").bind(Date.now(), me.id, day).run();
       console.error("PiMsg translation failed:", String(error));
       return fail(502, "Não foi possível traduzir esta mensagem.");
     }
   }
 
-  if (path !== "/v1/bots/pi-ai/chat") return null;
-  if (method !== "POST") return fail(405, "metodo nao permitido");
-  if (!env.AI) return fail(503, "O serviço de IA ainda não está configurado na Cloudflare.");
-
-  const body = await request.json().catch(() => null);
-  if (!body || typeof body !== "object") return fail(400, "pedido invalido");
-  const prompt = typeof body.message === "string" ? body.message.trim() : "";
-  if (!prompt) return fail(400, "Escreva uma mensagem.");
-  if (prompt.length > 2000) return fail(413, "A mensagem não pode ultrapassar 2.000 caracteres.");
-
-  const history = Array.isArray(body.history) ? body.history.slice(-10) : [];
-  const normalizedHistory = [];
-  for (const item of history) {
-    if (!item || !["user", "assistant"].includes(item.role) || typeof item.content !== "string") continue;
-    const content = item.content.trim().slice(0, 2500);
-    if (content) normalizedHistory.push({ role: item.role, content });
+  // Pi Reminder: paid users can create and manage their own reminders.
+  if (path === "/v1/bots/reminders" && method === "GET") {
+    const sub = await subscriptionFor(env, me.id, now);
+    if (!sub) return fail(402, "O Pi Reminder está disponível no plano pago.", { reason: "paid_plan_required" });
+    const rows = await env.DB.prepare("SELECT id, title, details, due_at, status, created_at FROM bot_reminders WHERE user_id = ? ORDER BY due_at ASC LIMIT 200").bind(me.id).all();
+    return json({ reminders: rows.results || [] });
   }
-
-  const now = Date.now();
-  const subscription = await isPro(env, me.id, now);
-  const limit = subscription ? PRO_DAILY_LIMIT : null;
-  const day = localDay(me.timezone || "Africa/Luanda");
-  let quota = null;
-  let creditCost = 0;
-  let remainingCredits = null;
-  if (subscription) {
-    quota = await env.DB.prepare(
-      `INSERT INTO bot_daily_usage (user_id, day, requests, updated_at) VALUES (?, ?, 1, ?)
-       ON CONFLICT(user_id, day) DO UPDATE SET requests = requests + 1, updated_at = excluded.updated_at
-       WHERE requests < ?
-       RETURNING requests`
-    ).bind(me.id, day, now, PRO_DAILY_LIMIT).first();
-    if (!quota) return fail(429, "Atingiu o limite diário do Pi AI.", { reason: "bot_daily_limit", limit: PRO_DAILY_LIMIT, plan: subscription.plan });
-  } else {
-    creditCost = Math.min(5, 2 + (prompt.length > 800 ? 1 : 0) + (prompt.length > 1600 ? 2 : 0) + (normalizedHistory.length > 8 ? 1 : 0));
-    await env.DB.prepare("INSERT OR IGNORE INTO ai_credits (user_id, balance, updated_at) VALUES (?, ?, ?)")
-      .bind(me.id, FREE_STARTING_AI_CREDITS, now).run();
-    const debit = await env.DB.prepare(
-      "UPDATE ai_credits SET balance = balance - ?, updated_at = ? WHERE user_id = ? AND balance >= ? RETURNING balance"
-    ).bind(creditCost, now, me.id, creditCost).first();
-    if (!debit) {
-      const current = await env.DB.prepare("SELECT balance FROM ai_credits WHERE user_id = ?").bind(me.id).first();
-      return fail(402, "Os créditos de IA terminaram. Ative o Pro para continuar a utilizar o Pi AI.", {
-        reason: "ai_credits_empty", balance: current?.balance || 0, required: creditCost,
-      });
+  if (path === "/v1/bots/reminders" && method === "POST") {
+    const sub = await subscriptionFor(env, me.id, now);
+    if (!sub) return fail(402, "O Pi Reminder está disponível no plano pago.", { reason: "paid_plan_required" });
+    const b = await request.json().catch(() => ({}));
+    const title = typeof b.title === "string" ? b.title.trim().slice(0, 120) : "";
+    const details = typeof b.details === "string" ? b.details.trim().slice(0, 500) : null;
+    const dueAt = Number(b.due_at);
+    if (!title || !Number.isFinite(dueAt) || dueAt < now - 60000 || dueAt > now + 366 * 86400000) return fail(400, "Indica um título e uma data válida até 12 meses.");
+    const id = crypto.randomUUID();
+    await env.DB.prepare("INSERT INTO bot_reminders (id,user_id,title,details,due_at,status,created_at,updated_at) VALUES (?,?,?,?,?,'active',?,?)")
+      .bind(id, me.id, title, details, dueAt, now, now).run();
+    return json({ id, title, details, due_at: dueAt, status: "active" }, 201);
+  }
+  const reminderMatch = path.match(/^\/v1\/bots\/reminders\/([\w-]+)$/);
+  if (reminderMatch && ["PATCH", "DELETE"].includes(method)) {
+    const sub = await subscriptionFor(env, me.id, now);
+    if (!sub) return fail(402, "O Pi Reminder está disponível no plano pago.", { reason: "paid_plan_required" });
+    if (method === "DELETE") {
+      await env.DB.prepare("DELETE FROM bot_reminders WHERE id = ? AND user_id = ?").bind(reminderMatch[1], me.id).run();
+      return json({ ok: true });
     }
-    remainingCredits = debit.balance;
+    const b = await request.json().catch(() => ({}));
+    const title = typeof b.title === "string" ? b.title.trim().slice(0, 120) : null;
+    const details = typeof b.details === "string" ? b.details.trim().slice(0, 500) : null;
+    const dueAt = b.due_at === undefined ? null : Number(b.due_at);
+    const status = ["active", "done"].includes(b.status) ? b.status : null;
+    await env.DB.prepare("UPDATE bot_reminders SET title=COALESCE(?,title), details=COALESCE(?,details), due_at=COALESCE(?,due_at), status=COALESCE(?,status), updated_at=? WHERE id=? AND user_id=?")
+      .bind(title, details, Number.isFinite(dueAt) ? dueAt : null, status, now, reminderMatch[1], me.id).run();
+    return json({ ok: true });
   }
 
-  const messages = [
-    {
-      role: "system",
-      content: "És o Pi AI, o assistente oficial do PiMsg. Responde em português europeu usado em Angola, com linguagem humana, clara, profissional e direta. Usa sempre grafia portuguesa: “contacto”, “utilizador”, “ficheiro”, “ecrã”, “telemóvel” e “equipa”. Nunca uses “contato”, “usuário”, “arquivo” ou “celular”. Não coloques respostas entre aspas, a menos que sejam citações. Evita frases feitas, entusiasmo artificial e emojis desnecessários. Ajuda com perguntas gerais, escrita, ideias, explicações e utilização do PiMsg. Não inventes funcionalidades, preços, políticas ou dados do PiMsg. Não afirmes que enviaste mensagens, alteraste contas, fizeste compras ou executaste ações fora desta conversa. Se não souberes algo, diz claramente. Não peças palavras-passe, códigos de autenticação ou dados bancários."
-    },
-    ...normalizedHistory,
-    { role: "user", content: prompt },
-  ];
-
-  try {
-    const result = await env.AI.run(MODEL, {
-      messages,
-      max_tokens: 512,
-      temperature: 0.55,
-      top_p: 0.9,
-    });
-    const reply = typeof result?.response === "string"
-      ? result.response.trim()
-      : typeof result?.choices?.[0]?.message?.content === "string"
-        ? result.choices[0].message.content.trim()
-        : "";
-    if (!reply) throw new Error("empty model response");
-    return json({
-      reply,
-      model: MODEL,
-      plan: subscription ? subscription.plan : "free",
-      limit,
-      remaining: subscription ? Math.max(0, limit - quota.requests) : remainingCredits,
-      credits_used: creditCost,
-    });
-  } catch (error) {
-    if (subscription) {
-      await env.DB.prepare(
-        "UPDATE bot_daily_usage SET requests = CASE WHEN requests > 0 THEN requests - 1 ELSE 0 END, updated_at = ? WHERE user_id = ? AND day = ?"
-      ).bind(Date.now(), me.id, day).run();
-    } else if (creditCost > 0) {
-      await env.DB.prepare("UPDATE ai_credits SET balance = balance + ?, updated_at = ? WHERE user_id = ?")
-        .bind(creditCost, Date.now(), me.id).run();
+  // Pi Business: private business knowledge and AI customer-service replies.
+  if (path === "/v1/bots/business" && method === "GET") {
+    const sub = await subscriptionFor(env, me.id, now);
+    if (!sub) return fail(402, "O Pi Business está disponível no plano pago.", { reason: "paid_plan_required" });
+    const row = await env.DB.prepare("SELECT business_name, description, greeting, faq, hours, contact, enabled, updated_at FROM bot_business_profiles WHERE user_id = ?").bind(me.id).first();
+    return json({ profile: row || null });
+  }
+  if (path === "/v1/bots/business" && method === "PUT") {
+    const sub = await subscriptionFor(env, me.id, now);
+    if (!sub) return fail(402, "O Pi Business está disponível no plano pago.", { reason: "paid_plan_required" });
+    const b = await request.json().catch(() => ({}));
+    const businessName = typeof b.business_name === "string" ? b.business_name.trim().slice(0, 100) : "";
+    if (!businessName) return fail(400, "Indica o nome do negócio.");
+    const fields = [
+      typeof b.description === "string" ? b.description.slice(0, 1500) : "",
+      typeof b.greeting === "string" ? b.greeting.slice(0, 500) : "",
+      typeof b.faq === "string" ? b.faq.slice(0, 5000) : "",
+      typeof b.hours === "string" ? b.hours.slice(0, 500) : "",
+      typeof b.contact === "string" ? b.contact.slice(0, 300) : "",
+    ];
+    const enabled = b.enabled === false ? 0 : 1;
+    await env.DB.prepare(
+      `INSERT INTO bot_business_profiles (user_id,business_name,description,greeting,faq,hours,contact,enabled,updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET business_name=excluded.business_name,
+       description=excluded.description,greeting=excluded.greeting,faq=excluded.faq,hours=excluded.hours,
+       contact=excluded.contact,enabled=excluded.enabled,updated_at=excluded.updated_at`
+    ).bind(me.id, businessName, ...fields, enabled, now).run();
+    return json({ ok: true });
+  }
+  if (path === "/v1/bots/business/chat" && method === "POST") {
+    if (!env.AI) return fail(503, "A IA da Cloudflare não está disponível.");
+    const reservation = await reservePaidAi(env, me, now);
+    if (reservation.error) return reservation.error;
+    const b = await request.json().catch(() => ({}));
+    const prompt = typeof b.message === "string" ? b.message.trim().slice(0, 1500) : "";
+    if (!prompt) { await releasePaidAi(env, me, reservation.day); return fail(400, "Escreve a mensagem do cliente."); }
+    try {
+      const p = await env.DB.prepare("SELECT * FROM bot_business_profiles WHERE user_id = ? AND enabled = 1").bind(me.id).first();
+      if (!p) { await releasePaidAi(env, me, reservation.day); return fail(409, "Configura e activa primeiro o teu Pi Business.", { reason: "business_not_configured" }); }
+      const reply = await runModel(env, [
+        { role: "system", content: aiSystem() + " És o assistente de atendimento do negócio " + p.business_name + ". Responde apenas com base nos dados seguintes; se não souberes, informa que a equipa precisa confirmar. Nunca inventes preços, stock ou prazos.\nDescrição: " + (p.description || "") + "\nFAQ: " + (p.faq || "") + "\nHorário: " + (p.hours || "") + "\nContacto: " + (p.contact || "") + "\nSaudação: " + (p.greeting || "") },
+        { role: "user", content: prompt },
+      ]);
+      return json({ reply, remaining: Math.max(0, PAID_DAILY_AI_LIMIT - reservation.requests), plan: reservation.sub.plan });
+    } catch (error) {
+      await releasePaidAi(env, me, reservation.day);
+      console.error("Pi Business failed:", String(error));
+      return fail(502, "O Pi Business não conseguiu responder. Tenta novamente.");
     }
-    console.error("Pi AI inference failed:", String(error));
-    return fail(502, "O Pi AI não conseguiu responder neste momento. Tente novamente.");
   }
+
+  // Pi Bots: user-owned custom assistants.
+  if (path === "/v1/bots/custom" && method === "GET") {
+    const sub = await subscriptionFor(env, me.id, now);
+    if (!sub) return fail(402, "A plataforma Pi Bots está disponível no plano pago.", { reason: "paid_plan_required" });
+    const rows = await env.DB.prepare("SELECT id,name,description,created_at,updated_at FROM custom_bots WHERE user_id = ? ORDER BY created_at DESC").bind(me.id).all();
+    return json({ bots: rows.results || [] });
+  }
+  if (path === "/v1/bots/custom" && method === "POST") {
+    const sub = await subscriptionFor(env, me.id, now);
+    if (!sub) return fail(402, "A plataforma Pi Bots está disponível no plano pago.", { reason: "paid_plan_required" });
+    const b = await request.json().catch(() => ({}));
+    const name = typeof b.name === "string" ? b.name.trim().slice(0, 60) : "";
+    const description = typeof b.description === "string" ? b.description.trim().slice(0, 240) : "";
+    const instructions = typeof b.instructions === "string" ? b.instructions.trim().slice(0, 4000) : "";
+    if (!name || !instructions) return fail(400, "O nome e as instruções do bot são obrigatórios.");
+    const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM custom_bots WHERE user_id = ?").bind(me.id).first();
+    if ((count?.n || 0) >= 10) return fail(409, "Podes criar até 10 bots personalizados.");
+    const id = crypto.randomUUID();
+    await env.DB.prepare("INSERT INTO custom_bots (id,user_id,name,description,instructions,created_at,updated_at) VALUES (?,?,?,?,?,?,?)")
+      .bind(id, me.id, name, description, instructions, now, now).run();
+    return json({ id, name, description, created_at: now }, 201);
+  }
+  const customMatch = path.match(/^\/v1\/bots\/custom\/([\w-]+)$/);
+  if (customMatch && method === "DELETE") {
+    const sub = await subscriptionFor(env, me.id, now);
+    if (!sub) return fail(402, "A plataforma Pi Bots está disponível no plano pago.", { reason: "paid_plan_required" });
+    await env.DB.prepare("DELETE FROM custom_bots WHERE id = ? AND user_id = ?").bind(customMatch[1], me.id).run();
+    return json({ ok: true });
+  }
+  const customChatMatch = path.match(/^\/v1\/bots\/custom\/([\w-]+)\/chat$/);
+  if (customChatMatch && method === "POST") {
+    if (!env.AI) return fail(503, "A IA da Cloudflare não está disponível.");
+    const reservation = await reservePaidAi(env, me, now);
+    if (reservation.error) return reservation.error;
+    const bot = await env.DB.prepare("SELECT * FROM custom_bots WHERE id = ? AND user_id = ?").bind(customChatMatch[1], me.id).first();
+    const b = await request.json().catch(() => ({}));
+    const prompt = typeof b.message === "string" ? b.message.trim().slice(0, 2000) : "";
+    if (!bot || !prompt) { await releasePaidAi(env, me, reservation.day); return fail(bot ? 400 : 404, bot ? "Escreve uma mensagem." : "Bot não encontrado."); }
+    try {
+      const reply = await runModel(env, [
+        { role: "system", content: aiSystem() + "\nNome: " + bot.name + "\nDescrição: " + (bot.description || "") + "\nInstruções do criador: " + bot.instructions },
+        { role: "user", content: prompt },
+      ]);
+      return json({ reply, remaining: Math.max(0, PAID_DAILY_AI_LIMIT - reservation.requests), plan: reservation.sub.plan });
+    } catch (error) {
+      await releasePaidAi(env, me, reservation.day);
+      console.error("Custom Pi Bot failed:", String(error));
+      return fail(502, "Este bot não conseguiu responder. Tenta novamente.");
+    }
+  }
+
+  if (path === "/v1/bots/pi-ai/chat" && method === "POST") {
+    if (!env.AI) return fail(503, "O serviço de IA ainda não está configurado na Cloudflare.");
+    const reservation = await reservePaidAi(env, me, now);
+    if (reservation.error) return reservation.error;
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object") { await releasePaidAi(env, me, reservation.day); return fail(400, "pedido inválido"); }
+    const prompt = typeof body.message === "string" ? body.message.trim() : "";
+    if (!prompt) { await releasePaidAi(env, me, reservation.day); return fail(400, "Escreve uma mensagem."); }
+    if (prompt.length > 2000) { await releasePaidAi(env, me, reservation.day); return fail(413, "A mensagem não pode ultrapassar 2.000 caracteres."); }
+    const history = Array.isArray(body.history) ? body.history.slice(-10).filter(x => x && ["user","assistant"].includes(x.role) && typeof x.content === "string").map(x => ({ role: x.role, content: x.content.trim().slice(0,2500) })).filter(x => x.content) : [];
+    try {
+      const reply = await runModel(env, [
+        { role: "system", content: aiSystem() + " És o Pi AI, o assistente oficial do PiMsg. Ajuda com perguntas gerais, escrita, ideias, explicações e utilização do PiMsg. Não afirmes que executaste ações fora desta conversa." },
+        ...history,
+        { role: "user", content: prompt },
+      ], 700);
+      return json({ reply, model: MODEL, plan: reservation.sub.plan, limit: PAID_DAILY_AI_LIMIT, remaining: Math.max(0, PAID_DAILY_AI_LIMIT - reservation.requests) });
+    } catch (error) {
+      await releasePaidAi(env, me, reservation.day);
+      console.error("Pi AI inference failed:", String(error));
+      return fail(502, "O Pi AI não conseguiu responder neste momento. Tenta novamente.");
+    }
+  }
+
+  return null;
 }
