@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -57,6 +59,8 @@ private val create = listOf(
     MenuEntry("newgroup", "Criar grupo"),
 )
 private val app = listOf(
+    MenuEntry("tools", "Ferramentas"),
+    MenuEntry("accessibility", "Acessibilidade"),
     MenuEntry("bot", "PiBot"),
     MenuEntry("settings", "Definições"),
 )
@@ -99,6 +103,8 @@ fun MenuSheet(
                 "newstory" -> Icon(Icons.Filled.AddAPhoto, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "newgroup" -> Icon(Icons.Filled.GroupAdd, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "qr" -> Icon(Icons.Filled.QrCode2, contentDescription = "Código QR", tint = PiColors.White, modifier = Modifier.size(24.dp))
+                "tools" -> Icon(Icons.Filled.Build, contentDescription = "Ferramentas", tint = PiColors.White, modifier = Modifier.size(24.dp))
+                "accessibility" -> Icon(Icons.Filled.AccessibilityNew, contentDescription = "Acessibilidade", tint = PiColors.White, modifier = Modifier.size(24.dp))
                 else -> Spacer(Modifier.size(24.dp))
             }
             Text(entry.label, color = PiColors.White, fontSize = 16.sp)
