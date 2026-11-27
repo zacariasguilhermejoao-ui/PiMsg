@@ -1,6 +1,9 @@
 package com.isabgroup.pimsg.chat
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.media.MediaRecorder
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
 import android.os.Build
@@ -35,6 +38,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Stop
 import com.isabgroup.pimsg.ui.PiText as Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -59,6 +64,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -125,6 +131,68 @@ fun ChatScreen(
     var peerAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     val scope = rememberCoroutineScope()
     val isGroup = ref.inviteCode != null
+    var recording by remember { mutableStateOf(false) }
+    var voiceRecorder by remember { mutableStateOf<MediaRecorder?>(null) }
+    var voiceFile by remember { mutableStateOf<File?>(null) }
+
+    fun startVoiceRecording() {
+        try {
+            val directory = File(context.cacheDir, "shared").apply { mkdirs() }
+            val file = File(directory, "voice_${System.currentTimeMillis()}.m4a")
+            val recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(context) else MediaRecorder()
+            recorder.setAudioSource(MediaRecorder.AudioSource.MIC)
+            recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            recorder.setAudioSamplingRate(44100)
+            recorder.setAudioEncodingBitRate(96000)
+            recorder.setOutputFile(file.absolutePath)
+            recorder.prepare()
+            recorder.start()
+            voiceFile = file
+            voiceRecorder = recorder
+            recording = true
+            info = "A gravar mensagem de voz. Toque em parar para enviar."
+        } catch (_: Exception) {
+            recording = false
+            voiceRecorder?.release()
+            voiceRecorder = null
+            voiceFile?.delete()
+            voiceFile = null
+            vm.showError("Não foi possível iniciar a gravação. Verifique o microfone.")
+        }
+    }
+
+    fun stopVoiceRecording() {
+        val recorder = voiceRecorder
+        val file = voiceFile
+        voiceRecorder = null
+        recording = false
+        runCatching { recorder?.stop() }
+        runCatching { recorder?.release() }
+        voiceFile = null
+        info = null
+        if (file != null && file.exists() && file.length() > 1024L) {
+            runCatching {
+                val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+                vm.sendMedia(cr, uri, "audio")
+            }.onFailure { vm.showError("Não foi possível preparar a mensagem de voz.") }
+        } else {
+            file?.delete()
+            vm.showError("A gravação ficou demasiado curta. Tente novamente.")
+        }
+    }
+
+    val requestMicrophone = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) startVoiceRecording() else vm.showError("Permita o acesso ao microfone para enviar mensagens de voz.")
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            runCatching { voiceRecorder?.stop() }
+            runCatching { voiceRecorder?.release() }
+            voiceFile?.delete()
+        }
+    }
 
     LaunchedEffect(convId) {
         runCatching {
@@ -225,6 +293,12 @@ fun ChatScreen(
                 Text("A preparar e enviar ficheiro...", color = PiColors.TextSecondary, fontSize = 12.sp)
             }
         }
+        if (recording) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(13.dp), strokeWidth = 2.dp, color = PiColors.Danger)
+                Text("A gravar mensagem de voz...", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(start = 8.dp))
+            }
+        }
         if (state.receivingMedia) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = PiColors.Gray)
@@ -262,6 +336,19 @@ fun ChatScreen(
                         inner()
                     },
                 )
+            }
+            IconButton(
+                onClick = {
+                    view.playClick()
+                    if (recording) stopVoiceRecording()
+                    else if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) startVoiceRecording()
+                    else requestMicrophone.launch(Manifest.permission.RECORD_AUDIO)
+                },
+                enabled = !state.busy,
+            ) {
+                Icon(if (recording) Icons.Filled.Stop else Icons.Filled.Mic,
+                    if (recording) "Parar e enviar áudio" else "Gravar mensagem de voz",
+                    tint = if (recording) PiColors.Danger else PiColors.White)
             }
             Spacer(Modifier.size(8.dp))
             Box(
