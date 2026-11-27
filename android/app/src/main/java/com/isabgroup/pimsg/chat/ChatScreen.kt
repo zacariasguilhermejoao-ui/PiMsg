@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -31,6 +32,8 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -76,6 +79,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.TextButton
 import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.PiMsgMedia
@@ -91,6 +96,7 @@ import java.util.Date
 import java.util.Locale
 
 data class ChatRef(val id: String, val title: String, val otherId: String?, val inviteCode: String?)
+private data class ForwardTarget(val id: String, val title: String)
 
 @Composable
 fun ChatScreen(
@@ -130,6 +136,10 @@ fun ChatScreen(
     var peerProfileLoading by remember { mutableStateOf(false) }
     var peerProfile by remember { mutableStateOf<JSONObject?>(null) }
     var peerAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var forwardMessage by remember { mutableStateOf<Message?>(null) }
+    var forwardTargets by remember { mutableStateOf<List<ForwardTarget>>(emptyList()) }
+    var forwardLoading by remember { mutableStateOf(false) }
+    var forwardError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val isGroup = ref.inviteCode != null
     var recording by remember { mutableStateOf(false) }
@@ -262,11 +272,15 @@ fun ChatScreen(
                 IconButton(onClick = {
                     view.playClick()
                     peerProfileOpen = true
-                    peerProfileLoading = true
+                    val profileCache = context.getSharedPreferences("pimsg_public_profiles", Context.MODE_PRIVATE)
+                    val cachedProfile = profileCache.getString(ref.otherId, null)
+                    peerProfile = cachedProfile?.let { runCatching { JSONObject(it) }.getOrNull() }
+                    peerProfileLoading = peerProfile == null
                     scope.launch {
                         try {
                             val profile = Api.get("/v1/users/${ref.otherId}")
                             peerProfile = profile
+                            profileCache.edit().putString(ref.otherId, profile.toString()).apply()
                             val avatarKey = profile.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
                             peerAvatar = avatarKey?.let { key ->
                                 val cached = PiMsgMedia.findCached(context, key)
@@ -292,7 +306,35 @@ fun ChatScreen(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                items(state.messages, key = { it.id }) { m -> Bubble(m, mine = m.pending || m.senderId == state.myId, vm = vm) }
+                items(state.messages, key = { it.id }) { m ->
+                    Bubble(
+                        m,
+                        mine = m.pending || m.senderId == state.myId,
+                        vm = vm,
+                        onForward = { message ->
+                            forwardMessage = message
+                            forwardLoading = true
+                            forwardError = null
+                            scope.launch {
+                                try {
+                                    val chats = Api.get("/v1/chats?tab=all").getJSONArray("chats")
+                                    forwardTargets = (0 until chats.length()).mapNotNull { index ->
+                                        val item = chats.optJSONObject(index) ?: return@mapNotNull null
+                                        val id = item.optString("id")
+                                        if (id.isBlank() || id == convId) return@mapNotNull null
+                                        val isGroupTarget = item.optString("type") == "group"
+                                        val label = if (isGroupTarget) item.optString("name") else item.optString("other_name")
+                                        ForwardTarget(id, label.ifBlank { "Conversa" })
+                                    }
+                                } catch (_: Exception) {
+                                    forwardError = "Não foi possível carregar as conversas."
+                                } finally {
+                                    forwardLoading = false
+                                }
+                            }
+                        },
+                    )
+                }
             }
         }
 
@@ -373,14 +415,46 @@ fun ChatScreen(
         }
     }
 
-    if (peerProfileOpen) {
-        val profile = peerProfile
-        AlertDialog(
+        Dialog(
             onDismissRequest = { peerProfileOpen = false },
-            containerColor = PiColors.Surface,
-            title = { Text(profile?.optString("name")?.takeIf { !it.isNullOrBlank() } ?: title, color = PiColors.White) },
-            text = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Column(
+                Modifier.fillMaxSize().padding(8.dp).clip(RoundedCornerShape(22.dp))
+                    .background(PiColors.Surface).verticalScroll(rememberScrollState()).padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Perfil", color = PiColors.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { peerProfileOpen = false }) { Text("Fechar", color = PiColors.White) }
+                }
+                if (peerAvatar != null) Image(peerAvatar!!.asImageBitmap(), "Fotografia de perfil", Modifier.size(112.dp).clip(CircleShape), contentScale = ContentScale.Crop)
+                else Box(Modifier.size(112.dp).clip(CircleShape).background(PiColors.SurfaceHigh), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Person, "Avatar", tint = PiColors.Gray, modifier = Modifier.size(54.dp))
+                }
+                Text(profile?.optString("name")?.takeIf { !it.isNullOrBlank() } ?: title, color = PiColors.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                if (peerProfileLoading) Text("A actualizar perfil…", color = PiColors.TextSecondary)
+                else if (profile == null) Text("Perfil indisponível neste momento.", color = PiColors.TextSecondary)
+                else {
+                    val bio = profile.optString("bio")
+                    if (bio.isNotBlank() && bio != "null") Text(bio, color = PiColors.TextSecondary, fontSize = 15.sp)
+                    val phone = profile.optString("phone")
+                    if (phone.isNotBlank() && phone != "null") Text("Contacto: $phone", color = PiColors.White)
+                    val links = profile.optJSONArray("social_links") ?: org.json.JSONArray()
+                    for (i in 0 until links.length()) {
+                        val link = links.optJSONObject(i) ?: continue
+                        val url = link.optString("url")
+                        if (url.startsWith("https://")) Text(link.optString("label", "Abrir ligação"), color = PiColors.White,
+                            modifier = Modifier.fillMaxWidth().clickable { context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))) }.padding(vertical = 6.dp))
+                    }
+                    val video = profile.optString("intro_video_key")
+                    if (video.isNotBlank() && video != "null") Text("Ver vídeo de apresentação", color = PiColors.White,
+                        modifier = Modifier.fillMaxWidth().clickable { context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://pimsg.tchilopop.com/public-media/$video"))) }.padding(vertical = 6.dp))
+                }
+            }
+        }
+    }
                     if (peerAvatar != null) Image(peerAvatar!!.asImageBitmap(), "Fotografia de perfil", Modifier.size(88.dp).clip(CircleShape), contentScale = ContentScale.Crop)
                     else Box(Modifier.size(88.dp).clip(CircleShape).background(PiColors.SurfaceHigh), contentAlignment = Alignment.Center) {
                         Icon(Icons.Filled.Person, "Avatar", tint = PiColors.Gray, modifier = Modifier.size(44.dp))
@@ -405,8 +479,6 @@ fun ChatScreen(
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { peerProfileOpen = false }) { Text("Fechar", color = PiColors.White) } },
-        )
     }
 
     if (optionsOpen) {
@@ -537,6 +609,46 @@ fun ChatScreen(
         )
     }
 
+    if (forwardMessage != null) {
+        AlertDialog(
+            onDismissRequest = { forwardMessage = null; forwardTargets = emptyList() },
+            containerColor = PiColors.Surface,
+            title = { Text("Reencaminhar mensagem", color = PiColors.White) },
+            text = {
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                    if (forwardLoading) Text("A carregar conversas…", color = PiColors.TextSecondary)
+                    forwardError?.let { Text(it, color = PiColors.Danger) }
+                    forwardTargets.forEach { target ->
+                        OptionRow(target.title) {
+                            val message = forwardMessage ?: return@OptionRow
+                            forwardMessage = null
+                            scope.launch {
+                                try {
+                                    val newMediaId = if (message.mediaId != null) {
+                                        val downloaded = Api.download("/v1/media/${message.mediaId}")
+                                        Api.upload(
+                                            { java.io.ByteArrayInputStream(downloaded.bytes) },
+                                            downloaded.bytes.size.toLong(),
+                                            downloaded.mime,
+                                        )
+                                    } else null
+                                    val payload = JSONObject().put("kind", message.kind)
+                                        .put("body", message.body ?: "")
+                                    if (newMediaId != null) payload.put("media_id", newMediaId)
+                                    Api.post("/v1/chats/${target.id}/messages", payload)
+                                    info = "Mensagem reencaminhada para ${target.title}."
+                                } catch (_: Exception) {
+                                    info = "Não foi possível reencaminhar esta mensagem."
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { forwardMessage = null; forwardTargets = emptyList() }) { Text("Fechar", color = PiColors.White) } },
+        )
+    }
+
     if (attachmentConfirmOpen && pendingAttachments.isNotEmpty()) {
         AlertDialog(
             onDismissRequest = { attachmentConfirmOpen = false; pendingAttachments = emptyList(); onShareConsumed() },
@@ -590,7 +702,7 @@ fun ChatScreen(
 private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
 @Composable
-private fun Bubble(m: Message, mine: Boolean, vm: ChatViewModel) {
+private fun Bubble(m: Message, mine: Boolean, vm: ChatViewModel, onForward: (Message) -> Unit) {
     val shape = RoundedCornerShape(18.dp)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -625,13 +737,16 @@ private fun Bubble(m: Message, mine: Boolean, vm: ChatViewModel) {
                                 (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
                                     .setPrimaryClip(ClipData.newPlainText("Mensagem PiMsg", m.body))
                             })
-                            DropdownMenuItem(text = { Text("Partilhar mensagem", color = PiColors.White) }, onClick = {
+                            DropdownMenuItem(text = { Text("Reencaminhar", color = PiColors.White) }, onClick = {
                                 actionsOpen = false
-                                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, m.body)
-                                context.startActivity(Intent.createChooser(send, "Partilhar mensagem"))
+                                onForward(m)
                             })
                         }
                         if (m.mediaId != null) {
+                            DropdownMenuItem(text = { Text("Reencaminhar", color = PiColors.White) }, onClick = {
+                                actionsOpen = false
+                                onForward(m)
+                            })
                             DropdownMenuItem(text = { Text("Abrir ficheiro", color = PiColors.White) }, onClick = {
                                 actionsOpen = false
                                 scope.launch { openMedia(context, m, vm) }
