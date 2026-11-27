@@ -54,6 +54,7 @@ object Api {
                 c.readTimeout = 120_000
                 c.setRequestProperty("Authorization", "Bearer $token")
                 c.setRequestProperty("Content-Type", mime)
+                c.setRequestProperty("X-File-Size", size.toString())
                 val input = open() ?: throw ApiException(400, "ficheiro ilegivel")
                 input.use { i -> c.outputStream.use { o -> i.copyTo(o) } }
                 val code = c.responseCode
