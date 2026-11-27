@@ -18,6 +18,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -53,6 +58,8 @@ import org.json.JSONObject
 
 private const val SITE = "https://pimsg.tchilopop.com"
 
+private data class SocialLinkUi(val id: String, val label: String, val url: String, val favicon: android.graphics.Bitmap? = null)
+
 private fun copy(context: Context, label: String, text: String) {
     (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText(label, text))
 }
@@ -76,12 +83,13 @@ fun ProfileScreen(onBack: () -> Unit) {
     var phoneVerified by remember { mutableStateOf(false) }
     var avatarKey by remember { mutableStateOf<String?>(null) }
     var avatarBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-    var instagram by remember { mutableStateOf("") }
-    var facebook by remember { mutableStateOf("") }
-    var tiktok by remember { mutableStateOf("") }
-    var youtube by remember { mutableStateOf("") }
-    var website by remember { mutableStateOf("") }
-    var ringColor by remember { mutableStateOf("#8E8E93") }
+    var email by remember { mutableStateOf("") }
+    var emailVerified by remember { mutableStateOf(false) }
+    var introVideoKey by remember { mutableStateOf<String?>(null) }
+    var socialLinks by remember { mutableStateOf<List<SocialLinkUi>>(emptyList()) }
+    var addSocialOpen by remember { mutableStateOf(false) }
+    var socialUrl by remember { mutableStateOf("") }
+    var socialLabel by remember { mutableStateOf("") }
     var msg by remember { mutableStateOf<String?>(null) }
     var previewOpen by remember { mutableStateOf(false) }
     val imagePicker = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -109,12 +117,6 @@ fun ProfileScreen(onBack: () -> Unit) {
             showPhone = j.optBoolean("show_phone")
             phoneVerified = j.optBoolean("phone_verified")
             avatarKey = j.strOrNull("avatar_key")
-            instagram = j.strOrNull("instagram_url").orEmpty()
-            facebook = j.strOrNull("facebook_url").orEmpty()
-            tiktok = j.strOrNull("tiktok_url").orEmpty()
-            youtube = j.strOrNull("youtube_url").orEmpty()
-            website = j.strOrNull("website_url").orEmpty()
-            ringColor = j.strOrNull("ring_color") ?: "#8E8E93"
             avatarKey?.let { key ->
                 try {
                     val d = Api.download("/v1/media/$key")
@@ -153,7 +155,6 @@ fun ProfileScreen(onBack: () -> Unit) {
                             contentDescription = "Fotografia do perfil",
                             modifier = Modifier
                                 .size(104.dp)
-                                .border(3.dp, runCatching { Color(android.graphics.Color.parseColor(ringColor)) }.getOrDefault(PiColors.Gray), androidx.compose.foundation.shape.CircleShape)
                                 .clip(androidx.compose.foundation.shape.CircleShape),
                             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                         )
@@ -195,17 +196,34 @@ fun ProfileScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(value = bio, onValueChange = { bio = it.take(300) }, label = { Text("Biografia / apresentação") }, minLines = 3, supportingText = { Text("${bio.length}/300") }, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
 
-        Section("Personalização do perfil")
-        OutlinedTextField(value = ringColor, onValueChange = { ringColor = it.take(7) }, label = { Text("Cor do perfil (HEX)") }, singleLine = true, supportingText = { Text("Exemplo: #8E8E93") }, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        Section("E-mail e verificação")
+        Text(email.ifBlank { "Nenhum e-mail associado" }, color = PiColors.White, fontSize = 15.sp)
+        Text(if (emailVerified) "E-mail confirmado · Perfil profissional activo" else "O e-mail ainda não está confirmado.", color = if (emailVerified) Color(0xFF8AB4F8) else PiColors.TextSecondary, fontSize = 12.sp)
 
-        Section("Redes sociais e website")
-        Text("Adicione os seus perfis. Só serão apresentados no seu perfil público quando preencher os campos.", color = PiColors.TextSecondary, fontSize = 13.sp)
-        OutlinedTextField(value = instagram, onValueChange = { instagram = it.take(200) }, label = { Text("Instagram (URL)") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = facebook, onValueChange = { facebook = it.take(200) }, label = { Text("Facebook (URL)") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = tiktok, onValueChange = { tiktok = it.take(200) }, label = { Text("TikTok (URL)") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = youtube, onValueChange = { youtube = it.take(200) }, label = { Text("YouTube (URL)") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = website, onValueChange = { website = it.take(200) }, label = { Text("Website") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        Section("Vídeo de apresentação")
+        Text("Apresente-se às pessoas que visitam o seu perfil.", color = PiColors.TextSecondary, fontSize = 13.sp)
+        PiButton(if (introVideoKey == null) "Adicionar vídeo" else "Substituir vídeo", { videoPicker.launch("video/*") }, primary = false)
+        if (introVideoKey != null) {
+            Text("Vídeo adicionado ao perfil", color = PiColors.TextSecondary, fontSize = 12.sp)
+            TextButton(onClick = { scope.launch { runCatching { Api.patch("/v1/me/media", JSONObject().put("intro_video_media_id", JSONObject.NULL)) }; introVideoKey = null; msg = "Vídeo removido." } }) { Text("Remover vídeo", color = PiColors.Danger) }
+        }
 
+        Section("Redes sociais")
+        Text("Adicione os links que pretende partilhar no seu perfil.", color = PiColors.TextSecondary, fontSize = 13.sp)
+        socialLinks.forEach { link ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (link.favicon != null) androidx.compose.foundation.Image(link.favicon.asImageBitmap(), contentDescription = null, modifier = Modifier.size(26.dp).clip(androidx.compose.foundation.shape.CircleShape)) else Text("↗", color = PiColors.White, modifier = Modifier.size(26.dp))
+                Column(Modifier.weight(1f).clickable { openUrl(context, link.url) }.padding(start = 10.dp)) {
+                    Text(link.label, color = PiColors.White, fontSize = 14.sp)
+                    Text(link.url, color = PiColors.TextSecondary, fontSize = 11.sp, maxLines = 1)
+                }
+                IconButton(onClick = { scope.launch { runCatching { Api.delete("/v1/me/social-links/" + link.id) }; socialLinks = socialLinks.filterNot { it.id == link.id } } }) { Icon(Icons.Filled.Delete, contentDescription = "Remover ligação", tint = PiColors.Gray) }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { socialUrl = ""; socialLabel = ""; addSocialOpen = true }) { Icon(Icons.Filled.Add, contentDescription = "Adicionar redes sociais", tint = PiColors.White) }
+            Text("Adicionar Redes Sociais", color = PiColors.White, fontSize = 13.sp, modifier = Modifier.clickable { socialUrl = ""; socialLabel = ""; addSocialOpen = true })
+        }
         Section("O meu código PiMsg")
         Text(code, color = PiColors.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp)
         Text("Partilhe este código para que outras pessoas o encontrem no PiMsg.", color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(vertical = 8.dp))
@@ -245,12 +263,6 @@ fun ProfileScreen(onBack: () -> Unit) {
                         .put("name", name)
                         .put("bio", bio)
                         .put("show_phone", showPhone)
-                        .put("instagram_url", instagram.trim())
-                        .put("facebook_url", facebook.trim())
-                        .put("tiktok_url", tiktok.trim())
-                        .put("youtube_url", youtube.trim())
-                        .put("website_url", website.trim())
-                        .put("ring_color", ringColor.trim())
                     Api.patch("/v1/me", body)
                     msg = "Perfil guardado com sucesso."
                 } catch (e: Exception) { msg = "Não foi possível guardar. Verifique as ligações e tente novamente." }
@@ -270,7 +282,6 @@ fun ProfileScreen(onBack: () -> Unit) {
                     if (avatarBitmap != null) {
                         androidx.compose.foundation.Image(
                             bitmap = avatarBitmap!!.asImageBitmap(), contentDescription = "Fotografia pública",
-                            modifier = Modifier.size(96.dp).border(3.dp, runCatching { Color(android.graphics.Color.parseColor(ringColor)) }.getOrDefault(PiColors.Gray), androidx.compose.foundation.shape.CircleShape).clip(androidx.compose.foundation.shape.CircleShape),
                             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                         )
                     } else {
@@ -278,7 +289,6 @@ fun ProfileScreen(onBack: () -> Unit) {
                     }
                     Text(name.ifBlank { "O teu nome" }, color = PiColors.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                     if (bio.isNotBlank()) Text(bio, color = PiColors.TextSecondary)
-                    listOf("Instagram" to instagram, "Facebook" to facebook, "TikTok" to tiktok, "YouTube" to youtube, "Website" to website)
                         .filter { it.second.isNotBlank() }.forEach { Text(it.first, color = PiColors.White) }
                     Text("Esta é uma pré-visualização do que outras pessoas podem ver.", color = PiColors.TextSecondary, fontSize = 12.sp)
                 }
