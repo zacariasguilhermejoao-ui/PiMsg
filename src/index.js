@@ -113,7 +113,7 @@ async function authenticate(request, env) {
     user.email = claims.email;
     user.email_verified = 1;
   }
-  await env.DB.prepare("UPDATE users SET last_seen_at = ? WHERE id = ?").bind(now, user.id).run();
+  await env.DB.prepare("UPDATE users SET last_seen_at = ? WHERE id = ? AND (last_seen_at IS NULL OR last_seen_at < ?)").bind(now, user.id, now - 30000).run();
   user.last_seen_at = now;
   return user;
 }
