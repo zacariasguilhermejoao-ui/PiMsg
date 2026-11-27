@@ -322,7 +322,7 @@ fun HomeScreen(
                     items(state.chats, key = { it.id }) { c ->
                         val stories = c.otherId?.let { state.stories[it] }.orEmpty()
                         PersonRow(
-                            title = c.title, subtitle = c.preview, unread = c.unread,
+                            title = c.title, subtitle = if (c.isTyping) "A escrever..." else c.preview, unread = c.unread,
                             ring = if (stories.isNotEmpty()) parseColor(c.ringColor) else null,
                             onAvatarClick = if (stories.isNotEmpty()) ({ onOpenStories(stories) }) else null,
                             onClick = { onOpenChat(ChatRef(c.id, c.title, c.otherId, c.inviteCode)) },
