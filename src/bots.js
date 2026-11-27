@@ -31,11 +31,12 @@ async function reservePaidAi(env, me, now) {
   const sub = await subscriptionFor(env, me.id, now);
   if (!sub) return { error: fail(402, "Este bot está disponível apenas no plano pago do PiMsg.", { reason: "paid_plan_required" }) };
   const day = localDay(me.timezone || "Africa/Luanda");
+  const limits = limitsFor(sub.plan);
   const usage = await env.DB.prepare(
     `INSERT INTO bot_daily_usage (user_id, day, requests, updated_at) VALUES (?, ?, 1, ?)
      ON CONFLICT(user_id, day) DO UPDATE SET requests = requests + 1, updated_at = excluded.updated_at
      WHERE requests < ? RETURNING requests`
-  ).bind(me.id, day, now, PAID_DAILY_AI_LIMIT).first();
+  ).bind(me.id, day, now, limits.ai).first();
   if (!usage) return { error: fail(429, "Atingiste o limite diário de utilização dos bots com IA do teu plano.", { reason: "bot_daily_limit", limit: limits.ai, plan: sub.plan }) };
   return { sub, day, requests: usage.requests, limit: limits.ai };
 }
@@ -203,6 +204,8 @@ export async function handleBots(request, env, me, path, method) {
     return json({ ok: true });
   }
   if (path === "/v1/bots/business/chat" && method === "POST") {
+    const businessSub = await subscriptionFor(env, me.id, now);
+    if (!businessSub || !limitsFor(businessSub.plan).business) return fail(402, "O atendimento Pi Business está incluído apenas no plano Business.", { reason: "business_plan_required" });
     if (!env.AI) return fail(503, "A IA da Cloudflare não está disponível.");
     const reservation = await reservePaidAi(env, me, now);
     if (reservation.error) return reservation.error;
@@ -267,7 +270,7 @@ export async function handleBots(request, env, me, path, method) {
         { role: "system", content: aiSystem() + "\nNome: " + bot.name + "\nDescrição: " + (bot.description || "") + "\nInstruções do criador: " + bot.instructions },
         { role: "user", content: prompt },
       ]);
-      return json({ reply, remaining: Math.max(0, PAID_DAILY_AI_LIMIT - reservation.requests), plan: reservation.sub.plan });
+      return json({ reply, remaining: Math.max(0, reservation.limit - reservation.requests), plan: reservation.sub.plan });
     } catch (error) {
       await releasePaidAi(env, me, reservation.day);
       console.error("Custom Pi Bot failed:", String(error));
