@@ -358,7 +358,21 @@ object PiI18n {
         "Autenticador removido da conta." to mapOf("en" to "Authenticator removed from the account.", "es" to "Autenticador eliminado de la cuenta.", "fr" to "Authentificateur supprimé du compte."),
         "Não foi possível remover o autenticador. Poderá ser necessário iniciar sessão novamente." to mapOf("en" to "Could not remove the authenticator. You may need to sign in again.", "es" to "No se pudo eliminar el autenticador. Puede que tengas que iniciar sesión de nuevo.", "fr" to "Impossible de supprimer l'authentificateur. Vous devrez peut-être vous reconnecter."),
         "Não foi possível confirmar o código. Verifique os seis dígitos e tente novamente." to mapOf("en" to "Could not verify the code. Check the six digits and try again.", "es" to "No se pudo verificar el código. Comprueba los seis dígitos e inténtalo de nuevo.", "fr" to "Impossible de vérifier le code. Vérifiez les six chiffres et réessayez."),
-        "Não foi possível abrir uma aplicação autenticadora neste aparelho." to mapOf("en" to "Could not open an authenticator app on this device.", "es" to "No se pudo abrir una aplicación de autenticación en este dispositivo.", "fr" to "Impossible d'ouvrir une application d'authentification sur cet appareil.")
+        "Não foi possível abrir uma aplicação autenticadora neste aparelho." to mapOf("en" to "Could not open an authenticator app on this device.", "es" to "No se pudo abrir una aplicación de autenticación en este dispositivo.", "fr" to "Impossible d'ouvrir une application d'authentification sur cet appareil.") ,
+
+        "Notificações" to mapOf("en" to "Notifications", "es" to "Notificaciones", "fr" to "Notifications"),
+        "Notificações push" to mapOf("en" to "Push notifications", "es" to "Notificaciones push", "fr" to "Notifications push"),
+        "Receber alertas de mensagens mesmo com o PiMsg fechado" to mapOf("en" to "Receive message alerts even when PiMsg is closed", "es" to "Recibe alertas de mensajes aunque PiMsg esté cerrado", "fr" to "Recevez des alertes même lorsque PiMsg est fermé"),
+        "Avisos pop-up" to mapOf("en" to "Pop-up alerts", "es" to "Avisos emergentes", "fr" to "Alertes contextuelles"),
+        "Mostrar alertas destacados no ecrã; desligar mantém notificações silenciosas" to mapOf("en" to "Show heads-up alerts; turning this off keeps notifications silent", "es" to "Mostrar avisos destacados; al desactivarlo, las notificaciones serán silenciosas", "fr" to "Afficher les alertes en bannière ; désactiver garde les notifications silencieuses"),
+        "A escrever..." to mapOf("en" to "Typing…", "es" to "Escribiendo…", "fr" to "Écrit…"),
+        "Traduzido automaticamente" to mapOf("en" to "Automatically translated", "es" to "Traducido automáticamente", "fr" to "Traduit automatiquement"),
+        "Créditos de IA" to mapOf("en" to "AI credits", "es" to "Créditos de IA", "fr" to "Crédits IA"),
+        "15 créditos iniciais de IA" to mapOf("en" to "15 starter AI credits", "es" to "15 créditos iniciales de IA", "fr" to "15 crédits IA de départ"),
+        "Cada tarefa simples custa 2 créditos. Pedidos mais longos podem custar até 5. Quando os créditos terminarem, o Pi AI fica indisponível até recarregar ou ativar o Pro." to mapOf("en" to "Each simple task costs 2 credits. Longer requests can cost up to 5. When credits run out, Pi AI is unavailable until you top up or activate Pro.", "es" to "Cada tarea sencilla cuesta 2 créditos. Las solicitudes más largas pueden costar hasta 5. Cuando se agoten, Pi AI no estará disponible hasta recargar o activar Pro.", "fr" to "Chaque tâche simple coûte 2 crédits. Les demandes plus longues peuvent coûter jusqu'à 5. Une fois les crédits épuisés, Pi AI est indisponible jusqu'à une recharge ou l'activation de Pro."),
+        "Pi AI Pro · " to mapOf("en" to "Pi AI Pro · ", "es" to "Pi AI Pro · ", "fr" to "Pi AI Pro · "),
+        " créditos" to mapOf("en" to " credits", "es" to " créditos", "fr" to " crédits"),
+        "Créditos de IA · " to mapOf("en" to "AI credits · ", "es" to "Créditos de IA · ", "fr" to "Crédits IA · ")
     )
 }
 
