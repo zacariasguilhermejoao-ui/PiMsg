@@ -70,6 +70,7 @@ import com.isabgroup.pimsg.R
 import com.isabgroup.pimsg.chat.ChatRef
 import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.uploadBitmap
+import com.isabgroup.pimsg.data.decodeBitmapUri
 import com.isabgroup.pimsg.data.PiMsgMedia
 import com.isabgroup.pimsg.data.Push
 import com.isabgroup.pimsg.ui.ChatRowSkeleton
@@ -189,10 +190,8 @@ fun HomeScreen(
         if (uri != null) vm.postStory(context.contentResolver, uri)
     }
     val pickProfileCover = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) {
-            val selected = runCatching {
-                context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
-            }.getOrNull()
+        if (uri != null) scope.launch {
+            val selected = runCatching { decodeBitmapUri(context.contentResolver, uri) }.getOrNull()
             if (selected == null) {
                 android.widget.Toast.makeText(context, "Não foi possível abrir esta fotografia.", android.widget.Toast.LENGTH_SHORT).show()
             } else coverCropSource = selected
