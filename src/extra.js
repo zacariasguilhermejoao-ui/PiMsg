@@ -133,6 +133,18 @@ export async function handleExtra(request, env, me, path, method) {
   if (profile && method === "GET") {
     const u = await env.DB.prepare("SELECT * FROM users WHERE id = ? AND status = 'active'").bind(profile[1]).first();
     if (!u) return fail(404, "utilizador nao encontrado");
+    if (u.id !== me.id) {
+      const sharedConversation = await env.DB.prepare(
+        `SELECT 1 AS ok
+         FROM conversation_members a
+         JOIN conversation_members b ON b.conversation_id = a.conversation_id
+         JOIN conversations c ON c.id = a.conversation_id
+         WHERE a.user_id = ? AND b.user_id = ? AND a.left_at IS NULL AND b.left_at IS NULL
+           AND c.type = 'direct'
+         LIMIT 1`
+      ).bind(u.id, me.id).first();
+      if (!sharedConversation) return fail(403, "perfil disponível após iniciar uma conversa");
+    }
     const blocked = await env.DB.prepare("SELECT 1 AS ok FROM blocks WHERE blocker_id = ? AND blocked_id = ?").bind(u.id, me.id).first();
     if (blocked) return fail(404, "utilizador nao encontrado");
     const socialRows = await env.DB.prepare("SELECT id, label, url FROM user_social_links WHERE user_id = ? ORDER BY created_at DESC").bind(u.id).all();
