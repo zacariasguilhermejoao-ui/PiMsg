@@ -577,13 +577,19 @@ fun QrScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 }, primary = false)
                 PiButton("Partilhar o meu QR", {
                     runCatching {
-                        val imageFile = File(context.cacheDir, "pimsg_profile_qr.png")
-                        FileOutputStream(imageFile).use { output -> qrBitmap!!.compress(Bitmap.CompressFormat.PNG, 100, output) }
+                        val shareDir = File(context.cacheDir, "shared").apply { mkdirs() }
+                        val imageFile = File(shareDir, "pimsg_profile_qr.png")
+                        FileOutputStream(imageFile).use { output ->
+                            if (!qrBitmap!!.compress(Bitmap.CompressFormat.PNG, 100, output)) {
+                                throw IllegalStateException("Não foi possível criar a imagem QR.")
+                            }
+                        }
                         val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", imageFile)
                         val send = Intent(Intent.ACTION_SEND).setType("image/png")
                             .putExtra(Intent.EXTRA_STREAM, uri)
                             .putExtra(Intent.EXTRA_TEXT, "Encontra-me no PiMsg: $name")
-                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            .clipData = android.content.ClipData.newUri(context.contentResolver, "QR PiMsg", uri)
+                        send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         context.startActivity(Intent.createChooser(send, "Partilhar QR do PiMsg"))
                     }.onFailure { notice = "Não foi possível partilhar o QR." }
                 }, primary = false)
@@ -1243,7 +1249,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Text("PLANOS DISPONÍVEIS", color = PiColors.Gray, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
-            Text("Free", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("Free", color = Color(0xFF9BE7A5), fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text("Para começar e manter contacto.", color = PiColors.TextSecondary, fontSize = 12.sp)
             listOf("Até 30 contactos", "30 mensagens por dia", "500 respostas de links personalizados por mês", "4 traduções por dia", "Conversas, grupos e partilha de ficheiros", "250 MB para ficheiros e multimédia", "Sem bots de IA pagos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             if (currentTier == "free") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
@@ -1251,7 +1257,7 @@ fun PlansScreen(onBack: () -> Unit) {
 
         Spacer(Modifier.height(10.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
-            Text("PiMsg Plus", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("PiMsg Plus", color = Color(0xFF9BE7A5), fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text("Para quem conversa e trabalha diariamente.", color = PiColors.TextSecondary, fontSize = 12.sp)
             listOf("Mensagens sem limite diário", "Respostas ilimitadas através dos links personalizados", "Pi AI e Pi Reminder (até 20 lembretes activos)", "5 pedidos de IA por dia", "25 traduções por dia", "2 GB para ficheiros e multimédia", "Sem bots personalizados nem Pi Business").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
@@ -1266,7 +1272,7 @@ fun PlansScreen(onBack: () -> Unit) {
 
         Spacer(Modifier.height(10.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
-            Text("PiMsg Pro", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("PiMsg Pro", color = Color(0xFF9BE7A5), fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text("Para utilizadores avançados e criadores.", color = PiColors.TextSecondary, fontSize = 12.sp)
             listOf("Mensagens e respostas de links sem limite mensal", "Todos os bots, excepto ferramentas exclusivas Business", "20 pedidos de IA por dia", "75 traduções por dia", "Até 5 bots personalizados", "Até 100 lembretes activos", "5 GB para ficheiros e multimédia", "Vídeo de apresentação no perfil").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
@@ -1282,7 +1288,7 @@ fun PlansScreen(onBack: () -> Unit) {
 
         Spacer(Modifier.height(10.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
-            Text("PiMsg Business", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("PiMsg Business", color = Color(0xFF9BE7A5), fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text("Para lojas, marcas, profissionais e equipas que vendem.", color = PiColors.TextSecondary, fontSize = 12.sp)
             listOf("Tudo do Pro", "Pi Business para preparar respostas comerciais", "50 pedidos de IA por dia", "150 traduções por dia", "Até 20 bots personalizados", "Até 500 lembretes activos", "20 GB para ficheiros e multimédia", "Ferramentas para organizar informações, produtos, preços e contactos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
