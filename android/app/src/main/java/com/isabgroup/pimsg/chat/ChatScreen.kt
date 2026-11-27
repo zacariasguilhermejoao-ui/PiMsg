@@ -283,6 +283,10 @@ fun ChatScreen(
                     val profileCache = context.getSharedPreferences("pimsg_public_profiles", Context.MODE_PRIVATE)
                     val cachedProfile = profileCache.getString(ref.otherId, null)
                     peerProfile = cachedProfile?.let { runCatching { JSONObject(it) }.getOrNull() }
+                    val cachedAvatarKey = peerProfile?.optString("avatar_key")?.takeIf { !it.isNullOrBlank() && it != "null" }
+                    peerAvatar = cachedAvatarKey?.let { key ->
+                        PiMsgMedia.findCached(context, key)?.let { android.graphics.BitmapFactory.decodeFile(it.absolutePath) }
+                    }
                     peerProfileLoading = peerProfile == null
                     scope.launch {
                         try {
@@ -299,7 +303,7 @@ fun ChatScreen(
                                 android.graphics.BitmapFactory.decodeFile(file.absolutePath)
                             }
                         } catch (_: Exception) {
-                            peerProfile = null
+                            if (peerProfile == null) peerProfileLoading = false
                         } finally { peerProfileLoading = false }
                     }
                 }) { Icon(Icons.Filled.Person, "Ver perfil de ${title}", tint = PiColors.White) }
