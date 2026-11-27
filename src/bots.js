@@ -141,10 +141,7 @@ export async function handleBots(request, env, me, path, method) {
     ).bind(me.id, day, now, translationLimit).first();
     if (!usage) return fail(429, `Atingiste o limite de ${translationLimit} traduções de hoje do teu plano. O limite será renovado à meia-noite (hora de Angola).`, { reason: "translation_daily_limit", limit: translationLimit, remaining: 0 });
     if (!await reserveGlobalRequest(env, day, now)) {
-      await env.DB.batch([
-        env.DB.prepare("UPDATE bot_translation_usage SET translations = CASE WHEN translations > 0 THEN translations - 1 ELSE 0 END, updated_at = ? WHERE user_id = ? AND day = ?").bind(Date.now(), me.id, day),
-        env.DB.prepare("UPDATE bot_global_usage SET requests = CASE WHEN requests > 0 THEN requests - 1 ELSE 0 END, updated_at = ? WHERE day = ?").bind(Date.now(), day),
-      ]);
+      await env.DB.prepare("UPDATE bot_translation_usage SET translations = CASE WHEN translations > 0 THEN translations - 1 ELSE 0 END, updated_at = ? WHERE user_id = ? AND day = ?").bind(Date.now(), me.id, day).run();
       return fail(503, "O limite diário global de IA do PiMsg foi atingido. Tenta novamente amanhã.", { reason: "global_ai_daily_limit" });
     }
     const languageName = ({ pt: "português", en: "inglês", es: "espanhol", fr: "francês" })[language];
@@ -158,7 +155,10 @@ export async function handleBots(request, env, me, path, method) {
       ).bind(me.id, messageId, language, translated, now).run();
       return json({ translated: translated !== "__SAME_LANGUAGE__", translation: translated === "__SAME_LANGUAGE__" ? null : translated, cached: false, remaining_today: Math.max(0, translationLimit - usage.translations) });
     } catch (error) {
-      await env.DB.prepare("UPDATE bot_translation_usage SET translations = CASE WHEN translations > 0 THEN translations - 1 ELSE 0 END, updated_at = ? WHERE user_id = ? AND day = ?").bind(Date.now(), me.id, day).run();
+      await env.DB.batch([
+        env.DB.prepare("UPDATE bot_translation_usage SET translations = CASE WHEN translations > 0 THEN translations - 1 ELSE 0 END, updated_at = ? WHERE user_id = ? AND day = ?").bind(Date.now(), me.id, day),
+        env.DB.prepare("UPDATE bot_global_usage SET requests = CASE WHEN requests > 0 THEN requests - 1 ELSE 0 END, updated_at = ? WHERE day = ?").bind(Date.now(), day),
+      ]);
       console.error("PiMsg translation failed:", String(error));
       return fail(502, "Não foi possível traduzir esta mensagem.");
     }
