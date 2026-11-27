@@ -268,6 +268,32 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
         }
     }
 
+    fun deleteMessage(message: Message) {
+        viewModelScope.launch {
+            try {
+                if (!message.pending) Api.delete("/v1/chats/${convId}/messages/${message.id}")
+                local.deleteMessage(message.id)
+                _state.update { it.copy(messages = it.messages.filterNot { item -> item.id == message.id }) }
+            } catch (_: Exception) {
+                _state.update { it.copy(error = "Não foi possível apagar esta mensagem.") }
+            }
+        }
+    }
+
+    fun reportMessage(message: Message) {
+        viewModelScope.launch {
+            try {
+                Api.post("/v1/reports", JSONObject()
+                    .put("target_type", "message")
+                    .put("target_id", message.id)
+                    .put("reason", "other"))
+                _state.update { it.copy(error = "Denúncia da mensagem enviada.") }
+            } catch (_: Exception) {
+                _state.update { it.copy(error = "Não foi possível denunciar esta mensagem.") }
+            }
+        }
+    }
+
     fun isMediaCached(mediaId: String?): Boolean =
         mediaId != null && PiMsgMedia.findCached(appContext, mediaId) != null
 
