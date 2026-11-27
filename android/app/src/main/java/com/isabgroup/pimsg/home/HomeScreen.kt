@@ -171,6 +171,7 @@ fun HomeScreen(
     var ownProfileName by remember { mutableStateOf("O meu perfil") }
     var ownPlan by remember { mutableStateOf("free") }
     var ownProfileAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var ownProfileCover by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var profileLoading by remember { mutableStateOf(false) }
     var initialSkeleton by remember { mutableStateOf(false) }
     var newGroupOpen by remember { mutableStateOf(false) }
@@ -180,6 +181,21 @@ fun HomeScreen(
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     val pickStory = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) vm.postStory(context.contentResolver, uri)
+    }
+    val pickProfileCover = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            runCatching {
+                val file = java.io.File(context.filesDir, "pimsg_profile_cover")
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    java.io.FileOutputStream(file).use { output -> input.copyTo(output) }
+                }
+                ownProfileCover = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+            }
+        }
+    }
+    LaunchedEffect(Unit) {
+        val file = java.io.File(context.filesDir, "pimsg_profile_cover")
+        if (file.exists()) ownProfileCover = runCatching { android.graphics.BitmapFactory.decodeFile(file.absolutePath) }.getOrNull()
     }
 
     LaunchedEffect(Unit) {
@@ -507,7 +523,9 @@ fun HomeScreen(
             hasMyStory = myStories.isNotEmpty(),
             profileName = ownProfileName,
             profileAvatar = ownProfileAvatar,
+            profileCover = ownProfileCover,
             profilePlan = ownPlan,
+            onPickCover = { pickProfileCover.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onDismiss = { menuOpen = false },
             onItem = { key ->
                 when (key) {
