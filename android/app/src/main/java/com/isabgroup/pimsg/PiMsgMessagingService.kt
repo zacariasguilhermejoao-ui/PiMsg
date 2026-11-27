@@ -23,6 +23,11 @@ class PiMsgMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
+        sendBroadcast(
+            Intent("com.isabgroup.pimsg.MESSAGE_RECEIVED")
+                .setPackage(packageName)
+                .putExtra("conversation_id", data["conversation_id"])
+        )
         val title = data["title"] ?: return
         val body = data["body"] ?: ""
 
