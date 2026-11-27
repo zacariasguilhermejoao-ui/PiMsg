@@ -180,8 +180,8 @@ async function handle(request, env) {
       ai_usage: aiUsage?.requests || 0,
       ai_limit: sub ? 30 : 5,
       plans: {
-        free: { contacts: 30, messages_per_day: 30, pi_ai_per_day: 5 },
-        pro: { messages_per_day: null, pi_ai_per_day: 30, profile_video: true }
+        free: { contacts: 30, messages_per_day: 30, personalized_link_replies_per_month: 500, pi_ai_per_day: 5 },
+        pro: { messages_per_day: null, personalized_link_replies_per_month: null, pi_ai_per_day: 30, profile_video: true }
       }
     });
   }
