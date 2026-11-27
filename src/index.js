@@ -196,6 +196,9 @@ async function handle(request, env) {
       pro: { ai: 20, translations: 75, custom_bots: 5, reminders: 100, business: false },
       business: { ai: 50, translations: 150, custom_bots: 20, reminders: 500, business: true },
     }[tier];
+    const mediaUsage = await env.DB.prepare("SELECT COALESCE(SUM(size_bytes), 0) AS used FROM media WHERE owner_id = ?").bind(me.id).first();
+    const storageLimits = { free: 250, plus: 2048, pro: 5120, business: 20480 };
+    const storageLimitBytes = storageLimits[tier] * 1024 * 1024;
     return json({
       current_plan: sub ? sub.plan : "free",
       current_tier: tier,
@@ -215,13 +218,15 @@ async function handle(request, env) {
       translation_limit: tierLimits.translations,
       translation_remaining: Math.max(0, tierLimits.translations - (translationUsage?.translations || 0)),
       custom_bot_limit: tierLimits.custom_bots,
+      storage_used_bytes: Number(mediaUsage?.used || 0),
+      storage_limit_bytes: storageLimitBytes,
       business_tools: tierLimits.business,
       bots_available: !!sub,
       plans: {
-        free: { contacts: 30, messages_per_day: 30, personalized_link_replies_per_month: 500, translations_per_day: 4, ai_requests_per_day: 0 },
-        plus: { messages_per_day: null, personalized_link_replies_per_month: null, translations_per_day: 25, ai_requests_per_day: 5, reminders: 20 },
-        pro: { messages_per_day: null, personalized_link_replies_per_month: null, translations_per_day: 75, ai_requests_per_day: 20, reminders: 100, custom_bots: 5, profile_video: true },
-        business: { messages_per_day: null, personalized_link_replies_per_month: null, translations_per_day: 150, ai_requests_per_day: 50, reminders: 500, custom_bots: 20, pi_business: true, profile_video: true }
+        free: { contacts: 30, messages_per_day: 30, personalized_link_replies_per_month: 500, translations_per_day: 4, ai_requests_per_day: 0, storage_mb: 250 },
+        plus: { messages_per_day: null, personalized_link_replies_per_month: null, translations_per_day: 25, ai_requests_per_day: 5, reminders: 20, storage_gb: 2 },
+        pro: { messages_per_day: null, personalized_link_replies_per_month: null, translations_per_day: 75, ai_requests_per_day: 20, reminders: 100, custom_bots: 5, storage_gb: 5, profile_video: true },
+        business: { messages_per_day: null, personalized_link_replies_per_month: null, translations_per_day: 150, ai_requests_per_day: 50, reminders: 500, custom_bots: 20, storage_gb: 20, pi_business: true, profile_video: true }
       }
     });
   }
