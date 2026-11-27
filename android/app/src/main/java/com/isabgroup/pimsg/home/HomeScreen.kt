@@ -267,15 +267,20 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
+        val homeProfile = context.getSharedPreferences("pimsg_home_profile", android.content.Context.MODE_PRIVATE)
         val profilePrefs = context.getSharedPreferences("pimsg_profile_cache", android.content.Context.MODE_PRIVATE)
         runCatching {
             val cached = profilePrefs.getString("profile", null)?.let { JSONObject(it) }
-            if (cached != null) {
-                ownProfileName = cached.optString("name", "O meu perfil")
-                val encoded = cached.optString("avatar_jpeg")
-                if (encoded.isNotBlank()) {
-                    val bytes = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)
-                    ownProfileAvatar = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            val cachedName = cached?.optString("name").orEmpty().ifBlank { homeProfile.getString("name", "O meu perfil") ?: "O meu perfil" }
+            ownProfileName = cachedName
+            val encoded = cached?.optString("avatar_jpeg").orEmpty()
+            if (encoded.isNotBlank()) {
+                val bytes = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)
+                ownProfileAvatar = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            } else {
+                val cachedKey = homeProfile.getString("avatar_key", null)
+                if (!cachedKey.isNullOrBlank()) PiMsgMedia.findCached(context, cachedKey)?.let {
+                    ownProfileAvatar = android.graphics.BitmapFactory.decodeFile(it.absolutePath)
                 }
             }
         }
@@ -285,6 +290,7 @@ fun HomeScreen(
             ownProfileName = me.optString("name", "O meu perfil")
             ownPlan = runCatching { Api.get("/v1/plan").optString("current_plan", "free") }.getOrDefault("free")
             val key = me.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
+            homeProfile.edit().putString("name", ownProfileName).putString("avatar_key", key).apply()
             if (key != null) {
                 val cachedFile = PiMsgMedia.findCached(context, key)
                 val file = cachedFile ?: run {
