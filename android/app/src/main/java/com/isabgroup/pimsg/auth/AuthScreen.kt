@@ -4,6 +4,7 @@ import android.content.Context
 import android.telephony.TelephonyManager
 import java.util.Locale
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -262,6 +263,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
             unfocusedContainerColor = PiColors.Surface,
         )
         OutlinedTextField(
+            shape = RoundedCornerShape(22.dp),
             value = phone, onValueChange = { value -> phone = value.filter(Char::isDigit).take(14) }, singleLine = true, enabled = mfaResolver == null,
             prefix = { if (dialCode > 0) Text("+$dialCode", color = PiColors.White) },
             placeholder = { Text("Número de telefone", color = PiColors.Gray) },
@@ -282,6 +284,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
             Text("Introduza o código de seis dígitos gerado pela aplicação autenticadora.", color = PiColors.TextSecondary, fontSize = 12.sp)
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
+            shape = RoundedCornerShape(22.dp),
                 value = mfaCode,
                 onValueChange = { mfaCode = it.filter(Char::isDigit).take(6) },
                 singleLine = true,
