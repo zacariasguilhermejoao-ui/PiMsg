@@ -28,6 +28,7 @@ import com.android.installreferrer.api.InstallReferrerClient
 import com.android.installreferrer.api.InstallReferrerStateListener
 import com.google.firebase.auth.FirebaseAuth
 import com.isabgroup.pimsg.auth.AuthScreen
+import com.isabgroup.pimsg.data.PiMsgMedia
 import com.isabgroup.pimsg.chat.ChatRef
 import com.isabgroup.pimsg.chat.ChatScreen
 import com.isabgroup.pimsg.home.HomeScreen
@@ -137,6 +138,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         PiI18n.init(this)
+        PiMsgMedia.ensureFolders(this)
         // Evita zoom de sistema na interface
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         pendingShare = intent.parseShare()
