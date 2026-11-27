@@ -189,12 +189,12 @@ fun ChatScreen(
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 2.dp),
             horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
         ) {
-            PresenteAnimado(tamanho = 44.dp)
-            Spacer(Modifier.size(12.dp))
-            Box(Modifier.size(52.dp).clickable { view.playClick(); onOpenBots() }, contentAlignment = Alignment.Center) {
-                RoboMascoteAnimado(estaEscrevendo = text.isNotBlank(), progressoTexto = (text.length / 2000f).coerceIn(0f, 1f), tamanho = 50.dp)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.size(48.dp).clickable { view.playClick(); onOpenBots() }, contentAlignment = Alignment.Center) {
+                    RoboMascoteAnimado(estaEscrevendo = text.isNotBlank(), progressoTexto = (text.length / 2000f).coerceIn(0f, 1f), tamanho = 46.dp)
+                }
+                PresenteAnimado(tamanho = 42.dp)
             }
         }
 
