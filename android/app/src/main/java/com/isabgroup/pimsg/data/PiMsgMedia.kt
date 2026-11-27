@@ -86,7 +86,7 @@ object PiMsgMedia {
             .getExtensionFromMimeType(mime.substringBefore(";"))
         val safe = displayName.replace(Regex("[^A-Za-z0-9._-]"), "_").take(80).ifBlank { "ficheiro" }
         val file = File(folderForMime(context, mime), "${mediaId}_${safe}" + if (extension != null && !safe.endsWith(".$extension")) ".$extension" else "")
-        if (!file.exists()) file.writeBytes(bytes)
+        file.writeBytes(bytes)
         return file
     }
 
