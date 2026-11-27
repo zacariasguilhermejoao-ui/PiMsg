@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -47,6 +48,7 @@ import kotlinx.coroutines.launch
 private data class MenuEntry(val key: String, val label: String)
 
 private val account = listOf(
+    MenuEntry("qr", "Código QR"),
     MenuEntry("links", "Meus links"),
     MenuEntry("plans", "Planos"),
 )
@@ -96,6 +98,7 @@ fun MenuSheet(
                 "links" -> Icon(Icons.Filled.Person, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "newstory" -> Icon(Icons.Filled.AddAPhoto, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "newgroup" -> Icon(Icons.Filled.GroupAdd, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
+                "qr" -> Icon(Icons.Filled.QrCode2, contentDescription = "Código QR", tint = PiColors.White, modifier = Modifier.size(24.dp))
                 else -> Spacer(Modifier.size(24.dp))
             }
             Text(entry.label, color = PiColors.White, fontSize = 16.sp)
