@@ -42,9 +42,9 @@ object PiMsgMedia {
 
     fun ensureFolders(context: Context) {
         listOf("Media", "Images", "Videos", "Audio", "Documents").forEach {
-            File(root(context), it).mkdirs()
+            val folder = File(root(context), it).apply { mkdirs() }
+            File(folder, ".nomedia").takeIf { !it.exists() }?.createNewFile()
         }
-        File(mediaDir(context), ".nomedia").takeIf { !it.exists() }?.createNewFile()
     }
 
     fun isWifi(context: Context): Boolean {
@@ -61,14 +61,31 @@ object PiMsgMedia {
         else -> false
     }
 
+    private fun folderForMime(context: Context, mime: String): File {
+        val clean = mime.substringBefore(";")
+        val folder = when {
+            clean.startsWith("image/") -> "Images"
+            clean.startsWith("video/") -> "Videos"
+            clean.startsWith("audio/") -> "Audio"
+            else -> "Documents"
+        }
+        return File(root(context), folder).apply {
+            mkdirs()
+            File(this, ".nomedia").takeIf { !it.exists() }?.createNewFile()
+        }
+    }
+
     fun findCached(context: Context, mediaId: String): File? =
-        mediaDir(context).listFiles()?.firstOrNull { it.name.startsWith("${mediaId}_") && it.isFile }
+        listOf("Media", "Images", "Videos", "Audio", "Documents")
+            .asSequence()
+            .flatMap { File(root(context), it).listFiles()?.asSequence() ?: emptySequence() }
+            .firstOrNull { it.name.startsWith("${mediaId}_") && it.isFile }
 
     fun store(context: Context, mediaId: String, mime: String, displayName: String, bytes: ByteArray): File {
         val extension = android.webkit.MimeTypeMap.getSingleton()
             .getExtensionFromMimeType(mime.substringBefore(";"))
         val safe = displayName.replace(Regex("[^A-Za-z0-9._-]"), "_").take(80).ifBlank { "ficheiro" }
-        val file = File(mediaDir(context), "${mediaId}_${safe}" + if (extension != null && !safe.endsWith(".$extension")) ".$extension" else "")
+        val file = File(folderForMime(context, mime), "${mediaId}_${safe}" + if (extension != null && !safe.endsWith(".$extension")) ".$extension" else "")
         if (!file.exists()) file.writeBytes(bytes)
         return file
     }
