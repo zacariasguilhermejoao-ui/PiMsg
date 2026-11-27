@@ -209,7 +209,7 @@ fun HomeScreen(
                 vm.restoreCachedChats(cached)
             }
         }
-        vm.load()
+        if (Api.hasInternet(context)) vm.load(silent = true)
         runCatching {
             val prefs = Api.get("/v1/me/notifications")
             context.getSharedPreferences("pimsg_notifications", android.content.Context.MODE_PRIVATE).edit()
@@ -229,7 +229,7 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         while (true) {
             delay(15000)
-            vm.load(silent = true)
+            if (Api.hasInternet(context)) vm.load(silent = true)
         }
     }
     LaunchedEffect(initialContactCode, initialContactSlug, initialGroupCode) {
@@ -364,7 +364,7 @@ fun HomeScreen(
                 Tab.values().forEach { tab ->
                     val selected = tab == state.tab
                     Column(
-                        Modifier.clip(RoundedCornerShape(10.dp)).clickable { view.playClick(); vm.selectTab(tab, readCachedChats(context, tab)) }.padding(horizontal = 10.dp, vertical = 8.dp),
+                        Modifier.clip(RoundedCornerShape(10.dp)).clickable { view.playClick(); vm.selectTab(tab, readCachedChats(context, tab), Api.hasInternet(context)) }.padding(horizontal = 10.dp, vertical = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
