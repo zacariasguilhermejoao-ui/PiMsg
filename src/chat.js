@@ -430,7 +430,7 @@ export async function handleChat(request, env, me, path, method) {
            FROM conversations c JOIN conversation_members cm ON cm.conversation_id = c.id
            WHERE c.type = 'direct' AND cm.user_id = ?3 AND cm.left_at IS NULL) LIMIT 1`
       ).bind(m.id, now, me.id).first();
-      const p = await env.DB.prepare("SELECT 1 AS ok FROM users WHERE avatar_key = ?1 OR intro_video_key = ?1 LIMIT 1").bind(m.id).first();
+      const p = await env.DB.prepare("SELECT 1 AS ok FROM users WHERE avatar_key = ?1 OR intro_video_key = ?1 OR profile_cover_key = ?1 LIMIT 1").bind(m.id).first();
       allowed = !!(s || p);
     }
     if (!allowed) return fail(403, "sem acesso");
