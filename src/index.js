@@ -107,10 +107,14 @@ async function authenticate(request, env) {
       return { blocked: user.status, status_until: user.status_until || null };
     }
   }
-  if (claims.email && claims.email_verified && (!user.email_verified || user.email !== claims.email)) {
-    await env.DB.prepare("UPDATE users SET email = ?, email_verified = 1 WHERE id = ?").bind(claims.email, user.id).run();
-    user.email = claims.email;
-    user.email_verified = 1;
+  if (claims.email) {
+    const verified = claims.email_verified ? 1 : 0;
+    if (user.email !== claims.email || Number(user.email_verified || 0) !== verified) {
+      await env.DB.prepare("UPDATE users SET email = ?, email_verified = ? WHERE id = ?")
+        .bind(claims.email, verified, user.id).run();
+      user.email = claims.email;
+      user.email_verified = verified;
+    }
   }
   await env.DB.prepare("UPDATE users SET last_seen_at = ? WHERE id = ? AND (last_seen_at IS NULL OR last_seen_at < ?)").bind(now, user.id, now - 30000).run();
   user.last_seen_at = now;
