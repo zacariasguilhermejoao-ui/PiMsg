@@ -28,7 +28,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import com.isabgroup.pimsg.ui.PiText as Text
-import androidx.compose.material3.TextButton
+import com.isabgroup.pimsg.ui.PiText as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
