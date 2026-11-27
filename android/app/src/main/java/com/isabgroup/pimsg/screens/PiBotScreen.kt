@@ -96,7 +96,7 @@ fun PiBotScreen(onBack: () -> Unit) {
     }
 
     if (openChat) {
-        PiAiChatScreen(onBack = { openChat = false })
+        PiAiChatScreen(onBack = { openChat = false }, initialCredits = aiCredits, initialPro = isProPlan, initialProRemaining = proRemaining)
     } else {
         ScreenFrame("PiBot", onBack) {
             Text("Assistentes de IA", color = PiColors.White, fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
@@ -156,7 +156,7 @@ fun PiBotScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun PiAiChatScreen(onBack: () -> Unit) {
+private fun PiAiChatScreen(onBack: () -> Unit, initialCredits: Int?, initialPro: Boolean, initialProRemaining: Int?) {
     val context = LocalContext.current
     val view = LocalView.current
     val scope = rememberCoroutineScope()
@@ -165,9 +165,9 @@ private fun PiAiChatScreen(onBack: () -> Unit) {
     var draft by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var loaded by remember { mutableStateOf(false) }
-    var remaining by remember { mutableStateOf<Int?>(null) }
-    var creditBalance by remember { mutableStateOf<Int?>(null) }
-    var isPro by remember { mutableStateOf(false) }
+    var remaining by remember { mutableStateOf(initialProRemaining) }
+    var creditBalance by remember { mutableStateOf(initialCredits) }
+    var isPro by remember { mutableStateOf(initialPro) }
     var notice by remember { mutableStateOf<String?>(null) }
 
     val transition = rememberInfiniteTransition(label = "pi-ai-working")
