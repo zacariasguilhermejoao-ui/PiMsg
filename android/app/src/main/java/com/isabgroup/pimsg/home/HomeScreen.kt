@@ -179,6 +179,7 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         delay(550)
         initialSkeleton = false
+        vm.finishInitialLoading()
     }
 
     LaunchedEffect(Unit) {
