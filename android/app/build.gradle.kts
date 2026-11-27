@@ -51,6 +51,24 @@ kotlin {
     }
 }
 
+sourceSets.getByName("main").res.srcDir(layout.buildDirectory.dir("generated/pimsgHomeRes"))
+
+tasks.register<Copy>("copyPiMsgHomeIllustrations") {
+    from(rootProject.file("../")) {
+        include(
+            "icone_grupos_pro.png",
+            "icone_novas_pro.png",
+            "icone_sem_conversas.png",
+            "icone_favoritos_estrela.png",
+        )
+    }
+    into(layout.buildDirectory.dir("generated/pimsgHomeRes/drawable-nodpi"))
+}
+
+tasks.named("preBuild").configure {
+    dependsOn("copyPiMsgHomeIllustrations")
+}
+
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.10.01")
     implementation(composeBom)
@@ -74,5 +92,7 @@ dependencies {
     implementation("com.android.billingclient:billing-ktx:9.1.0")
     implementation("com.google.android.play:review:2.0.2")
     implementation("com.google.android.play:review-ktx:2.0.2")
+    implementation("com.google.zxing:core:3.5.3")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation("com.googlecode.libphonenumber:libphonenumber:8.13.55")
 }
