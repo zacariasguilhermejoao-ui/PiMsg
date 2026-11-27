@@ -140,7 +140,7 @@ const publicUser = (u) => ({
   bio: u.bio,
   avatar_key: u.avatar_key,
   ring_color: u.ring_color,
-  phone: u.show_phone ? u.phone_e164 : null,
+  phone: u.show_phone ? (u.phone_contact || u.phone_e164 || null) : null,
   online: !!u.show_online_status && !!u.last_seen_at && u.last_seen_at > Date.now() - 90000,
 });
 
@@ -220,11 +220,45 @@ async function handle(request, env) {
       show_phone: !!me.show_phone, show_online_status: me.show_online_status !== 0, intro_video_key: me.intro_video_key, timezone: me.timezone, code: code?.code,
     });
   }
+  const publicProfileMatch = path.match(/^\/v1\/users\/([\w-]+)$/);
+  if (publicProfileMatch && method === "GET") {
+    const targetId = publicProfileMatch[1];
+    const target = await env.DB.prepare(
+      "SELECT id, display_name, bio, avatar_key, intro_video_key, ring_color, phone_contact, phone_e164, show_phone, show_online_status, last_seen_at, status, instagram_url, facebook_url, tiktok_url, youtube_url, website_url FROM users WHERE id = ? AND status = 'active'"
+    ).bind(targetId).first();
+    if (!target) return fail(404, "utilizador nao encontrado");
+    const blocked = await env.DB.prepare(
+      "SELECT 1 AS ok FROM blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?) LIMIT 1"
+    ).bind(me.id, targetId, targetId, me.id).first();
+    if (blocked) return fail(403, "perfil indisponivel");
+    const customLinks = await env.DB.prepare(
+      "SELECT id, label, url FROM user_social_links WHERE user_id = ? ORDER BY created_at DESC"
+    ).bind(targetId).all();
+    const socialLinks = (customLinks.results || []).slice();
+    for (const [key, label] of [
+      ["instagram_url", "Instagram"], ["facebook_url", "Facebook"],
+      ["tiktok_url", "TikTok"], ["youtube_url", "YouTube"], ["website_url", "Website"]
+    ]) {
+      const value = target[key];
+      if (value && !socialLinks.some((item) => item.url === value)) {
+        socialLinks.push({ id: key, label, url: value });
+      }
+    }
+    return json({
+      id: target.id, name: target.display_name, bio: target.bio,
+      avatar_key: target.avatar_key, intro_video_key: target.intro_video_key,
+      ring_color: target.ring_color,
+      phone: target.show_phone ? (target.phone_contact || target.phone_e164 || null) : null,
+      online: !!target.show_online_status && !!target.last_seen_at && target.last_seen_at > Date.now() - 90000,
+      social_links: socialLinks,
+    });
+  }
+
   if (path === "/v1/me" && method === "PATCH") {
     const b = await request.json().catch(() => ({}));
     const name = typeof b.name === "string" ? b.name.trim().slice(0, 60) : me.display_name;
     const bio = typeof b.bio === "string" ? b.bio.slice(0, 300) : me.bio;
-    const show = typeof b.show_phone === "boolean" ? (b.show_phone && me.phone_verified ? 1 : 0) : me.show_phone;
+    const show = typeof b.show_phone === "boolean" ? (b.show_phone && (me.phone_verified || me.phone_contact) ? 1 : 0) : me.show_phone;
     const showOnline = typeof b.show_online_status === "boolean" ? (b.show_online_status ? 1 : 0) : (me.show_online_status ?? 1);
     const tz = typeof b.timezone === "string" ? b.timezone.slice(0, 60) : me.timezone;
     const hasPhone = Object.prototype.hasOwnProperty.call(b, "phone_e164");
