@@ -19,6 +19,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -92,6 +94,8 @@ fun MenuSheet(
                 "plans" -> Icon(Icons.Filled.Star, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "settings" -> Icon(PiIcons.More, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "links" -> Icon(Icons.Filled.Person, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
+                "newstory" -> Icon(Icons.Filled.AddAPhoto, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
+                "newgroup" -> Icon(Icons.Filled.GroupAdd, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
                 else -> Spacer(Modifier.size(24.dp))
             }
             Text(entry.label, color = PiColors.White, fontSize = 16.sp)
@@ -126,7 +130,7 @@ fun MenuSheet(
                     "fr" -> "Gratuit"
                     else -> "Grátis"
                 }
-                Text("Plano $planLabel", color = PiColors.TextSecondary, fontSize = 12.sp)
+                Text("Plano $planLabel", color = androidx.compose.ui.graphics.Color(0xFF9BE7A5), fontSize = 12.sp)
             }
             if (hasMyStory) Entry(MenuEntry("mystory", "Ver o meu story"))
             Heading("A MINHA CONTA")
