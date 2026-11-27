@@ -255,7 +255,7 @@ async function handle(request, env) {
   if (path === "/v1/me" && method === "GET") {
     const code = await activeCode(env, me.id);
     return json({
-      id: me.id, name: me.display_name, bio: me.bio, avatar_key: me.avatar_key,
+      id: me.id, name: me.display_name, bio: me.bio, avatar_key: me.avatar_key, profile_cover_key: me.profile_cover_key,
       instagram_url: me.instagram_url, facebook_url: me.facebook_url,
       tiktok_url: me.tiktok_url, youtube_url: me.youtube_url, website_url: me.website_url,
       email: me.email, email_verified: !!me.email_verified, professional_profile: !!me.email_verified, phone_verified: !!me.phone_verified,
@@ -288,7 +288,7 @@ async function handle(request, env) {
     }
     return json({
       id: target.id, name: target.display_name, bio: target.bio,
-      avatar_key: target.avatar_key, intro_video_key: target.intro_video_key,
+      avatar_key: target.avatar_key, intro_video_key: target.intro_video_key, profile_cover_key: target.profile_cover_key,
       ring_color: target.ring_color,
       phone: target.show_phone ? (target.phone_contact || target.phone_e164 || null) : null,
       online: !!target.show_online_status && !!target.last_seen_at && target.last_seen_at > Date.now() - 90000,
@@ -502,7 +502,7 @@ export default {
        WHERE m.created_at < ?
          AND NOT EXISTS (SELECT 1 FROM messages msg WHERE msg.media_id = m.id AND msg.deleted_at IS NULL)
          AND NOT EXISTS (SELECT 1 FROM stories s WHERE s.media_id = m.id AND s.expires_at > ?)
-         AND NOT EXISTS (SELECT 1 FROM users u WHERE u.avatar_key = m.id OR u.intro_video_key = m.id)
+         AND NOT EXISTS (SELECT 1 FROM users u WHERE u.avatar_key = m.id OR u.intro_video_key = m.id OR u.profile_cover_key = m.id)
        ORDER BY m.created_at ASC LIMIT 100`
     ).bind(now - 24 * 60 * 60 * 1000, now).all();
     for (const media of orphaned.results || []) {
