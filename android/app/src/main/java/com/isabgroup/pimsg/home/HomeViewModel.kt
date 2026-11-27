@@ -97,16 +97,23 @@ class HomeViewModel : ViewModel() {
     }
 
     fun selectTab(tab: Tab, cachedChats: List<ChatItem> = emptyList(), syncOnline: Boolean = true) {
-        _state.update { it.copy(tab = tab, chats = cachedChats, loading = false, error = null) }
-        if (syncOnline) load(silent = true)
+        // Online: mostrar Skeleton brevemente durante a confirmação do servidor.
+        // Offline: apresentar imediatamente a cópia local, sem bloquear o histórico.
+        _state.update { it.copy(tab = tab, chats = cachedChats, loading = syncOnline, error = null) }
+        if (syncOnline) load(silent = true, minimumSkeleton = true)
     }
 
-    fun load(silent: Boolean = false) {
+    fun load(silent: Boolean = false, minimumSkeleton: Boolean = false) {
         val tab = _state.value.tab
+        val startedAt = System.currentTimeMillis()
         if (!silent) _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             try {
                 val json = Api.get("/v1/chats?tab=${tab.key}")
+                if (minimumSkeleton) {
+                    val remaining = 420L - (System.currentTimeMillis() - startedAt)
+                    if (remaining > 0) kotlinx.coroutines.delay(remaining)
+                }
                 val arr = json.getJSONArray("chats")
                 val list = (0 until arr.length()).map { i ->
                     val o = arr.getJSONObject(i)
@@ -127,7 +134,12 @@ class HomeViewModel : ViewModel() {
                 }
                 _state.update { it.copy(loading = false, chats = list) }
             } catch (e: Exception) {
-                if (!silent) _state.update { it.copy(loading = false, error = "Não foi possível carregar as conversas.") }
+                _state.update {
+                    it.copy(
+                        loading = false,
+                        error = if (!silent) "Não foi possível carregar as conversas." else it.error,
+                    )
+                }
             }
             if (!silent) loadStories()
         }
