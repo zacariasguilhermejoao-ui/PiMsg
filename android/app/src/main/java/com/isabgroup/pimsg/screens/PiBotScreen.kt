@@ -117,7 +117,7 @@ fun PiBotScreen(onBack: () -> Unit) {
                         Text(bot.name, color = PiColors.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                         Text(bot.description, color = PiColors.TextSecondary, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 4.dp))
                         Text(
-                            when { bot.id == "pi-translate" -> "Até ${translationRemaining ?: 0} traduções restantes hoje"; bot.available -> "Disponível no teu plano"; else -> "Incluído no plano pago" },
+                            when { bot.id == "pi-translate" -> "Até ${translationRemaining ?: 0} traduções restantes hoje"; bot.id == "pi-business" && !bot.available -> "Exclusivo do PiMsg Business"; bot.id == "pi-bots" && !bot.available -> "Incluído nos planos Pro e Business"; bot.available -> "Disponível no teu plano"; else -> "Incluído nos planos pagos" },
                             color = if (bot.available) Color(0xFF8AB4F8) else PiColors.Gray, fontSize = 11.sp, modifier = Modifier.padding(top = 7.dp)
                         )
                     }
