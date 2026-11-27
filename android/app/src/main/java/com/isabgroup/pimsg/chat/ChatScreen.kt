@@ -1,6 +1,9 @@
 package com.isabgroup.pimsg.chat
 
 import android.content.Context
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
+import android.os.Build
 import android.content.Intent
 import android.webkit.MimeTypeMap
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -129,7 +132,7 @@ fun ChatScreen(
     LaunchedEffect(convId) {
         while (true) {
             if (Api.hasInternet(context)) vm.refresh()
-            delay(4000)
+            delay(2000)
         }
     }
 
@@ -147,6 +150,24 @@ fun ChatScreen(
     }
     DisposableEffect(convId) {
         onDispose { vm.setTyping(false) }
+    }
+    DisposableEffect(convId) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                val incomingId = intent?.getStringExtra("conversation_id")
+                if (incomingId == null || incomingId == convId) {
+                    if (Api.hasInternet(context)) scope.launch { vm.refresh() }
+                }
+            }
+        }
+        val filter = IntentFilter("com.isabgroup.pimsg.MESSAGE_RECEIVED")
+        if (Build.VERSION.SDK_INT >= 33) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            context.registerReceiver(receiver, filter)
+        }
+        onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
 
     val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
