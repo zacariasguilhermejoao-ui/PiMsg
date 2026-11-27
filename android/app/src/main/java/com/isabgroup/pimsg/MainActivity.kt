@@ -321,7 +321,7 @@ private fun AppRoot(activity: MainActivity) {
                     is Screen.Settings -> SettingsScreen(onBack = { screen = Screen.Home }, onSignOut = ::signOut, onSecurity = { screen = Screen.Security })
                     is Screen.Security -> SecurityScreen(onBack = { screen = Screen.Settings })
                     is Screen.Links -> LinksScreen(onBack = { screen = Screen.Home })
-                    is Screen.PiBot -> PiBotScreen(onBack = { screen = Screen.Home })
+                    is Screen.PiBot -> PiBotScreen(onBack = { screen = Screen.Home }, onPlans = { screen = Screen.Plans })
                     is Screen.Plans -> PlansScreen(onBack = { screen = Screen.Home })
                     is Screen.Business -> PiMsgBusinessScreen(
                         onBack = { screen = Screen.Home },
