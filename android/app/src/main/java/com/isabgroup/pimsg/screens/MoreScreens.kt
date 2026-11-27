@@ -697,9 +697,9 @@ fun ToolsScreen(
         Text("Acesso rápido às ferramentas disponíveis no PiMsg.", color = PiColors.TextSecondary, fontSize = 13.sp)
         Spacer(Modifier.height(22.dp))
         @Composable
-        fun ToolItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, action: () -> Unit) {
+        fun ToolItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, modifier: Modifier, action: () -> Unit) {
             Column(
-                Modifier.weight(1f).clip(RoundedCornerShape(20.dp)).clickable { action() }.padding(vertical = 16.dp),
+                modifier.clip(RoundedCornerShape(20.dp)).clickable { action() }.padding(vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
@@ -710,12 +710,12 @@ fun ToolsScreen(
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ToolItem(Icons.Filled.QrCode2, "Código QR", onQr)
-            ToolItem(Icons.Filled.SmartToy, "PiBot", onPiBot)
+            ToolItem(Icons.Filled.QrCode2, "Código QR", Modifier.weight(1f), onQr)
+            ToolItem(Icons.Filled.SmartToy, "PiBot", Modifier.weight(1f), onPiBot)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ToolItem(Icons.Filled.Link, "Meus links", onLinks)
-            ToolItem(Icons.Filled.WorkspacePremium, "Planos", onPlans)
+            ToolItem(Icons.Filled.Link, "Meus links", Modifier.weight(1f), onLinks)
+            ToolItem(Icons.Filled.WorkspacePremium, "Planos", Modifier.weight(1f), onPlans)
         }
     }
 }
