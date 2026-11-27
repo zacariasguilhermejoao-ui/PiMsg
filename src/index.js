@@ -105,6 +105,22 @@ async function authenticate(request, env) {
   return user;
 }
 
+
+async function monthlyLinkReplyUsage(env, userId, now) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Africa/Luanda", year: "numeric", month: "2-digit" }).formatToParts(new Date(now));
+  const year = Number(parts.find((p) => p.type === "year")?.value);
+  const month = Number(parts.find((p) => p.type === "month")?.value);
+  const start = Date.UTC(year, month - 1, 1) - 3600000;
+  const resetsAt = Date.UTC(year, month, 1) - 3600000;
+  const row = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM messages m JOIN conversations c ON c.id = m.conversation_id
+     JOIN contact_links l ON l.id = c.link_id
+     WHERE l.user_id = ? AND m.sender_id = ? AND m.kind <> 'system'
+       AND m.deleted_at IS NULL AND m.created_at >= ? AND m.created_at < ?`
+  ).bind(userId, userId, start, resetsAt).first();
+  return { used: row?.n || 0, resets_at: resetsAt };
+}
+
 const publicUser = (u) => ({
   id: u.id,
   name: u.display_name,
@@ -146,6 +162,7 @@ async function handle(request, env) {
     const usage = await env.DB.prepare(
       "SELECT messages_sent FROM daily_usage WHERE user_id = ? AND day = ?"
     ).bind(me.id, day).first();
+    const linkUsage = await monthlyLinkReplyUsage(env, me.id, now);
     const aiUsage = await env.DB.prepare(
       "SELECT requests FROM bot_daily_usage WHERE user_id = ? AND day = ?"
     ).bind(me.id, day).first();
@@ -156,6 +173,10 @@ async function handle(request, env) {
       auto_renewing: sub ? !!sub.auto_renewing : false,
       message_usage: usage?.messages_sent || 0,
       message_limit: sub ? null : 30,
+      personalized_link_reply_usage: linkUsage.used,
+      personalized_link_reply_limit: sub ? null : 500,
+      personalized_link_reply_remaining: sub ? null : Math.max(0, 500 - linkUsage.used),
+      personalized_link_reply_resets_at: linkUsage.resets_at,
       ai_usage: aiUsage?.requests || 0,
       ai_limit: sub ? 30 : 5,
       plans: {
