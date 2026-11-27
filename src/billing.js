@@ -73,6 +73,7 @@ export async function handleBilling(request, env, me, path, method) {
   const productId = typeof body.product_id === "string" ? body.product_id : "";
   const plan = PRODUCTS[productId];
   if (!purchaseToken || purchaseToken.length > 4096 || !plan) return fail(400, "produto ou token de compra inválido");
+  if (!me.email || !me.email_verified) return fail(403, "confirme o seu endereço de e-mail antes de aderir a um plano");
   try {
     const existing = await env.DB.prepare("SELECT user_id FROM subscriptions WHERE play_purchase_token = ?").bind(purchaseToken).first();
     if (existing && existing.user_id !== me.id) return fail(409, "esta compra já está associada a outra conta PiMsg");
