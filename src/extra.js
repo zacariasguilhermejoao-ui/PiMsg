@@ -143,7 +143,7 @@ export async function handleExtra(request, env, me, path, method) {
       verified_badge: verifiedPro, social_links: socialRows.results || [],
       instagram_url: u.instagram_url, facebook_url: u.facebook_url,
       tiktok_url: u.tiktok_url, youtube_url: u.youtube_url, website_url: u.website_url,
-      intro_video_key: u.intro_video_key, ring_color: u.ring_color, phone: u.show_phone ? u.phone_e164 : null,
+      intro_video_key: u.intro_video_key, profile_cover_key: u.profile_cover_key, ring_color: u.ring_color, phone: u.show_phone ? u.phone_e164 : null,
     });
   }
 
@@ -160,6 +160,13 @@ export async function handleExtra(request, env, me, path, method) {
         if (!(await owns(b.intro_video_media_id))) return fail(400, "ficheiro invalido");
       }
       await env.DB.prepare("UPDATE users SET intro_video_key = ? WHERE id = ?").bind(b.intro_video_media_id, me.id).run();
+    }
+    if (b.profile_cover_media_id !== undefined) {
+      if (b.profile_cover_media_id !== null) {
+        const cover = await env.DB.prepare("SELECT id, mime FROM media WHERE id = ? AND owner_id = ?").bind(b.profile_cover_media_id, me.id).first();
+        if (!cover || !String(cover.mime).startsWith("image/")) return fail(400, "capa invalida");
+      }
+      await env.DB.prepare("UPDATE users SET profile_cover_key = ? WHERE id = ?").bind(b.profile_cover_media_id, me.id).run();
     }
     return json({ ok: true });
   }
