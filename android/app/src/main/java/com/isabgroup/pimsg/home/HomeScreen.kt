@@ -115,9 +115,9 @@ private fun EmptyTabState(tab: Tab, onOpenBots: () -> Unit) {
         Tab.Groups -> "Ainda não participas em nenhum grupo."
     }
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp),
+        Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
     ) {
         Image(
             painter = painterResource(image),
