@@ -41,14 +41,56 @@ export async function handleExtra(request, env, me, path, method) {
     return json({ ok: true });
   }
 
+  if (path === "/v1/me/social-links" && method === "GET") {
+    const rows = await env.DB.prepare("SELECT id, label, url, created_at FROM user_social_links WHERE user_id = ? ORDER BY created_at DESC")
+      .bind(me.id).all();
+    return json({ links: rows.results || [] });
+  }
+  if (path === "/v1/me/social-links" && method === "POST") {
+    const b = await request.json().catch(() => ({}));
+    const raw = typeof b.url === "string" ? b.url.trim().slice(0, 500) : "";
+    let parsed;
+    try { parsed = new URL(raw); } catch { return fail(400, "Ligação inválida."); }
+    if (parsed.protocol !== "https:" || !parsed.hostname || parsed.username || parsed.password) return fail(400, "Utilize uma ligação HTTPS válida.");
+    const label = (typeof b.label === "string" && b.label.trim() ? b.label.trim().slice(0, 80) : parsed.hostname.replace(/^www\./i, "")).slice(0, 80);
+    const id = crypto.randomUUID();
+    await env.DB.prepare("INSERT INTO user_social_links (id, user_id, label, url, created_at) VALUES (?,?,?,?,?)")
+      .bind(id, me.id, label, parsed.toString(), now).run();
+    return json({ id, label, url: parsed.toString() }, 201);
+  }
+  const socialLinkDelete = path.match(/^\/v1\/me\/social-links\/([\w-]+)$/);
+  if (socialLinkDelete && method === "DELETE") {
+    await env.DB.prepare("DELETE FROM user_social_links WHERE id = ? AND user_id = ?")
+      .bind(socialLinkDelete[1], me.id).run();
+    return json({ ok: true });
+  }
+
+  if (path === "/v1/favicon" && method === "GET") {
+    const raw = url.searchParams.get("url") || "";
+    let target;
+    try { target = new URL(raw); } catch { return fail(400, "Ligação inválida."); }
+    if (target.protocol !== "https:" || !target.hostname || target.username || target.password) return fail(400, "Ligação inválida.");
+    const host = target.hostname.toLowerCase();
+    if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(":")) return fail(400, "Domínio inválido.");
+    const upstream = await fetch(new URL("/favicon.ico", target.origin).toString(), { redirect: "manual", signal: AbortSignal.timeout(5000) }).catch(() => null);
+    if (!upstream || !upstream.ok || !(upstream.headers.get("content-type") || "").startsWith("image/")) return new Response(null, { status: 404 });
+    const bytes = await upstream.arrayBuffer();
+    if (bytes.byteLength > 131072) return new Response(null, { status: 413 });
+    return new Response(bytes, { headers: { "content-type": upstream.headers.get("content-type"), "cache-control": "public, max-age=86400", "x-content-type-options": "nosniff" } });
+  }
+
   const profile = path.match(/^\/v1\/users\/([\w-]+)$/);
   if (profile && method === "GET") {
     const u = await env.DB.prepare("SELECT * FROM users WHERE id = ? AND status = 'active'").bind(profile[1]).first();
     if (!u) return fail(404, "utilizador nao encontrado");
     const blocked = await env.DB.prepare("SELECT 1 AS ok FROM blocks WHERE blocker_id = ? AND blocked_id = ?").bind(u.id, me.id).first();
     if (blocked) return fail(404, "utilizador nao encontrado");
+    const socialRows = await env.DB.prepare("SELECT id, label, url FROM user_social_links WHERE user_id = ? ORDER BY created_at DESC").bind(u.id).all();
+    const verifiedPro = await isPro(env, u.id, now);
     return json({
       id: u.id, name: u.display_name, bio: u.bio, avatar_key: u.avatar_key,
+      email_verified: !!u.email_verified, professional_profile: !!u.email_verified,
+      verified_badge: verifiedPro, social_links: socialRows.results || [],
       instagram_url: u.instagram_url, facebook_url: u.facebook_url,
       tiktok_url: u.tiktok_url, youtube_url: u.youtube_url, website_url: u.website_url,
       intro_video_key: u.intro_video_key, ring_color: u.ring_color, phone: u.show_phone ? u.phone_e164 : null,
