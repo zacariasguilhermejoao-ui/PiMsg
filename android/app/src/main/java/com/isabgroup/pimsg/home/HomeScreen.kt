@@ -64,6 +64,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.isabgroup.pimsg.R
 import com.isabgroup.pimsg.chat.ChatRef
 import com.isabgroup.pimsg.data.Api
+import com.isabgroup.pimsg.data.PiMsgMedia
 import com.isabgroup.pimsg.data.Push
 import com.isabgroup.pimsg.ui.ChatRowSkeleton
 import com.isabgroup.pimsg.ui.PiColors
@@ -93,6 +94,7 @@ private fun readCachedChats(context: android.content.Context, tab: Tab): List<Ch
                 unread = item.optInt("unread", 0),
                 isGroup = item.optBoolean("isGroup", false),
                 ringColor = item.optString("ringColor").takeIf { it.isNotBlank() },
+                avatarKey = item.optString("avatarKey").takeIf { it.isNotBlank() && it != "null" },
                 otherId = item.optString("otherId").takeIf { it.isNotBlank() },
                 inviteCode = item.optString("inviteCode").takeIf { it.isNotBlank() },
                 isOnline = item.optBoolean("isOnline", false),
@@ -201,6 +203,7 @@ fun HomeScreen(
                         unread = item.optInt("unread", 0),
                         isGroup = item.optBoolean("isGroup", false),
                         ringColor = item.optString("ringColor").takeIf { it.isNotBlank() },
+                        avatarKey = item.optString("avatarKey").takeIf { it.isNotBlank() && it != "null" },
                         otherId = item.optString("otherId").takeIf { it.isNotBlank() },
                         inviteCode = item.optString("inviteCode").takeIf { it.isNotBlank() },
                         isOnline = item.optBoolean("isOnline", false),
@@ -255,7 +258,7 @@ fun HomeScreen(
             state.chats.forEach { item ->
                 array.put(JSONObject().put("id", item.id).put("title", item.title)
                     .put("preview", item.preview).put("unread", item.unread)
-                    .put("isGroup", item.isGroup).put("ringColor", item.ringColor)
+                    .put("isGroup", item.isGroup).put("ringColor", item.ringColor).put("avatarKey", item.avatarKey)
                     .put("otherId", item.otherId).put("inviteCode", item.inviteCode).put("isOnline", item.isOnline))
             }
             context.getSharedPreferences("pimsg_offline", android.content.Context.MODE_PRIVATE)
@@ -410,6 +413,7 @@ fun HomeScreen(
                             ring = if (stories.isNotEmpty()) parseColor(c.ringColor) else null,
                             onAvatarClick = if (stories.isNotEmpty()) ({ onOpenStories(stories) }) else null,
                             isOnline = c.isOnline,
+                            avatarKey = c.avatarKey,
                             onClick = { onOpenChat(ChatRef(c.id, c.title, c.otherId, c.inviteCode)) },
                         )
                     }
@@ -561,6 +565,32 @@ private fun Hint(text: String) {
 
 // Linha de conversa. O circulo colorido aparece quando a pessoa tem story ativo; tocar nele abre o story.
 @Composable
+private fun CachedAvatar(avatarKey: String?, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var bitmap by remember(avatarKey) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    LaunchedEffect(avatarKey) {
+        val key = avatarKey ?: return@LaunchedEffect
+        val cached = PiMsgMedia.findCached(context, key)
+        if (cached != null) {
+            bitmap = android.graphics.BitmapFactory.decodeFile(cached.absolutePath)
+        } else if (Api.hasInternet(context)) {
+            runCatching {
+                val data = Api.download("/v1/media/$key")
+                val file = PiMsgMedia.store(context, key, data.mime, "avatar", data.bytes)
+                bitmap = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+            }
+        }
+    }
+    if (bitmap != null) {
+        Image(bitmap!!.asImageBitmap(), contentDescription = "Fotografia do contacto",
+            modifier = modifier.clip(CircleShape), contentScale = ContentScale.Crop)
+    } else {
+        Image(painterResource(R.drawable.default_avatar), contentDescription = null,
+            contentScale = ContentScale.Crop, modifier = modifier.clip(CircleShape))
+    }
+}
+
+@Composable
 private fun PersonRow(
     title: String,
     subtitle: String,
@@ -569,6 +599,7 @@ private fun PersonRow(
     onClick: () -> Unit,
     onAvatarClick: (() -> Unit)? = null,
     isOnline: Boolean = false,
+    avatarKey: String? = null,
 ) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 10.dp),
@@ -577,11 +608,7 @@ private fun PersonRow(
         var avatar = if (ring != null) Modifier.border(2.5.dp, ring, CircleShape).padding(4.dp) else Modifier.padding(4.dp)
         if (onAvatarClick != null) avatar = avatar.clip(CircleShape).clickable(onClick = onAvatarClick)
         Box(avatar) {
-            Image(
-                painterResource(R.drawable.default_avatar), contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.size(48.dp).clip(CircleShape),
-            )
+            CachedAvatar(avatarKey = avatarKey, modifier = Modifier.size(48.dp))
             if (isOnline) {
                 Box(
                     Modifier.align(Alignment.BottomEnd).size(12.dp).clip(CircleShape)
