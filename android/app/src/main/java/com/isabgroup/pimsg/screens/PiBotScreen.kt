@@ -112,7 +112,7 @@ fun PiBotScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().background(PiColors.Surface, RoundedCornerShape(12.dp)).padding(13.dp),
             )
             if (!isProPlan) Text(
-                "Cada tarefa simples custa 2 créditos. Pedidos mais longos podem custar até 5. Quando os créditos terminarem, o Pi AI fica indisponível até recarregar ou ativar o Pro.",
+                "Cada tarefa simples custa 2 créditos. Pedidos mais longos podem custar até 5. Quando os créditos terminarem, o Pi AI fica indisponível até ativar o Pro.",
                 color = PiColors.TextSecondary, fontSize = 11.sp, lineHeight = 16.sp,
                 modifier = Modifier.padding(top = 7.dp, bottom = 18.dp),
             ) else Spacer(Modifier.height(10.dp))
