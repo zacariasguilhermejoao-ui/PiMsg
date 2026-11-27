@@ -99,7 +99,7 @@ fun PiBotScreen(onBack: () -> Unit) {
             Text("Os bots avançados utilizam recursos de IA e estão incluídos no plano pago.", color = PiColors.TextSecondary, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 5.dp, bottom = 12.dp))
             Column(Modifier.fillMaxWidth().background(PiColors.Surface, RoundedCornerShape(14.dp)).padding(13.dp)) {
                 Text(if (isPaid) "Plano pago activo · $aiRemaining pedidos de IA hoje" else "Plano Free · tradução gratuita", color = PiColors.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Text(if (isPaid) "A tradução não tem limite diário no plano pago." else "Tens direito a ${translationRemaining ?: 4} de 4 traduções por dia. Os restantes bots exigem o plano pago.", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 5.dp))
+                Text(if (isPaid) "O teu plano inclui ${translationRemaining ?: 0} traduções por dia." else "Tens direito a ${translationRemaining ?: 4} de 4 traduções por dia. Os restantes bots exigem um plano pago.", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 5.dp))
             }
             if (loading) Text("A carregar bots…", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 14.dp))
             catalogError?.let { Text(it, color = PiColors.Danger, fontSize = 13.sp, modifier = Modifier.padding(top = 14.dp)) }
@@ -117,7 +117,7 @@ fun PiBotScreen(onBack: () -> Unit) {
                         Text(bot.name, color = PiColors.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                         Text(bot.description, color = PiColors.TextSecondary, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 4.dp))
                         Text(
-                            when { bot.id == "pi-translate" -> "Gratuito · ${translationRemaining ?: "ilimitado"} traduções restantes hoje"; bot.available -> "Disponível no teu plano"; else -> "Incluído no plano pago" },
+                            when { bot.id == "pi-translate" -> "Até ${translationRemaining ?: 0} traduções restantes hoje"; bot.available -> "Disponível no teu plano"; else -> "Incluído no plano pago" },
                             color = if (bot.available) Color(0xFF8AB4F8) else PiColors.Gray, fontSize = 11.sp, modifier = Modifier.padding(top = 7.dp)
                         )
                     }
