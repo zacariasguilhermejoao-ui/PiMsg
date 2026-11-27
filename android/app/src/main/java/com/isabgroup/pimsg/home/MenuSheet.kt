@@ -5,6 +5,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,6 +42,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,7 +83,9 @@ fun MenuSheet(
     hasMyStory: Boolean,
     profileName: String,
     profileAvatar: Bitmap?,
+    profileCover: Bitmap?,
     profilePlan: String,
+    onPickCover: () -> Unit,
     onDismiss: () -> Unit,
     onItem: (String) -> Unit,
 ) {
@@ -124,21 +131,32 @@ fun MenuSheet(
         dragHandle = { BottomSheetDefaults.DragHandle(color = PiColors.GrayDark) },
     ) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState())) {
-            Column(
-                Modifier.fillMaxWidth().clickable { close { onItem("profile") } }.padding(top = 12.dp, bottom = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Box(Modifier.size(88.dp).clip(CircleShape).background(PiColors.SurfaceHigh), contentAlignment = Alignment.Center) {
-                    if (profileAvatar != null) {
-                        Image(profileAvatar.asImageBitmap(), contentDescription = "A minha fotografia de perfil",
-                            modifier = Modifier.fillMaxWidth().size(88.dp).clip(CircleShape))
-                    } else {
-                        Icon(Icons.Filled.Person, contentDescription = "Perfil", tint = PiColors.Gray, modifier = Modifier.size(46.dp))
-                    }
+            Box(Modifier.fillMaxWidth().height(190.dp).clickable { close { onItem("profile") } }) {
+                if (profileCover != null) {
+                    Image(profileCover.asImageBitmap(), contentDescription = "Capa do perfil",
+                        modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                } else {
+                    Box(Modifier.fillMaxSize().background(PiColors.SurfaceHigh))
                 }
-                Text(profileName.ifBlank { "O meu perfil" }, color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                Text("Ver e editar perfil", color = PiColors.TextSecondary, fontSize = 13.sp)
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.48f)))
+                IconButton(onClick = { view.playClick(); onPickCover() }, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Color.Black.copy(alpha = 0.55f), CircleShape)) {
+                    Icon(Icons.Filled.PhotoCamera, contentDescription = "Alterar capa", tint = PiColors.White)
+                }
+                Column(Modifier.align(Alignment.Center).padding(top = 10.dp, bottom = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Box(Modifier.size(78.dp).clip(CircleShape).background(PiColors.SurfaceHigh), contentAlignment = Alignment.Center) {
+                        if (profileAvatar != null) {
+                            Image(profileAvatar.asImageBitmap(), contentDescription = "A minha fotografia de perfil",
+                                modifier = Modifier.fillMaxSize().clip(CircleShape), contentScale = ContentScale.Crop)
+                        } else {
+                            Icon(Icons.Filled.Person, contentDescription = "Perfil", tint = PiColors.Gray, modifier = Modifier.size(42.dp))
+                        }
+                    }
+                    Text(profileName.ifBlank { "O meu perfil" }, color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Ver e editar perfil", color = PiColors.White, fontSize = 13.sp)
+                }
+            }
                 val language = java.util.Locale.getDefault().language
                 val planLabel = when { profilePlan.startsWith("business") -> "Business"; profilePlan.startsWith("pro") -> "Pro"; profilePlan.startsWith("plus") -> "Plus"; else -> when (language) {
                     "en" -> "Free"
