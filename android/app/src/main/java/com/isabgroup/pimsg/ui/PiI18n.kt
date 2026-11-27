@@ -336,7 +336,29 @@ object PiI18n {
         "Pro mensal" to mapOf("en" to "Monthly Pro", "es" to "Pro mensual", "fr" to "Pro mensuel"),
         "Acesso por mês" to mapOf("en" to "Monthly access", "es" to "Acceso mensual", "fr" to "Accès mensuel"),
         "Gerir subscrição na Google Play" to mapOf("en" to "Manage subscription in Google Play", "es" to "Gestionar suscripción en Google Play", "fr" to "Gérer l'abonnement dans Google Play"),
-        "A consultar a sua conta…" to mapOf("en" to "Checking your account…", "es" to "Consultando tu cuenta…", "fr" to "Vérification de votre compte…")
+        "A consultar a sua conta…" to mapOf("en" to "Checking your account…", "es" to "Consultando tu cuenta…", "fr" to "Vérification de votre compte…"),
+
+        "Não foi possível entrar com o Google." to mapOf("en" to "Could not sign in with Google.", "es" to "No se pudo iniciar sesión con Google.", "fr" to "Impossible de se connecter avec Google."),
+        "Configuração do Google incompleta no Firebase." to mapOf("en" to "Google setup is incomplete in Firebase.", "es" to "La configuración de Google en Firebase está incompleta.", "fr" to "La configuration Google dans Firebase est incomplète."),
+        "Não foi possível iniciar a confirmação neste ecrã." to mapOf("en" to "Could not start verification on this screen.", "es" to "No se pudo iniciar la verificación en esta pantalla.", "fr" to "Impossible de démarrer la vérification sur cet écran."),
+        "Não foi possível detetar o código do país." to mapOf("en" to "Could not detect the country code.", "es" to "No se pudo detectar el código del país.", "fr" to "Impossible de détecter l'indicatif du pays."),
+        "Verifique o número de telefone." to mapOf("en" to "Check the phone number.", "es" to "Comprueba el número de teléfono.", "fr" to "Vérifiez le numéro de téléphone."),
+        "Não foi possível confirmar este número." to mapOf("en" to "Could not verify this number.", "es" to "No se pudo verificar este número.", "fr" to "Impossible de vérifier ce numéro."),
+        "Ative a autenticação por telefone no Firebase Authentication." to mapOf("en" to "Enable phone authentication in Firebase Authentication.", "es" to "Activa la autenticación por teléfono en Firebase Authentication.", "fr" to "Activez l'authentification par téléphone dans Firebase Authentication."),
+        "Foram feitas demasiadas tentativas. Tente mais tarde." to mapOf("en" to "Too many attempts. Try again later.", "es" to "Demasiados intentos. Inténtalo más tarde.", "fr" to "Trop de tentatives. Réessayez plus tard."),
+        "Introduza o código recebido por SMS." to mapOf("en" to "Enter the code received by SMS.", "es" to "Introduce el código recibido por SMS.", "fr" to "Saisissez le code reçu par SMS."),
+        "Código incorreto ou expirado. Tente novamente." to mapOf("en" to "Incorrect or expired code. Try again.", "es" to "Código incorrecto o caducado. Inténtalo de nuevo.", "fr" to "Code incorrect ou expiré. Réessayez."),
+        "Inicie sessão para configurar a segurança." to mapOf("en" to "Sign in to configure security.", "es" to "Inicia sesión para configurar la seguridad.", "fr" to "Connectez-vous pour configurer la sécurité."),
+        "A verificação com autenticador exige uma conta Google com e-mail verificado." to mapOf("en" to "Authenticator verification requires a Google account with a verified email.", "es" to "La verificación con autenticador requiere una cuenta de Google con correo verificado.", "fr" to "La vérification par authentificateur nécessite un compte Google avec une adresse e-mail vérifiée."),
+        "A configuração OAuth do Google não está disponível." to mapOf("en" to "Google OAuth configuration is unavailable.", "es" to "La configuración OAuth de Google no está disponible.", "fr" to "La configuration OAuth de Google n'est pas disponible."),
+        "Não foi possível confirmar a conta Google." to mapOf("en" to "Could not verify the Google account.", "es" to "No se pudo verificar la cuenta de Google.", "fr" to "Impossible de vérifier le compte Google."),
+        "Adicione esta chave ao Google Authenticator e introduza o código de seis dígitos gerado." to mapOf("en" to "Add this key to Google Authenticator and enter the generated six-digit code.", "es" to "Añade esta clave a Google Authenticator e introduce el código de seis dígitos generado.", "fr" to "Ajoutez cette clé à Google Authenticator et saisissez le code à six chiffres généré."),
+        "Não foi possível iniciar a configuração do autenticador." to mapOf("en" to "Could not start authenticator setup.", "es" to "No se pudo iniciar la configuración del autenticador.", "fr" to "Impossible de démarrer la configuration de l'authentificateur."),
+        "Sessão terminada." to mapOf("en" to "Session ended.", "es" to "Sesión finalizada.", "fr" to "Session terminée."),
+        "Autenticador removido da conta." to mapOf("en" to "Authenticator removed from the account.", "es" to "Autenticador eliminado de la cuenta.", "fr" to "Authentificateur supprimé du compte."),
+        "Não foi possível remover o autenticador. Poderá ser necessário iniciar sessão novamente." to mapOf("en" to "Could not remove the authenticator. You may need to sign in again.", "es" to "No se pudo eliminar el autenticador. Puede que tengas que iniciar sesión de nuevo.", "fr" to "Impossible de supprimer l'authentificateur. Vous devrez peut-être vous reconnecter."),
+        "Não foi possível confirmar o código. Verifique os seis dígitos e tente novamente." to mapOf("en" to "Could not verify the code. Check the six digits and try again.", "es" to "No se pudo verificar el código. Comprueba los seis dígitos e inténtalo de nuevo.", "fr" to "Impossible de vérifier le code. Vérifiez les six chiffres et réessayez."),
+        "Não foi possível abrir uma aplicação autenticadora neste aparelho." to mapOf("en" to "Could not open an authenticator app on this device.", "es" to "No se pudo abrir una aplicación de autenticación en este dispositivo.", "fr" to "Impossible d'ouvrir une application d'authentification sur cet appareil.")
     )
 }
 
