@@ -20,26 +20,21 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 
 object PiI18n {
-    private const val PREFS = "pimsg_preferences"
-    private const val KEY_LANGUAGE = "app_language"
     var language by mutableStateOf("pt")
         private set
 
+    /**
+     * The app follows Android's active app locale. On Android 13+ this is the
+     * language selected natively in Settings > Apps > PiMsg > Language;
+     * otherwise it follows the device's preferred system locale.
+     */
     fun init(context: Context) {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val saved = prefs.getString(KEY_LANGUAGE, null)
-        language = saved ?: when (context.resources.configuration.locales[0]?.language?.lowercase()) {
-            "en" -> "en"
-            "es" -> "es"
-            "fr" -> "fr"
-            else -> "pt"
-        }
-    }
-
-    fun setLanguage(context: Context, value: String) {
-        val normalized = value.lowercase().takeIf { it in setOf("pt", "en", "es", "fr") } ?: "pt"
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_LANGUAGE, normalized).apply()
-        language = normalized
+        val locales = context.resources.configuration.locales
+        val systemLanguage = (0 until locales.size())
+            .asSequence()
+            .map { locales[it].language.lowercase() }
+            .firstOrNull { it in setOf("pt", "en", "es", "fr") }
+        language = systemLanguage ?: "pt"
     }
 
     fun languageName(code: String = language): String = when (code) {
