@@ -68,10 +68,16 @@ fun PiBotScreen(onBack: () -> Unit) {
     var bots by remember { mutableStateOf<List<AiBotInfo>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var catalogError by remember { mutableStateOf<String?>(null) }
+    var aiCredits by remember { mutableStateOf<Int?>(null) }
+    var isProPlan by remember { mutableStateOf(false) }
+    var proRemaining by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(Unit) {
         try {
             val response = Api.get("/v1/bots")
+            isProPlan = response.optString("plan") != "free"
+            aiCredits = response.optInt("ai_credits", 15)
+            if (isProPlan) proRemaining = response.optInt("remaining_today", 30)
             val array = response.optJSONArray("bots") ?: JSONArray()
             bots = (0 until array.length()).mapNotNull { index ->
                 val item = array.optJSONObject(index) ?: return@mapNotNull null
@@ -97,8 +103,19 @@ fun PiBotScreen(onBack: () -> Unit) {
             Text(
                 "Ferramentas de inteligência artificial disponíveis no PiMsg.",
                 color = PiColors.TextSecondary, fontSize = 13.sp, lineHeight = 19.sp,
-                modifier = Modifier.padding(top = 5.dp, bottom = 22.dp),
+                modifier = Modifier.padding(top = 5.dp, bottom = 12.dp),
             )
+            Text(
+                if (isProPlan) "Pi AI Pro · ${proRemaining ?: 30} respostas disponíveis hoje"
+                else "Créditos de IA · ${aiCredits ?: 15} / 15",
+                color = PiColors.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.fillMaxWidth().background(PiColors.Surface, RoundedCornerShape(12.dp)).padding(13.dp),
+            )
+            if (!isProPlan) Text(
+                "Cada tarefa simples custa 2 créditos. Pedidos mais longos podem custar até 5. Quando os créditos terminarem, o Pi AI fica indisponível até recarregar ou ativar o Pro.",
+                color = PiColors.TextSecondary, fontSize = 11.sp, lineHeight = 16.sp,
+                modifier = Modifier.padding(top = 7.dp, bottom = 18.dp),
+            ) else Spacer(Modifier.height(10.dp))
             Text("CATÁLOGO", color = PiColors.Gray, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             if (loading) {
                 Text("A consultar os assistentes…", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 14.dp))
@@ -149,6 +166,8 @@ private fun PiAiChatScreen(onBack: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     var loaded by remember { mutableStateOf(false) }
     var remaining by remember { mutableStateOf<Int?>(null) }
+    var creditBalance by remember { mutableStateOf<Int?>(null) }
+    var isPro by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf<String?>(null) }
 
     val transition = rememberInfiniteTransition(label = "pi-ai-working")
@@ -212,7 +231,9 @@ private fun PiAiChatScreen(onBack: () -> Unit) {
                 val answer = response.optString("reply").trim()
                 if (answer.isBlank()) throw IllegalStateException("Resposta vazia")
                 messages.add(AiMessage("assistant", answer))
-                if (response.has("remaining")) remaining = response.optInt("remaining")
+                isPro = response.optString("plan") != "free"
+                if (isPro) remaining = response.optInt("remaining")
+                else creditBalance = response.optInt("remaining")
             } catch (e: Exception) {
                 val message = if (e is ApiException) {
                     runCatching { JSONObject(e.message ?: "{}").optString("error") }.getOrNull()
@@ -246,7 +267,9 @@ private fun PiAiChatScreen(onBack: () -> Unit) {
                 Text("Pi AI", color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                 Text(if (busy) "A preparar uma resposta" else "Assistente PiMsg", color = PiColors.TextSecondary, fontSize = 11.sp)
             }
-            remaining?.let { Text("$it hoje", color = PiColors.Gray, fontSize = 11.sp) }
+            (if (isPro) remaining else creditBalance)?.let {
+                Text(if (isPro) "$it hoje" else "$it créditos", color = PiColors.Gray, fontSize = 11.sp)
+            }
         }
 
         LazyColumn(
