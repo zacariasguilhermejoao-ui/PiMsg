@@ -329,6 +329,7 @@ private fun PiAiChatScreen(onBack: () -> Unit, initialCredits: Int?, initialPro:
         messages.add(AiMessage("user", prompt))
         draft = ""
         notice = null
+        showPlanOffer = false
         busy = true
         scope.launch {
             try {
@@ -349,7 +350,7 @@ private fun PiAiChatScreen(onBack: () -> Unit, initialCredits: Int?, initialPro:
                 val safe = message?.takeIf { it.isNotBlank() }
                     ?: "Não foi possível obter uma resposta. Verifique a ligação e tente novamente."
                 notice = safe
-                showPlanOffer = (e as? ApiException)?.code == 402 || safe.contains("limite", ignoreCase = true) || safe.contains("plano", ignoreCase = true)
+                showPlanOffer = (e as? ApiException)?.code == 402 || (e as? ApiException)?.code == 429
                 messages.add(AiMessage("assistant", safe))
             } finally {
                 busy = false
