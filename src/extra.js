@@ -41,6 +41,21 @@ export async function handleExtra(request, env, me, path, method) {
   const now = Date.now();
   const url = new URL(request.url);
 
+  if (path === "/v1/me/notifications" && method === "GET") {
+    const prefs = await env.DB.prepare("SELECT push_enabled, popup_enabled FROM users WHERE id = ?").bind(me.id).first();
+    return json({ push_enabled: !!prefs?.push_enabled, popup_enabled: !!prefs?.popup_enabled });
+  }
+  if (path === "/v1/me/notifications" && method === "PUT") {
+    const b = await request.json().catch(() => ({}));
+    const push = typeof b.push_enabled === "boolean" ? (b.push_enabled ? 1 : 0) : null;
+    const popup = typeof b.popup_enabled === "boolean" ? (b.popup_enabled ? 1 : 0) : null;
+    if (push === null && popup === null) return fail(400, "Preferências inválidas.");
+    await env.DB.prepare("UPDATE users SET push_enabled = COALESCE(?, push_enabled), popup_enabled = COALESCE(?, popup_enabled) WHERE id = ?")
+      .bind(push, popup, me.id).run();
+    const prefs = await env.DB.prepare("SELECT push_enabled, popup_enabled FROM users WHERE id = ?").bind(me.id).first();
+    return json({ push_enabled: !!prefs.push_enabled, popup_enabled: !!prefs.popup_enabled });
+  }
+
   if (path === "/v1/devices" && method === "POST") {
     const b = await request.json().catch(() => ({}));
     const hash = String(b.device_hash || "").slice(0, 100);
