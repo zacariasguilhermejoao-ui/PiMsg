@@ -105,6 +105,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
     val scope = rememberCoroutineScope()
     var loading by remember { mutableStateOf(true) }
     var saving by remember { mutableStateOf(false) }
+    var mediaUploading by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var bio by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
@@ -150,8 +151,9 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) scope.launch {
+            mediaUploading = true
+            msg = "A preparar e enviar vídeo..."
             try {
-                msg = "A enviar vídeo..."
                 val uploaded = com.isabgroup.pimsg.data.uploadUri(context.contentResolver, uri)
                 Api.patch("/v1/me/media", JSONObject().put("intro_video_media_id", uploaded.id))
                 introVideoKey = uploaded.id
@@ -159,14 +161,19 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             } catch (e: com.isabgroup.pimsg.data.ApiException) {
                 msg = if (e.code == 402) "O vídeo de apresentação está disponível no plano Pro." else "Não foi possível guardar o vídeo."
             } catch (_: Exception) { msg = "Não foi possível guardar o vídeo." }
+            finally { mediaUploading = false }
         }
     }
     val imagePicker = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) scope.launch {
+            mediaUploading = true
+            msg = "A preparar e enviar fotografia..."
             try {
-                msg = "A enviar fotografia..."
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    BitmapFactory.decodeStream(input)?.let { avatarBitmap = it }
+                }
                 val uploaded = com.isabgroup.pimsg.data.uploadUri(context.contentResolver, uri)
                 Api.patch("/v1/me/media", JSONObject().put("avatar_media_id", uploaded.id))
                 avatarKey = uploaded.id
@@ -174,6 +181,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 avatarBitmap = android.graphics.BitmapFactory.decodeByteArray(downloaded.bytes, 0, downloaded.bytes.size)
                 msg = "Fotografia atualizada."
             } catch (e: Exception) { msg = "Não foi possível atualizar a fotografia." }
+            finally { mediaUploading = false }
         }
     }
 
@@ -308,7 +316,8 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                     }
                 }
             }
-            PiButton("Alterar fotografia", { imagePicker.launch("image/*") }, primary = false)
+            PiButton(if (mediaUploading) "A carregar fotografia..." else "Alterar fotografia", { imagePicker.launch("image/*") }, primary = false, enabled = !mediaUploading)
+            if (mediaUploading) androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth(0.72f), color = PiColors.White, trackColor = PiColors.SurfaceHigh)
             if (avatarKey != null) {
                 TextButton(onClick = {
                     scope.launch {
@@ -358,7 +367,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
 
         Section("Vídeo de apresentação")
         Text("Apresente-se às pessoas que visitam o seu perfil.", color = PiColors.TextSecondary, fontSize = 13.sp)
-        PiButton(if (introVideoKey == null) "Adicionar vídeo" else "Substituir vídeo", { videoPicker.launch("video/*") }, primary = false)
+        PiButton(if (mediaUploading) "A carregar vídeo..." else if (introVideoKey == null) "Adicionar vídeo" else "Substituir vídeo", { videoPicker.launch("video/*") }, primary = false, enabled = !mediaUploading)
         if (introVideoKey != null) {
             Text("Vídeo adicionado ao perfil", color = PiColors.TextSecondary, fontSize = 12.sp)
             TextButton(onClick = { scope.launch { runCatching { Api.patch("/v1/me/media", JSONObject().put("intro_video_media_id", JSONObject.NULL)) }; introVideoKey = null; msg = "Vídeo removido." } }) { Text("Remover vídeo", color = PiColors.Danger) }
@@ -518,7 +527,13 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 TextButton(onClick = {
                     scope.launch {
                         try {
-                            val result = Api.post("/v1/me/social-links", JSONObject().put("url", socialUrl))
+                            val raw = socialUrl.trim()
+                            val normalized = when {
+                                raw.startsWith("https://", true) -> "https://" + raw.substringAfter("://")
+                                raw.startsWith("http://", true) -> "https://" + raw.substringAfter("://")
+                                else -> "https://$raw"
+                            }
+                            val result = Api.post("/v1/me/social-links", JSONObject().put("url", normalized))
                             val url = result.getString("url")
                             val icon = runCatching { Api.download("/v1/favicon?url=" + Api.encode(url)) }.getOrNull()
                             val bitmap = icon?.let { android.graphics.BitmapFactory.decodeByteArray(it.bytes, 0, it.bytes.size) }
