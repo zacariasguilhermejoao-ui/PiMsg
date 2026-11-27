@@ -19,6 +19,7 @@ For each new product: create a subscription, add one auto-renewing base plan wit
 | Feature | Free | Plus | Pro | Business |
 |---|---:|---:|---:|---:|
 | Contacts | 30 | Unlimited | Unlimited | Unlimited |
+| R2 media storage | 250 MB | 2 GB | 5 GB | 20 GB |
 | Messages per day | 30 | Unlimited | Unlimited | Unlimited |
 | Personalised link replies | 500/month | Unlimited | Unlimited | Unlimited |
 | Translations per day | 4 | 25 | 75 | 150 |
@@ -35,6 +36,7 @@ Existing Pro weekly/monthly purchases remain Pro entitlements.
 - All inference now uses Cloudflare Workers AI `@cf/meta/llama-3.1-8b-instruct-fp8-fast`, not the more expensive 70B model.
 - Output is capped at 450 tokens by default (translation: 512).
 - A global cap of 2,000 inference requests per UTC day is enforced in D1 across all users and plans. Per-user limits reset using the user's configured timezone (Angola by default).
+- R2 media uploads are capped at 50 MB per file and per-account storage is capped by tier: 250 MB Free, 2 GB Plus, 5 GB Pro and 20 GB Business. The Worker reserves storage quota in D1 before writing to R2.
 - Translation results are cached per user/message/language; cached results do not consume another translation or AI request.
 - A failed inference releases the reserved per-user and global quota.
 - These are request-count safeguards, not a guarantee of a fixed maximum invoice: input lengths and actual model usage vary. Monitor Workers AI usage and billing in Cloudflare.
