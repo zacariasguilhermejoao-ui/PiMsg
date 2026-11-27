@@ -41,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Stop
@@ -470,10 +471,9 @@ fun ChatScreen(
                         fontSize = 14.sp,
                     )
                     durations.forEach { (seconds, label) ->
-                        OptionRow(
-                            if (disappearingSeconds == seconds) "✓ $label" else label
-                        ) {
-                            scope.launch {
+                        Row(
+                            Modifier.fillMaxWidth().clickable {
+                                scope.launch {
                                 try {
                                     Api.put(
                                         "/v1/chats/$convId/disappearing",
@@ -485,8 +485,14 @@ fun ChatScreen(
                                 } catch (_: Exception) {
                                     info = "Não foi possível alterar esta definição."
                                 }
-                                disappearingOpen = false
-                            }
+                                    disappearingOpen = false
+                                }
+                            }.padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Icon(Icons.Filled.AccessTime, contentDescription = "Mensagens temporárias", tint = if (disappearingSeconds == seconds) PiColors.White else PiColors.Gray)
+                            Text(label, color = PiColors.White, fontSize = 17.sp)
                         }
                     }
                 }
@@ -631,7 +637,13 @@ private fun Bubble(m: Message, mine: Boolean, vm: ChatViewModel) {
                                 scope.launch { openMedia(context, m, vm) }
                             })
                         }
-                        if (mine && m.kind != "system") {
+                        if (m.kind != "system") {
+                            DropdownMenuItem(text = { Text("Apagar para mim", color = PiColors.White) }, onClick = {
+                                actionsOpen = false
+                                vm.deleteForMe(m)
+                            })
+                        }
+                        if (mine && !m.pending && m.kind != "system") {
                             DropdownMenuItem(text = { Text("Apagar para todos", color = PiColors.Danger) }, onClick = {
                                 actionsOpen = false
                                 vm.deleteMessage(m)
