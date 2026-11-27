@@ -3,7 +3,7 @@ import { handleChat } from "./chat.js";
 import { handleBots } from "./bots.js";
 import { handleExtra } from "./extra.js";
 import { handlePublic } from "./pages.js";
-import { handleBilling } from "./billing.js";
+import { handleBilling, refreshExpiringSubscriptions } from "./billing.js";
 import { pushToUsers } from "./push.js";
 
 const JWKS_URL = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
@@ -461,6 +461,7 @@ export default {
   },
   async scheduled(controller, env) {
     const now = Date.now();
+    await refreshExpiringSubscriptions(env, now);
     const due = await env.DB.prepare(
       "SELECT id, user_id, title FROM bot_reminders WHERE status = 'active' AND notified_at IS NULL AND due_at <= ? ORDER BY due_at ASC LIMIT 100"
     ).bind(now).all();
