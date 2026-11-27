@@ -1,6 +1,8 @@
 package com.isabgroup.pimsg.chat
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
@@ -36,10 +38,13 @@ import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.MoreVert
 import com.isabgroup.pimsg.ui.PiText as Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -538,6 +543,9 @@ private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 @Composable
 private fun Bubble(m: Message, mine: Boolean, vm: ChatViewModel) {
     val shape = RoundedCornerShape(18.dp)
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var actionsOpen by remember(m.id) { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
         Column(
             Modifier.widthIn(max = 300.dp).clip(shape).background(if (mine) PiColors.White else PiColors.Surface).padding(horizontal = 12.dp, vertical = 8.dp),
@@ -555,7 +563,45 @@ private fun Bubble(m: Message, mine: Boolean, vm: ChatViewModel) {
                 "image" -> ImageBody(m, vm, fg)
                 else -> FileBody(m, vm, fg, sub)
             }
-            Text(timeFormat.format(Date(m.createdAt)), color = sub, fontSize = 11.sp, modifier = Modifier.align(Alignment.End).padding(top = 3.dp))
+            Row(Modifier.align(Alignment.End), verticalAlignment = Alignment.CenterVertically) {
+                Text(timeFormat.format(Date(m.createdAt)), color = sub, fontSize = 11.sp)
+                Box {
+                    IconButton(onClick = { actionsOpen = true }, modifier = Modifier.size(26.dp)) {
+                        Icon(Icons.Filled.MoreVert, "Opções da mensagem", tint = sub, modifier = Modifier.size(17.dp))
+                    }
+                    DropdownMenu(expanded = actionsOpen, onDismissRequest = { actionsOpen = false }) {
+                        if (m.kind == "text" && !m.body.isNullOrBlank()) {
+                            DropdownMenuItem(text = { Text("Copiar mensagem", color = PiColors.White) }, onClick = {
+                                actionsOpen = false
+                                (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                                    .setPrimaryClip(ClipData.newPlainText("Mensagem PiMsg", m.body))
+                            })
+                            DropdownMenuItem(text = { Text("Partilhar mensagem", color = PiColors.White) }, onClick = {
+                                actionsOpen = false
+                                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, m.body)
+                                context.startActivity(Intent.createChooser(send, "Partilhar mensagem"))
+                            })
+                        }
+                        if (m.mediaId != null) {
+                            DropdownMenuItem(text = { Text("Abrir ficheiro", color = PiColors.White) }, onClick = {
+                                actionsOpen = false
+                                scope.launch { openMedia(context, m, vm) }
+                            })
+                        }
+                        if (mine && m.kind != "system") {
+                            DropdownMenuItem(text = { Text("Apagar para todos", color = PiColors.Danger) }, onClick = {
+                                actionsOpen = false
+                                vm.deleteMessage(m)
+                            })
+                        } else if (!mine && m.kind != "system") {
+                            DropdownMenuItem(text = { Text("Denunciar mensagem", color = PiColors.White) }, onClick = {
+                                actionsOpen = false
+                                vm.reportMessage(m)
+                            })
+                        }
+                    }
+                }
+            }
         }
     }
 }
