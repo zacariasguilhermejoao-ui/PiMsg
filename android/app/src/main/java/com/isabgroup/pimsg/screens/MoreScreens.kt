@@ -460,6 +460,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                         .put("name", name)
                         .put("bio", bio)
                         .put("show_phone", showPhone)
+                        .put("show_online_status", showOnlineStatus)
                     Api.patch("/v1/me", body)
                     msg = "Perfil guardado com sucesso."
                 } catch (e: Exception) { msg = "Não foi possível guardar. Verifique as ligações e tente novamente." }
