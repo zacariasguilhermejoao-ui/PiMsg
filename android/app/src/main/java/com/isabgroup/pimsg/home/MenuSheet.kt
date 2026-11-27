@@ -19,7 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.AddAPhoto
@@ -55,7 +55,7 @@ private data class MenuEntry(val key: String, val label: String)
 private val account = listOf(
     MenuEntry("qr", "Código QR"),
     MenuEntry("links", "Meus links"),
-    MenuEntry("plans", "Subscrições"),
+    MenuEntry("plans", "Planos PiMsg"),
 )
 private val business = listOf(
     MenuEntry("business", "PiMsg Business"),
@@ -103,7 +103,7 @@ fun MenuSheet(
         ) {
             when (entry.key) {
                 "bot" -> PiBotAvatar(size = 25.dp)
-                "plans" -> Icon(Icons.Filled.AttachMoney, contentDescription = "Subscrições", tint = PiColors.White, modifier = Modifier.size(24.dp))
+                "plans" -> Icon(Icons.Filled.CardGiftcard, contentDescription = "Planos PiMsg", tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "business" -> Icon(Icons.Filled.Storefront, contentDescription = "PiMsg Business", tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "settings" -> Icon(PiIcons.More, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "links" -> Icon(Icons.Filled.Link, contentDescription = "Meus links", tint = PiColors.White, modifier = Modifier.size(24.dp))
