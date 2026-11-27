@@ -940,7 +940,7 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
         )
 
         Section("Informações legais")
-        listOf("Termos de uso" to "terms", "Política de privacidade" to "privacy", "Subscrições" to "subscriptions", "Política de reembolsos" to "refund", "Política de cookies" to "cookies", "Regras da comunidade" to "community", "Segurança" to "security", "Perguntas frequentes" to "faq", "Suporte" to "support").forEach { (label, path) ->
+        listOf("Termos de uso" to "terms", "Política de privacidade" to "privacy", "Subscrições" to "subscriptions", "Política de reembolsos" to "refund", "Política de cookies" to "cookies", "Regras da comunidade" to "community", "Segurança" to "security", "Segurança de menores" to "child-safety", "Direitos de autor" to "copyright", "Perguntas frequentes" to "faq", "Suporte" to "support").forEach { (label, path) ->
             Text(label, color = PiColors.White, fontSize = 16.sp, modifier = Modifier.fillMaxWidth().clickable { openUrl(context, "$SITE/$path") }.padding(vertical = 12.dp))
         }
 
