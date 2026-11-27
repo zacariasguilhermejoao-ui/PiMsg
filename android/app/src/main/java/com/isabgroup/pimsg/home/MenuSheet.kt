@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Star
@@ -105,7 +106,7 @@ fun MenuSheet(
                 "plans" -> Icon(Icons.Filled.AttachMoney, contentDescription = "Subscrições", tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "business" -> Icon(Icons.Filled.Storefront, contentDescription = "PiMsg Business", tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "settings" -> Icon(PiIcons.More, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
-                "links" -> Icon(Icons.Filled.Person, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
+                "links" -> Icon(Icons.Filled.Link, contentDescription = "Meus links", tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "newstory" -> Icon(Icons.Filled.AddAPhoto, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "newgroup" -> Icon(Icons.Filled.GroupAdd, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "qr" -> Icon(Icons.Filled.QrCode2, contentDescription = "Código QR", tint = PiColors.White, modifier = Modifier.size(24.dp))
@@ -145,7 +146,12 @@ fun MenuSheet(
                     "fr" -> "Gratuit"
                     else -> "Grátis"
                 } }
-                Text("Plano $planLabel", color = androidx.compose.ui.graphics.Color(0xFF9BE7A5), fontSize = 12.sp)
+                Text(
+                    "Plano $planLabel",
+                    color = androidx.compose.ui.graphics.Color(0xFF9BE7A5),
+                    fontSize = 12.sp,
+                    modifier = Modifier.clickable { view.playClick(); close { onItem("plans") } },
+                )
             }
             if (hasMyStory) Entry(MenuEntry("mystory", "Ver o meu story"))
             Heading("A MINHA CONTA")
