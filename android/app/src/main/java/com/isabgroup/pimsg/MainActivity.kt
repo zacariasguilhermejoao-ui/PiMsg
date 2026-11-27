@@ -283,6 +283,7 @@ private fun AppRoot(activity: MainActivity) {
                         },
                         pendingShare = activity.pendingShare,
                         onShareConsumed = { activity.clearShare() },
+                        onOpenBots = { screen = Screen.PiBot },
                     )
                     is Screen.Profile -> ProfileScreen(onBack = { screen = Screen.Home })
                     is Screen.Settings -> SettingsScreen(onBack = { screen = Screen.Home }, onSignOut = ::signOut, onSecurity = { screen = Screen.Security })
