@@ -588,7 +588,7 @@ fun QrScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                         val send = Intent(Intent.ACTION_SEND).setType("image/png")
                             .putExtra(Intent.EXTRA_STREAM, uri)
                             .putExtra(Intent.EXTRA_TEXT, "Encontra-me no PiMsg: $name")
-                            .clipData = android.content.ClipData.newUri(context.contentResolver, "QR PiMsg", uri)
+                        send.clipData = android.content.ClipData.newUri(context.contentResolver, "QR PiMsg", uri)
                         send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         context.startActivity(Intent.createChooser(send, "Partilhar QR do PiMsg"))
                     }.onFailure { notice = "Não foi possível partilhar o QR." }
