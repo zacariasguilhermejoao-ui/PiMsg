@@ -267,18 +267,81 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
+        val profilePrefs = context.getSharedPreferences("pimsg_profile_cache", android.content.Context.MODE_PRIVATE)
+        runCatching {
+            val cached = profilePrefs.getString("profile", null)?.let { JSONObject(it) }
+            if (cached != null) {
+                ownProfileName = cached.optString("name", "O meu perfil")
+                val encoded = cached.optString("avatar_jpeg")
+                if (encoded.isNotBlank()) {
+                    val bytes = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)
+                    ownProfileAvatar = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                }
+            }
+        }
+        if (!Api.hasInternet(context)) return@LaunchedEffect
         runCatching {
             val me = Api.get("/v1/me")
             ownProfileName = me.optString("name", "O meu perfil")
             ownPlan = runCatching { Api.get("/v1/plan").optString("current_plan", "free") }.getOrDefault("free")
             val key = me.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
             if (key != null) {
-                val downloaded = Api.download("/v1/media/$key")
-                ownProfileAvatar = android.graphics.BitmapFactory.decodeByteArray(downloaded.bytes, 0, downloaded.bytes.size)
+                val cachedFile = PiMsgMedia.findCached(context, key)
+                val file = cachedFile ?: run {
+                    val downloaded = Api.download("/v1/media/$key")
+                    PiMsgMedia.store(context, key, downloaded.mime, "avatar", downloaded.bytes)
+                }
+                ownProfileAvatar = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
             }
         }
     }
-    LaunchedEffect(query) { delay(300); vm.search(query) }
+    LaunchedEffect(profileTarget?.id) {
+        val target = profileTarget ?: run { publicProfile = null; publicAvatar = null; return@LaunchedEffect }
+        profileLoading = true
+        publicProfile = null
+        publicAvatar = null
+        publicSocialIcons = emptyMap()
+        val publicCache = context.getSharedPreferences("pimsg_public_profiles", android.content.Context.MODE_PRIVATE)
+        runCatching {
+            val cached = publicCache.getString(target.id, null)?.let { JSONObject(it) }
+            if (cached != null) {
+                publicProfile = cached
+                val key = cached.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
+                if (key != null) PiMsgMedia.findCached(context, key)?.let { publicAvatar = android.graphics.BitmapFactory.decodeFile(it.absolutePath) }
+            }
+        }
+        if (!Api.hasInternet(context)) {
+            profileLoading = false
+            return@LaunchedEffect
+        }
+        try {
+            val profile = Api.get("/v1/users/${target.id}")
+            publicProfile = profile
+            publicCache.edit().putString(target.id, profile.toString()).apply()
+            val socialLinks = profile.optJSONArray("social_links") ?: JSONArray()
+            val icons = mutableMapOf<String, android.graphics.Bitmap>()
+            for (index in 0 until socialLinks.length()) {
+                val link = socialLinks.optJSONObject(index)?.optString("url") ?: continue
+                if (!link.startsWith("https://")) continue
+                runCatching {
+                    val data = Api.download("/v1/favicon?url=" + Api.encode(link))
+                    android.graphics.BitmapFactory.decodeByteArray(data.bytes, 0, data.bytes.size)?.let { icons[link] = it }
+                }
+            }
+            publicSocialIcons = icons
+            val key = profile.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
+            if (key != null) runCatching {
+                val cachedFile = PiMsgMedia.findCached(context, key)
+                val file = cachedFile ?: run {
+                    val downloaded = Api.download("/v1/media/$key")
+                    PiMsgMedia.store(context, key, downloaded.mime, "avatar", downloaded.bytes)
+                }
+                publicAvatar = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+            }
+        } catch (_: Exception) { }
+        profileLoading = false
+    }
+        LaunchedEffect(query) { delay(300); vm.search(query) }
     LaunchedEffect(profileTarget?.id) {
         val target = profileTarget ?: run { publicProfile = null; publicAvatar = null; return@LaunchedEffect }
         profileLoading = true
