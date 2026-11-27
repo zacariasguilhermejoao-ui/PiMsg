@@ -91,7 +91,6 @@ fun ProfileScreen(onBack: () -> Unit) {
     var socialLinks by remember { mutableStateOf<List<SocialLinkUi>>(emptyList()) }
     var addSocialOpen by remember { mutableStateOf(false) }
     var socialUrl by remember { mutableStateOf("") }
-    var socialLabel by remember { mutableStateOf("") }
     var msg by remember { mutableStateOf<String?>(null) }
     var previewOpen by remember { mutableStateOf(false) }
     val videoPicker = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -276,7 +275,7 @@ fun ProfileScreen(onBack: () -> Unit) {
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { socialUrl = ""; socialLabel = ""; addSocialOpen = true }) { Icon(Icons.Filled.Add, contentDescription = "Adicionar redes sociais", tint = PiColors.White) }
+            IconButton(onClick = { socialUrl = ""; addSocialOpen = true }) { Icon(Icons.Filled.Add, contentDescription = "Adicionar redes sociais", tint = PiColors.White) }
             Text("Adicionar Redes Sociais", color = PiColors.White, fontSize = 13.sp, modifier = Modifier.clickable { socialUrl = ""; socialLabel = ""; addSocialOpen = true })
         }
         Section("O meu código PiMsg")
@@ -334,7 +333,6 @@ fun ProfileScreen(onBack: () -> Unit) {
             title = { Text("Adicionar rede social", color = PiColors.White) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(value = socialLabel, onValueChange = { socialLabel = it.take(80) }, label = { Text("Nome (opcional)") }, singleLine = true, colors = piFieldColors())
                     OutlinedTextField(value = socialUrl, onValueChange = { socialUrl = it.take(500) }, label = { Text("Ligação do site ou perfil") }, singleLine = true, colors = piFieldColors())
                     Text("O ícone do site será carregado automaticamente quando existir.", color = PiColors.TextSecondary, fontSize = 12.sp)
                 }
@@ -343,7 +341,7 @@ fun ProfileScreen(onBack: () -> Unit) {
                 TextButton(onClick = {
                     scope.launch {
                         try {
-                            val result = Api.post("/v1/me/social-links", JSONObject().put("label", socialLabel).put("url", socialUrl))
+                            val result = Api.post("/v1/me/social-links", JSONObject().put("url", socialUrl))
                             val url = result.getString("url")
                             val icon = runCatching { Api.download("/v1/favicon?url=" + Api.encode(url)) }.getOrNull()
                             val bitmap = icon?.let { android.graphics.BitmapFactory.decodeByteArray(it.bytes, 0, it.bytes.size) }
