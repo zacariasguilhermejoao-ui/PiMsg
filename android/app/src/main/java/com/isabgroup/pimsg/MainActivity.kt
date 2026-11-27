@@ -139,7 +139,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         PiI18n.init(this)
-        PiMsgMedia.ensureFolders(this)
+        runCatching { PiMsgMedia.ensureFolders(this) }
         // Evita zoom de sistema na interface
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         pendingShare = intent.parseShare()
