@@ -51,6 +51,24 @@ object PiI18n {
 
     fun translate(source: String): String {
         if (language == "pt") return source
+        if (source.endsWith(" está a escrever…")) {
+            val person = source.removeSuffix(" está a escrever…")
+            return when (language) {
+                "en" -> "$person is typing…"
+                "es" -> "$person está escribiendo…"
+                "fr" -> "$person écrit…"
+                else -> source
+            }
+        }
+        Regex("""^Créditos de IA utilizados: (\d+) / 15$""").matchEntire(source)?.let { match ->
+            val count = match.groupValues[1]
+            return when (language) {
+                "en" -> "AI credits used: $count / 15"
+                "es" -> "Créditos de IA utilizados: $count / 15"
+                "fr" -> "Crédits IA utilisés : $count / 15"
+                else -> source
+            }
+        }
         Regex("""^(\d+) créditos$""").matchEntire(source)?.let { match ->
             val count = match.groupValues[1]
             return when (language) {
