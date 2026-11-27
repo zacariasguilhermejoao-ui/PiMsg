@@ -684,7 +684,7 @@ fun PlansScreen(onBack: () -> Unit) {
     var messageUsage by remember { mutableStateOf(0) }
     var aiUsage by remember { mutableStateOf(0) }
     var messageLimit by remember { mutableStateOf<Int?>(30) }
-    var aiLimit by remember { mutableStateOf(5) }
+    var aiLimit by remember { mutableStateOf(15) }
     var linkReplyUsage by remember { mutableStateOf(0) }
     var linkReplyLimit by remember { mutableStateOf<Int?>(500) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -698,7 +698,7 @@ fun PlansScreen(onBack: () -> Unit) {
             messageUsage = data.optInt("message_usage")
             aiUsage = data.optInt("ai_usage")
             messageLimit = if (data.isNull("message_limit")) null else data.optInt("message_limit")
-            aiLimit = data.optInt("ai_limit", 5)
+            aiLimit = data.optInt("ai_limit", 15)
             linkReplyUsage = data.optInt("personalized_link_reply_usage", 0)
             linkReplyLimit = if (data.isNull("personalized_link_reply_limit")) null else data.optInt("personalized_link_reply_limit")
         } catch (e: Exception) { error = "Não foi possível consultar o plano da conta." }
@@ -736,7 +736,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Text("FREE", color = PiColors.Gray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(16.dp)) {
             Text("Acesso essencial", color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            listOf("Até 30 contactos", "Até 30 mensagens por dia", "500 respostas por mês através dos links personalizados", "5 respostas do Pi AI por dia", "Conversas e partilha de ficheiros").forEach {
+            listOf("Até 30 contactos", "Até 30 mensagens por dia", "500 respostas por mês através dos links personalizados", "15 créditos iniciais de IA", "Conversas e partilha de ficheiros").forEach {
                 Text("•  $it", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp))
             }
             if (current == "free") Text("Plano em utilização", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
