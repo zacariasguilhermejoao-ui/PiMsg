@@ -43,6 +43,8 @@ data class UserItem(
     val linkId: String? = null,
     val requestCode: String? = null,
     val linkSubject: String? = null,
+    val avatarKey: String? = null,
+    val bio: String? = null,
 )
 data class GroupItem(val id: String, val name: String, val description: String?)
 
@@ -300,6 +302,7 @@ class HomeViewModel : ViewModel() {
                     UserItem(
                         o.getString("id"), o.getString("name"), o.str("ring_color"),
                         o.str("link_id"), o.str("request_code"), o.str("link_subject"),
+                        o.str("avatar_key"), o.str("bio"),
                     )
                 }
                 val groupsJson = json.optJSONArray("groups")
