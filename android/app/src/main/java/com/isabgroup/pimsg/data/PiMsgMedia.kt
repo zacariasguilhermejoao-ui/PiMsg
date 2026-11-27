@@ -33,9 +33,16 @@ object PiMsgMedia {
     }
 
     fun root(context: Context): File {
-        val base = File(Environment.getExternalStorageDirectory(), "Android/media/${context.packageName}/PiMsg")
-        if (!base.exists()) base.mkdirs()
-        return base
+        // Android/media é a pasta própria de multimédia da aplicação e não exige
+        // permissões de armazenamento antigas. Se o fabricante bloquear esse volume,
+        // usa a pasta privada interna em vez de falhar o envio da mensagem.
+        val externalBase = context.externalMediaDirs.firstOrNull()
+        if (externalBase != null) {
+            val external = File(externalBase, "PiMsg")
+            if (!external.exists()) external.mkdirs()
+            if (external.isDirectory && external.canWrite()) return external
+        }
+        return File(context.filesDir, "PiMsg").apply { mkdirs() }
     }
 
     fun mediaDir(context: Context): File = File(root(context), "Media").apply { mkdirs() }
