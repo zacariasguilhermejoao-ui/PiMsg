@@ -168,11 +168,11 @@ export async function handlePublic(request, env) {
       const media = await env.DB.prepare(
         `SELECT m.r2_key, m.mime FROM media m
          WHERE m.id = ? AND (
-           EXISTS (SELECT 1 FROM users u WHERE u.avatar_key = m.id AND u.status = 'active')
+           EXISTS (SELECT 1 FROM users u WHERE (u.avatar_key = m.id OR u.intro_video_key = m.id) AND u.status = 'active')
            OR EXISTS (SELECT 1 FROM contact_links l WHERE l.image_media_id = m.id AND l.is_active = 1)
          )`
       ).bind(publicMediaId).first();
-      if (!media || !String(media.mime).startsWith("image/")) return new Response("Imagem nao encontrada", { status: 404 });
+      if (!media || !(String(media.mime).startsWith("image/") || String(media.mime).startsWith("video/"))) return new Response("Media nao encontrada", { status: 404 });
       const object = await env.MEDIA.get(media.r2_key);
       if (!object) return new Response("Imagem nao encontrada", { status: 404 });
       return new Response(object.body, { headers: {
