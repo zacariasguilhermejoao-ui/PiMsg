@@ -155,6 +155,12 @@ fun HomeScreen(
             runCatching { Push.register(context) }
         }
     }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(3000)
+            vm.load(silent = true)
+        }
+    }
     LaunchedEffect(initialContactCode, initialContactSlug, initialGroupCode) {
         when {
             !initialContactCode.isNullOrBlank() -> vm.openRequestCode(initialContactCode) { id, user ->
