@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import com.isabgroup.pimsg.R
 import com.isabgroup.pimsg.chat.ChatRef
 import com.isabgroup.pimsg.data.Api
+import com.isabgroup.pimsg.data.PiMsgMedia
 import com.isabgroup.pimsg.data.PlayBilling
 import com.android.billingclient.api.ProductDetails
 import com.isabgroup.pimsg.data.Push
@@ -640,6 +641,8 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
     var showLanguagePicker by remember { mutableStateOf(false) }
     var pushEnabled by remember { mutableStateOf(true) }
     var popupEnabled by remember { mutableStateOf(true) }
+    var autoDownload by remember { mutableStateOf(PiMsgMedia.downloadMode(context)) }
+    var allowGallerySave by remember { mutableStateOf(PiMsgMedia.saveToGallery(context)) }
 
     suspend fun loadNotificationPreferences() {
         try {
@@ -684,6 +687,36 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
             }
             androidx.compose.material3.Icon(Icons.Filled.Add, contentDescription = "Escolher idioma", tint = PiColors.TextSecondary)
         }
+        Section("Armazenamento e dados")
+        Text("Descarregar ficheiros automaticamente", color = PiColors.White, fontSize = 16.sp)
+        Text("As mensagens e os anexos já guardados continuam disponíveis offline.", color = PiColors.TextSecondary, fontSize = 12.sp)
+        listOf(
+            PiMsgMedia.DOWNLOAD_NEVER to "Nunca",
+            PiMsgMedia.DOWNLOAD_WIFI to "Apenas por Wi-Fi",
+            PiMsgMedia.DOWNLOAD_ALWAYS to "Wi-Fi e dados móveis",
+        ).forEach { (value, label) ->
+            Row(Modifier.fillMaxWidth().clickable {
+                autoDownload = value
+                PiMsgMedia.setDownloadMode(context, value)
+            }.padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(selected = autoDownload == value, onClick = {
+                    autoDownload = value
+                    PiMsgMedia.setDownloadMode(context, value)
+                })
+                Text(label, color = PiColors.White, fontSize = 14.sp)
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Permitir guardar na galeria", color = PiColors.White, fontSize = 16.sp)
+                Text(if (allowGallerySave) "Podes usar Guardar para copiar fotos, vídeos e áudio para as pastas PiMsg do telemóvel." else "Os ficheiros ficam apenas na pasta privada de multimédia do PiMsg.", color = PiColors.TextSecondary, fontSize = 12.sp)
+            }
+            Switch(checked = allowGallerySave, onCheckedChange = {
+                allowGallerySave = it
+                PiMsgMedia.setSaveToGallery(context, it)
+            }, colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = PiColors.White))
+        }
+
         Section("Notificações")
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
