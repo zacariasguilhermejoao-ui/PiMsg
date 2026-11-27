@@ -65,6 +65,8 @@ import com.isabgroup.pimsg.R
 import com.isabgroup.pimsg.chat.ChatRef
 import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.PiMsgMedia
+import com.isabgroup.pimsg.data.uploadBitmap
+import com.isabgroup.pimsg.ui.components.ImageCropDialog
 import com.isabgroup.pimsg.data.PlayBilling
 import com.android.billingclient.api.ProductDetails
 import com.isabgroup.pimsg.data.Push
@@ -125,6 +127,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
     var phoneContact by remember { mutableStateOf<String?>(null) }
     var avatarKey by remember { mutableStateOf<String?>(null) }
     var avatarBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var avatarCropSource by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var email by remember { mutableStateOf("") }
     var emailVerified by remember { mutableStateOf(false) }
     var introVideoKey by remember { mutableStateOf<String?>(null) }
@@ -154,21 +157,12 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
     val imagePicker = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri ->
-        if (uri != null) scope.launch {
-            mediaUploading = true
-            msg = "A preparar e enviar fotografia..."
-            try {
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    BitmapFactory.decodeStream(input)?.let { avatarBitmap = it }
-                }
-                val uploaded = com.isabgroup.pimsg.data.uploadUri(context.contentResolver, uri)
-                Api.patch("/v1/me/media", JSONObject().put("avatar_media_id", uploaded.id))
-                avatarKey = uploaded.id
-                val downloaded = Api.download("/v1/media/${uploaded.id}")
-                avatarBitmap = android.graphics.BitmapFactory.decodeByteArray(downloaded.bytes, 0, downloaded.bytes.size)
-                msg = "Fotografia atualizada."
-            } catch (e: Exception) { msg = "Não foi possível atualizar a fotografia." }
-            finally { mediaUploading = false }
+        if (uri != null) {
+            val selected = runCatching {
+                context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+            }.getOrNull()
+            if (selected == null) msg = "Não foi possível abrir esta fotografia."
+            else avatarCropSource = selected
         }
     }
 
@@ -445,6 +439,44 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
         }, enabled = name.isNotBlank() && !saving)
         msg?.let { Text(it, color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp)) }
         Spacer(Modifier.height(24.dp))
+    }
+    avatarCropSource?.let { source ->
+        ImageCropDialog(
+            bitmap = source,
+            aspectRatio = 1f,
+            title = "Ajustar fotografia de perfil",
+            onDismiss = { avatarCropSource = null },
+            onConfirm = { cropped ->
+                avatarCropSource = null
+                scope.launch {
+                    mediaUploading = true
+                    msg = "A guardar fotografia..."
+                    try {
+                        val uploaded = uploadBitmap(context, cropped, "avatar.jpg")
+                        Api.patch("/v1/me/media", JSONObject().put("avatar_media_id", uploaded.id))
+                        val downloaded = Api.download("/v1/media/${uploaded.id}")
+                        val cached = PiMsgMedia.store(context, uploaded.id, downloaded.mime, "avatar", downloaded.bytes)
+                        avatarKey = uploaded.id
+                        avatarBitmap = BitmapFactory.decodeFile(cached.absolutePath)
+                        context.getSharedPreferences("pimsg_home_profile", Context.MODE_PRIVATE)
+                            .edit().putString("avatar_key", uploaded.id).apply()
+                        val cachedProfile = profileCache.getString("profile", null)?.let { JSONObject(it) } ?: JSONObject()
+                        val encoded = ByteArrayOutputStream().use { out ->
+                            cropped.compress(Bitmap.CompressFormat.JPEG, 78, out)
+                            out.toByteArray()
+                        }
+                        cachedProfile.put("avatar_key", uploaded.id)
+                            .put("avatar_jpeg", Base64.encodeToString(encoded, Base64.NO_WRAP))
+                        profileCache.edit().putString("profile", cachedProfile.toString()).apply()
+                        msg = "Fotografia atualizada."
+                    } catch (_: Exception) {
+                        msg = "Não foi possível atualizar a fotografia. Verifique a ligação e tente novamente."
+                    } finally {
+                        mediaUploading = false
+                    }
+                }
+            },
+        )
     }
     if (addSocialOpen) {
         AlertDialog(
