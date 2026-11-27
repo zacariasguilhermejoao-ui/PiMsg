@@ -290,6 +290,12 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
         }
     }
 
+    fun deleteForMe(message: Message) {
+        // Esta acção remove apenas a cópia guardada neste telemóvel.
+        local.deleteMessage(message.id)
+        _state.update { it.copy(messages = it.messages.filterNot { item -> item.id == message.id }) }
+    }
+
     fun deleteMessage(message: Message) {
         viewModelScope.launch {
             try {
