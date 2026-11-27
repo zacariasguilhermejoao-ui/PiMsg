@@ -81,8 +81,9 @@ export async function handleExtra(request, env, me, path, method) {
   if (path === "/v1/me/social-links" && method === "POST") {
     const b = await request.json().catch(() => ({}));
     const raw = typeof b.url === "string" ? b.url.trim().slice(0, 500) : "";
+    const normalized = /^https?:\/\//i.test(raw) ? raw.replace(/^http:\/\//i, "https://") : "https://" + raw;
     let parsed;
-    try { parsed = new URL(raw); } catch { return fail(400, "Ligação inválida."); }
+    try { parsed = new URL(normalized); } catch { return fail(400, "Ligação inválida."); }
     if (parsed.protocol !== "https:" || !parsed.hostname || parsed.username || parsed.password) return fail(400, "Utilize uma ligação HTTPS válida.");
     const label = (typeof b.label === "string" && b.label.trim() ? b.label.trim().slice(0, 80) : parsed.hostname.replace(/^www\./i, "")).slice(0, 80);
     const id = crypto.randomUUID();
