@@ -437,7 +437,7 @@ async function handle(request, env) {
     const now = Date.now();
     await env.DB.prepare(
       "INSERT INTO data_requests (id, user_id, type, source, status, requested_at, scheduled_for) VALUES (?,?,?,?,?,?,?)"
-    ).bind(crypto.randomUUID(), me.id, "delete", "app", "pending", now, now + 14 * 86400000).run();
+    ).bind(crypto.randomUUID(), me.id, "delete", "app", "pending", now, null).run();
     return json({ ok: true, scheduled_for: now + 14 * 86400000 });
   }
 
