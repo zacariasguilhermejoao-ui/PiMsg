@@ -211,7 +211,7 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     }
 
     // Os anexos são enviados quando há rede; mensagens de texto ficam em fila offline.
-    fun sendMedia(cr: ContentResolver, uri: Uri, hint: String) {
+    fun sendMedia(cr: ContentResolver, uri: Uri, hint: String, onComplete: (() -> Unit)? = null) {
         viewModelScope.launch {
             _state.update { it.copy(busy = true, error = null) }
             try {
@@ -258,6 +258,8 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                 refresh()
             } catch (e: Exception) {
                 _state.update { it.copy(busy = false, error = errorText(e, upload = true)) }
+            } finally {
+                onComplete?.invoke()
             }
         }
     }
