@@ -1,6 +1,5 @@
 package com.isabgroup.pimsg.screens
 
-import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -66,7 +65,8 @@ import com.isabgroup.pimsg.ui.openUrl
 import com.isabgroup.pimsg.ui.playClick
 import com.isabgroup.pimsg.ui.piFieldColors
 import kotlinx.coroutines.launch
-import com.journeyapps.barcodescanner.IntentIntegrator
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodecanner.ScanOptions
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
@@ -122,8 +122,8 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
     var scannedUserId by remember { mutableStateOf<String?>(null) }
     var scannedUserName by remember { mutableStateOf("") }
     val profileCache = remember { context.getSharedPreferences("pimsg_profile_cache", Context.MODE_PRIVATE) }
-    val qrScanner = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val raw = IntentIntegrator.parseActivityResult(result.resultCode, result.data)?.contents
+    val qrScanner = rememberLauncherForActivityResult(ScanContract()) { result ->
+        val raw = result.contents
         val payload = raw?.let { runCatching { JSONObject(it) }.getOrNull() }
         val scannedCode = payload?.takeIf { it.optString("app") == "PiMsg" && it.optString("type") == "user" }
             ?.optString("code")?.takeIf { it.isNotBlank() && it != "null" }
@@ -386,15 +386,13 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 if (qrBitmap == null) msg = "Não foi possível gerar o QR."
             }, Modifier.weight(1f), primary = false, enabled = code.isNotBlank())
             PiButton("Ler QR", {
-                val activity = context as? Activity
-                if (activity != null) {
-                    val intent = IntentIntegrator(activity)
-                        .setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
-                        .setPrompt("Aponta a câmara para o QR de uma conta PiMsg")
-                        .setBeepEnabled(false)
-                        .createScanIntent()
-                    qrScanner.launch(intent)
-                } else msg = "Não foi possível abrir a câmara."
+                val options = ScanOptions().apply {
+                    setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                    setPrompt("Aponta a câmara para o QR de uma conta PiMsg")
+                    setBeepEnabled(false)
+                    setOrientationLocked(true)
+                }
+                qrScanner.launch(options)
             }, Modifier.weight(1f), primary = false)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
