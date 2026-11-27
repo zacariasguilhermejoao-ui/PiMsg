@@ -98,7 +98,15 @@ async function authenticate(request, env) {
     ]);
     user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(id).first();
   }
-  if (user.status !== "active") return { blocked: user.status };
+  if (user.status !== "active") {
+    if ((user.status === "suspended" || user.status === "banned") && user.status_until && user.status_until <= now) {
+      await env.DB.prepare("UPDATE users SET status = 'active', status_until = NULL WHERE id = ?").bind(user.id).run();
+      user.status = "active";
+      user.status_until = null;
+    } else {
+      return { blocked: user.status };
+    }
+  }
   if (claims.email && claims.email_verified && (!user.email_verified || user.email !== claims.email)) {
     await env.DB.prepare("UPDATE users SET email = ?, email_verified = 1 WHERE id = ?").bind(claims.email, user.id).run();
     user.email = claims.email;
@@ -298,14 +306,57 @@ async function handle(request, env) {
     const types = ["user", "message", "group", "story"];
     const reasons = ["spam", "scam", "harassment", "inappropriate", "illegal", "impersonation", "other"];
     if (!types.includes(b.target_type) || !b.target_id || !reasons.includes(b.reason)) return fail(400, "dados invalidos");
-    const since = Date.now() - 86400000;
+    const now = Date.now();
+    const since = now - 86400000;
     const c = await env.DB.prepare("SELECT COUNT(*) AS n FROM reports WHERE reporter_id = ? AND created_at > ?").bind(me.id, since).first();
     if (c.n >= 20) return fail(429, "limite de denuncias atingido");
+
+    const targetId = String(b.target_id).slice(0, 100);
+    if (b.target_type === "user") {
+      if (targetId === me.id) return fail(400, "nao podes denunciar a tua propria conta");
+      const target = await env.DB.prepare("SELECT id, status, status_until FROM users WHERE id = ?").bind(targetId).first();
+      if (!target || target.status === "deleted") return fail(404, "conta nao encontrada");
+      const duplicate = await env.DB.prepare(
+        "SELECT id FROM reports WHERE reporter_id = ? AND target_type = 'user' AND target_id = ? AND created_at > ? LIMIT 1"
+      ).bind(me.id, targetId, now - 7 * 86400000).first();
+      if (duplicate) return fail(409, "ja denunciaste esta conta nos ultimos 7 dias");
+    }
+
     await env.DB.prepare(
       "INSERT INTO reports (id, reporter_id, target_type, target_id, reason, details, created_at) VALUES (?,?,?,?,?,?,?)"
-    ).bind(crypto.randomUUID(), me.id, b.target_type, String(b.target_id), b.reason,
-      typeof b.details === "string" ? b.details.slice(0, 500) : null, Date.now()).run();
-    return json({ ok: true });
+    ).bind(crypto.randomUUID(), me.id, b.target_type, targetId, b.reason,
+      typeof b.details === "string" ? b.details.slice(0, 500) : null, now).run();
+
+    let moderation = null;
+    if (b.target_type === "user") {
+      const dayCount = await env.DB.prepare(
+        "SELECT COUNT(DISTINCT reporter_id) AS n FROM reports WHERE target_type = 'user' AND target_id = ? AND created_at > ?"
+      ).bind(targetId, now - 86400000).first();
+      const weekCount = await env.DB.prepare(
+        "SELECT COUNT(DISTINCT reporter_id) AS n FROM reports WHERE target_type = 'user' AND target_id = ? AND created_at > ?"
+      ).bind(targetId, now - 7 * 86400000).first();
+      const weekly = weekCount?.n || 0;
+      const daily = dayCount?.n || 0;
+      const target = await env.DB.prepare("SELECT status, status_until FROM users WHERE id = ?").bind(targetId).first();
+      if (weekly > 100 && !(target.status === "banned" && target.status_until > now)) {
+        const expires = now + 30 * 86400000;
+        await env.DB.batch([
+          env.DB.prepare("UPDATE users SET status = 'banned', status_until = ? WHERE id = ?").bind(expires, targetId),
+          env.DB.prepare("INSERT INTO automated_moderation_events (id, target_user_id, action, distinct_reports, window_started_at, window_ended_at, created_at, expires_at) VALUES (?,?,?,?,?,?,?,?)")
+            .bind(crypto.randomUUID(), targetId, "ban_30d", weekly, now - 7 * 86400000, now, now, expires),
+        ]);
+        moderation = { action: "banned", duration_hours: 720, distinct_reports: weekly };
+      } else if (daily > 15 && !(target.status === "suspended" && target.status_until > now) && !(target.status === "banned" && target.status_until > now)) {
+        const expires = now + 86400000;
+        await env.DB.batch([
+          env.DB.prepare("UPDATE users SET status = 'suspended', status_until = ? WHERE id = ?").bind(expires, targetId),
+          env.DB.prepare("INSERT INTO automated_moderation_events (id, target_user_id, action, distinct_reports, window_started_at, window_ended_at, created_at, expires_at) VALUES (?,?,?,?,?,?,?,?)")
+            .bind(crypto.randomUUID(), targetId, "suspend_24h", daily, now - 86400000, now, now, expires),
+        ]);
+        moderation = { action: "suspended", duration_hours: 24, distinct_reports: daily };
+      }
+    }
+    return json({ ok: true, moderation });
   }
 
   if (path === "/v1/me/delete" && method === "POST") {
