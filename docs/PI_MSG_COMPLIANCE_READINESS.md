@@ -13,6 +13,8 @@ This checklist is an operational preparation document, not a legal opinion or a 
 - `/community` — Community Rules
 - `/cookies` — Cookies and Similar Technologies Policy
 - `/security` — Security and Vulnerability Reporting
+- `/child-safety` — Child Safety Policy
+- `/copyright` — Intellectual Property and Copyright Policy
 - `/faq` — Frequently Asked Questions
 - `/support` — Support contacts and FAQ entry point
 - `/delete-account` — External account-deletion request page
