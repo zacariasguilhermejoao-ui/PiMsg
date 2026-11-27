@@ -69,7 +69,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.isabgroup.pimsg.R
 import com.isabgroup.pimsg.chat.ChatRef
 import com.isabgroup.pimsg.data.Api
-import com.isabgroup.pimsg.data.uploadUri
 import com.isabgroup.pimsg.data.uploadBitmap
 import com.isabgroup.pimsg.data.PiMsgMedia
 import com.isabgroup.pimsg.data.Push
@@ -179,7 +178,6 @@ fun HomeScreen(
     var ownProfileAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var ownProfileCover by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var coverCropSource by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-    var coverUploading by remember { mutableStateOf(false) }
     var profileLoading by remember { mutableStateOf(false) }
     var initialSkeleton by remember { mutableStateOf(false) }
     var newGroupOpen by remember { mutableStateOf(false) }
@@ -392,11 +390,8 @@ fun HomeScreen(
             publicSocialIcons = icons
             val key = profile.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
             if (key != null) runCatching {
-                val cachedFile = PiMsgMedia.findCached(context, key)
-                val file = cachedFile ?: run {
-                    val downloaded = Api.download("/v1/media/$key")
-                    PiMsgMedia.store(context, key, downloaded.mime, "avatar", downloaded.bytes)
-                }
+                val downloaded = Api.download("/v1/media/$key")
+                val file = PiMsgMedia.store(context, key, downloaded.mime, "avatar", downloaded.bytes)
                 publicAvatar = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
             }
         } catch (_: Exception) { }
@@ -547,7 +542,6 @@ fun HomeScreen(
             onConfirm = { cropped ->
                 coverCropSource = null
                 scope.launch {
-                    coverUploading = true
                     try {
                         val uploaded = uploadBitmap(context, cropped, "profile-cover.jpg")
                         Api.patch("/v1/me/media", JSONObject().put("profile_cover_media_id", uploaded.id))
@@ -559,7 +553,6 @@ fun HomeScreen(
                     } catch (_: Exception) {
                         android.widget.Toast.makeText(context, "Não foi possível guardar a fotografia de capa.", android.widget.Toast.LENGTH_LONG).show()
                     } finally {
-                        coverUploading = false
                     }
                 }
             },
@@ -699,9 +692,8 @@ private fun CachedAvatar(avatarKey: String?, modifier: Modifier = Modifier) {
     LaunchedEffect(avatarKey) {
         val key = avatarKey ?: return@LaunchedEffect
         val cached = PiMsgMedia.findCached(context, key)
-        if (cached != null) {
-            bitmap = android.graphics.BitmapFactory.decodeFile(cached.absolutePath)
-        } else if (Api.hasInternet(context)) {
+        if (cached != null) bitmap = android.graphics.BitmapFactory.decodeFile(cached.absolutePath)
+        if (Api.hasInternet(context)) {
             runCatching {
                 val data = Api.download("/v1/media/$key")
                 val file = PiMsgMedia.store(context, key, data.mime, "avatar", data.bytes)
