@@ -122,3 +122,39 @@ export async function handleBilling(request, env, me, path, method) {
     return fail(502, "não foi possível validar a compra com a Google Play");
   }
 }
+
+export async function refreshExpiringSubscriptions(env, now = Date.now()) {
+  if (!env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON) return { checked: 0, skipped: true };
+  const rows = await env.DB.prepare(
+    "SELECT id, play_purchase_token, plan FROM subscriptions WHERE status IN ('active','grace','on_hold') AND expires_at <= ? AND updated_at <= ? ORDER BY expires_at ASC LIMIT 50"
+  ).bind(now + 24 * 60 * 60 * 1000, now - 6 * 60 * 60 * 1000).all();
+  let checked = 0;
+  for (const row of rows.results || []) {
+    try {
+      const purchase = await googleApi(env, "/purchases/subscriptionsv2/tokens/" + encodeURIComponent(row.play_purchase_token));
+      const lineItems = Array.isArray(purchase.lineItems) ? purchase.lineItems : [];
+      const line = lineItems.find((item) => PRODUCTS[item.productId]) || lineItems[0];
+      const expiresAt = Date.parse(line?.expiryTime || "");
+      const state = purchase.subscriptionState || "";
+      let status = "expired";
+      if (state === "SUBSCRIPTION_STATE_IN_GRACE_PERIOD") status = "grace";
+      else if (state === "SUBSCRIPTION_STATE_ON_HOLD" || state === "SUBSCRIPTION_STATE_PAUSED") status = "on_hold";
+      else if (Number.isFinite(expiresAt) && expiresAt > now && ["SUBSCRIPTION_STATE_ACTIVE", "SUBSCRIPTION_STATE_CANCELED"].includes(state)) status = "active";
+      if (!Number.isFinite(expiresAt) || expiresAt <= now || state === "SUBSCRIPTION_STATE_EXPIRED" || state === "SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED") status = "expired";
+      await env.DB.prepare(
+        "UPDATE subscriptions SET plan = ?, status = ?, expires_at = ?, auto_renewing = ?, updated_at = ? WHERE id = ?"
+      ).bind(
+        line?.productId && PRODUCTS[line.productId] ? PRODUCTS[line.productId] : row.plan,
+        status,
+        Number.isFinite(expiresAt) ? expiresAt : now,
+        line?.autoRenewingPlan?.autoRenewEnabled ? 1 : 0,
+        now,
+        row.id,
+      ).run();
+      checked++;
+    } catch (error) {
+      console.error("PiMsg subscription refresh failed:", String(error));
+    }
+  }
+  return { checked };
+}
