@@ -105,7 +105,7 @@ async function authenticate(request, env) {
       user.status = "active";
       user.status_until = null;
     } else {
-      return { blocked: user.status };
+      return { blocked: user.status, status_until: user.status_until || null };
     }
   }
   if (claims.email && claims.email_verified && (!user.email_verified || user.email !== claims.email)) {
@@ -157,7 +157,14 @@ async function handle(request, env) {
 
   const me = await authenticate(request, env);
   if (!me) return fail(401, "nao autenticado");
-  if (me.blocked) return fail(me.blocked === "signup_rate_limited" ? 429 : 403, me.blocked === "signup_rate_limited" ? "limite de criacao de contas nesta rede; tente mais tarde" : "conta " + me.blocked);
+  if (me.blocked) {
+    if (me.blocked === "signup_rate_limited") return fail(429, "limite de criacao de contas nesta rede; tente mais tarde");
+    const until = me.status_until ? new Date(me.status_until).toLocaleString("pt-PT", { timeZone: "Africa/Luanda" }) : null;
+    const message = me.blocked === "suspended"
+      ? "A tua conta está suspensa temporariamente" + (until ? " até " + until + " (hora de Angola)." : ".")
+      : "A tua conta está banida temporariamente" + (until ? " até " + until + " (hora de Angola)." : ".");
+    return fail(403, message);
+  }
 
   if (path === "/v1/plan" && method === "GET") {
     const now = Date.now();
