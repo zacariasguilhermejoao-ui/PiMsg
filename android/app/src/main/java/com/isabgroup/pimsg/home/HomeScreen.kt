@@ -367,34 +367,6 @@ fun HomeScreen(
         profileLoading = false
     }
         LaunchedEffect(query) { delay(300); vm.search(query) }
-    LaunchedEffect(profileTarget?.id) {
-        val target = profileTarget ?: run { publicProfile = null; publicAvatar = null; return@LaunchedEffect }
-        profileLoading = true
-        publicProfile = null
-        publicAvatar = null
-        publicSocialIcons = emptyMap()
-        try {
-            val profile = Api.get("/v1/users/\u0024{target.id}")
-            publicProfile = profile
-            val socialLinks = profile.optJSONArray("social_links") ?: JSONArray()
-            val icons = mutableMapOf<String, android.graphics.Bitmap>()
-            for (index in 0 until socialLinks.length()) {
-                val link = socialLinks.optJSONObject(index)?.optString("url") ?: continue
-                if (!link.startsWith("https://")) continue
-                runCatching {
-                    val data = Api.download("/v1/favicon?url=" + Api.encode(link))
-                    android.graphics.BitmapFactory.decodeByteArray(data.bytes, 0, data.bytes.size)?.let { icons[link] = it }
-                }
-            }
-            publicSocialIcons = icons
-            val key = if (profile.isNull("avatar_key")) null else profile.optString("avatar_key").takeIf { it.isNotBlank() }
-            if (key != null) runCatching {
-                val downloaded = Api.download("/v1/media/\u0024key")
-                publicAvatar = android.graphics.BitmapFactory.decodeByteArray(downloaded.bytes, 0, downloaded.bytes.size)
-            }
-        } catch (_: Exception) { publicProfile = null }
-        profileLoading = false
-    }
     LaunchedEffect(searching) { if (searching) focus.requestFocus() }
 
     val myStories = state.myId?.let { state.stories[it] }.orEmpty()
