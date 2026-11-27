@@ -12,6 +12,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material3.Icon
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
@@ -46,10 +51,10 @@ fun AttachSheet(
             Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                AttachOption("Galeria", Modifier.weight(1f)) { onDismiss(); onPickMedia() }
-                AttachOption("Ficheiro", Modifier.weight(1f)) { onPickFile() }
-                AttachOption("Música", Modifier.weight(1f)) { onPickMusic() }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                AttachOption(Icons.Filled.PhotoLibrary, "Galeria", Modifier.weight(1f)) { onDismiss(); onPickMedia() }
+                AttachOption(Icons.Filled.MusicNote, "Música", Modifier.weight(1f)) { onDismiss(); onPickMusic() }
+                AttachOption(Icons.Filled.FolderOpen, "Ficheiros", Modifier.weight(1f)) { onPickFile() }
             }
             Spacer(Modifier.height(16.dp))
         }
@@ -57,13 +62,18 @@ fun AttachSheet(
 }
 
 @Composable
-private fun AttachOption(label: String, modifier: Modifier, onClick: () -> Unit) {
-    Box(
-        modifier.height(52.dp).clip(RoundedCornerShape(26.dp))
-            .background(PiColors.SurfaceHigh)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
+private fun AttachOption(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
+    Column(
+        modifier.clip(RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        Text(label, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+        Box(
+            Modifier.size(54.dp).clip(RoundedCornerShape(18.dp)).background(PiColors.SurfaceHigh),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = label, tint = PiColors.White, modifier = Modifier.size(27.dp))
+        }
+        Text(label, color = PiColors.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
 }
