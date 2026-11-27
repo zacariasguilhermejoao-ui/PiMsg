@@ -1,6 +1,7 @@
 package com.isabgroup.pimsg.chat
 
 import android.content.ContentResolver
+import android.media.MediaMetadataRetriever
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -15,6 +16,8 @@ import com.isabgroup.pimsg.data.ApiException
 import com.isabgroup.pimsg.data.PiMsgMedia
 import com.isabgroup.pimsg.ui.PiI18n
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -60,6 +63,7 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     private val _state = MutableStateFlow(ChatState())
     val state: StateFlow<ChatState> = _state.asStateFlow()
     val images = mutableStateMapOf<String, Bitmap>()
+    val videoThumbnails = mutableStateMapOf<String, Bitmap>()
     private var lastNewestId: String? = null
     private var syncing = false
     private var refreshing = false
@@ -238,7 +242,7 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     }
 
     // Os anexos são enviados quando há rede; mensagens de texto ficam em fila offline.
-    fun sendMedia(cr: ContentResolver, uri: Uri, hint: String, onComplete: (() -> Unit)? = null) {
+    fun sendMedia(cr: ContentResolver, uri: Uri, hint: String, onComplete: (() -> Unit)? = null, caption: String? = null) {
         viewModelScope.launch {
             _state.update { it.copy(busy = true, error = null) }
             try {
@@ -278,8 +282,9 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                         mime.startsWith("audio/") -> "audio"
                         else -> "file"
                     }
+                    val messageBody = if (kind == "image" || kind == "video") caption?.trim()?.take(500).orEmpty() else name ?: ""
                     Api.post("/v1/chats/$convId/messages", JSONObject().put("kind", kind)
-                        .put("media_id", mediaId).put("body", name ?: ""))
+                        .put("media_id", mediaId).put("body", messageBody))
                 } finally {
                     staged.delete()
                 }
@@ -293,14 +298,14 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
         }
     }
 
-    fun sendMediaBatch(cr: ContentResolver, uris: List<Uri>) {
+    fun sendMediaBatch(cr: ContentResolver, uris: List<Uri>, caption: String? = null) {
         viewModelScope.launch {
             for (uri in uris) {
                 val completed = CompletableDeferred<Unit>()
                 val mime = cr.getType(uri).orEmpty()
-                sendMedia(cr, uri, if (mime.startsWith("audio/")) "music" else "file") {
+                sendMedia(cr, uri, if (mime.startsWith("audio/")) "music" else "file", onComplete = {
                     if (!completed.isCompleted) completed.complete(Unit)
-                }
+                }, caption = caption)
                 completed.await()
                 if (_state.value.error != null) break
             }
@@ -396,6 +401,26 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
             BitmapFactory.decodeFile(file.absolutePath)?.let { images[mediaId] = it }
         } catch (_: Exception) {
             _state.update { it.copy(error = "Esta fotografia ainda não está guardada. Liga-te à Internet para a descarregar.") }
+        }
+    }
+
+    suspend fun loadVideoThumbnail(message: Message) {
+        val mediaId = message.mediaId ?: return
+        if (videoThumbnails.containsKey(mediaId)) return
+        try {
+            val file = downloadMedia(message)
+            val thumbnail = withContext(Dispatchers.IO) {
+                val retriever = MediaMetadataRetriever()
+                try {
+                    retriever.setDataSource(file.absolutePath)
+                    retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                } finally {
+                    runCatching { retriever.release() }
+                }
+            }
+            if (thumbnail != null) videoThumbnails[mediaId] = thumbnail
+        } catch (_: Exception) {
+            // A pré-visualização pode ser carregada novamente quando o utilizador tocar no vídeo.
         }
     }
 
