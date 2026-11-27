@@ -639,7 +639,20 @@ private fun createPiMsgQr(context: Context, code: String, name: String): Bitmap 
         val side = 154f
         val left = (720f - side) / 2f
         val top = (720f - side) / 2f
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE }
+        var brightness = 0L
+        var samples = 0
+        val stepX = maxOf(1, logo.width / 40)
+        val stepY = maxOf(1, logo.height / 40)
+        for (y in 0 until logo.height step stepY) for (x in 0 until logo.width step stepX) {
+            val pixel = logo.getPixel(x, y)
+            if (android.graphics.Color.alpha(pixel) > 32) {
+                brightness += (android.graphics.Color.red(pixel) + android.graphics.Color.green(pixel) + android.graphics.Color.blue(pixel)) / 3
+                samples++
+            }
+        }
+        val average = if (samples == 0) 0 else brightness / samples
+        val backing = if (average > 127) android.graphics.Color.BLACK else android.graphics.Color.WHITE
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = backing }
         canvas.drawRoundRect(RectF(left - 12f, top - 12f, left + side + 12f, top + side + 12f), 22f, 22f, paint)
         val scale = minOf(side / logo.width, side / logo.height)
         val width = logo.width * scale
