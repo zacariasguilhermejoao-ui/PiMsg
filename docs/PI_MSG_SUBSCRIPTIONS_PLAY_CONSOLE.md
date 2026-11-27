@@ -31,6 +31,18 @@ For each new product: create a subscription, add one auto-renewing base plan wit
 
 Existing Pro weekly/monthly purchases remain Pro entitlements.
 
+## Suggested launch prices for Angola (set manually in Play Console)
+
+These are starting prices to test, not values hard-coded in the app:
+
+| Tier | Weekly | Monthly | Annual |
+|---|---:|---:|---:|
+| Plus | — | 1,500 Kz | 15,000 Kz |
+| Pro | 1,000 Kz | 3,500 Kz | 35,000 Kz |
+| Business | — | 7,500 Kz | 75,000 Kz |
+
+Annual prices equal ten monthly payments (about two months discounted). Keep the Pro weekly product as a higher-cost short-term option. Review actual AI and storage usage after the first 30 days before changing prices.
+
 ## Cost protection
 
 - All inference now uses Cloudflare Workers AI `@cf/meta/llama-3.1-8b-instruct-fp8-fast`, not the more expensive 70B model.
