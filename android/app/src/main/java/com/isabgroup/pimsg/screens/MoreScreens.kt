@@ -494,6 +494,9 @@ fun LinksScreen(onBack: () -> Unit) {
     var imageMediaId by remember { mutableStateOf<String?>(null) }
     var imagePreview by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var msg by remember { mutableStateOf<String?>(null) }
+    var linkReplyUsed by remember { mutableStateOf(0) }
+    var linkReplyRemaining by remember { mutableStateOf<Int?>(500) }
+    var linkReplyResetAt by remember { mutableStateOf<Long?>(null) }
     val linkImagePicker = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri ->
@@ -512,6 +515,10 @@ fun LinksScreen(onBack: () -> Unit) {
 
     suspend fun load() {
         try {
+            val planInfo = Api.get("/v1/plan")
+            linkReplyUsed = planInfo.optInt("personalized_link_reply_usage", 0)
+            linkReplyRemaining = if (planInfo.isNull("personalized_link_reply_remaining")) null else planInfo.optInt("personalized_link_reply_remaining")
+            linkReplyResetAt = if (planInfo.isNull("personalized_link_reply_resets_at")) null else planInfo.optLong("personalized_link_reply_resets_at")
             val arr = Api.get("/v1/links").getJSONArray("links")
             links = (0 until arr.length()).map {
                 val o = arr.getJSONObject(it)
@@ -526,6 +533,15 @@ fun LinksScreen(onBack: () -> Unit) {
             "Crie um link para cada produto ou assunto. Quando alguém o abre e gera o código, o PiMsg avisa-o e já fica a saber do que se trata.",
             color = PiColors.TextSecondary, fontSize = 15.sp,
         )
+        if (linkReplyRemaining != null) {
+            Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).padding(14.dp)) {
+                Text("Respostas através dos seus links", color = PiColors.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text("$linkReplyUsed / 500 respostas utilizadas este mês", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp))
+                androidx.compose.material3.LinearProgressIndicator(progress = { (linkReplyUsed / 500f).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), color = PiColors.White, trackColor = PiColors.SurfaceHigh)
+                Text(if ((linkReplyRemaining ?: 1) == 0) "Limite atingido. Poderá responder novamente e criar links no dia 1, às 00h00 (hora de Angola), ou ativar o Pro." else "As conversas normais continuam disponíveis. O limite renova no dia 1, às 00h00 (hora de Angola).", color = if ((linkReplyRemaining ?: 1) == 0) PiColors.Danger else PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+            }
+            Spacer(Modifier.height(12.dp))
+        }
         Spacer(Modifier.height(16.dp))
         OutlinedTextField(value = subject, onValueChange = { subject = it.take(80) }, label = { Text("Assunto ou produto") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
@@ -585,7 +601,7 @@ fun PlansScreen(onBack: () -> Unit) {
     var messageUsage by remember { mutableStateOf(0) }
     var aiUsage by remember { mutableStateOf(0) }
     var messageLimit by remember { mutableStateOf<Int?>(30) }
-    var aiLimit by remember { mutableStateOf(5) }
+    var aiLimit by remember { mutableStateOf(5) }\n    var linkReplyUsage by remember { mutableStateOf(0) }\n    var linkReplyLimit by remember { mutableStateOf<Int?>(500) }
     var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
@@ -597,7 +613,7 @@ fun PlansScreen(onBack: () -> Unit) {
             messageUsage = data.optInt("message_usage")
             aiUsage = data.optInt("ai_usage")
             messageLimit = if (data.isNull("message_limit")) null else data.optInt("message_limit")
-            aiLimit = data.optInt("ai_limit", 5)
+            aiLimit = data.optInt("ai_limit", 5)\n            linkReplyUsage = data.optInt("personalized_link_reply_usage", 0)\n            linkReplyLimit = if (data.isNull("personalized_link_reply_limit")) null else data.optInt("personalized_link_reply_limit")
         } catch (e: Exception) { error = "Não foi possível consultar o plano da conta." }
         finally { loading = false }
     }
@@ -613,7 +629,7 @@ fun PlansScreen(onBack: () -> Unit) {
             )
             Spacer(Modifier.height(12.dp))
             Text("Mensagens hoje: $messageUsage" + (messageLimit?.let { " / $it" } ?: " · sem limite diário"), color = PiColors.White, fontSize = 13.sp)
-            Text("Pi AI hoje: $aiUsage / $aiLimit respostas", color = PiColors.White, fontSize = 13.sp)
+            Text("Pi AI hoje: $aiUsage / $aiLimit respostas", color = PiColors.White, fontSize = 13.sp)\n            Text("Respostas através dos links este mês: $linkReplyUsage" + (linkReplyLimit?.let { " / $it" } ?: " · sem limite"), color = PiColors.White, fontSize = 13.sp)
             if (expiresAt != null) {
                 val date = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(expiresAt!!))
                 Text("Válido até $date", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
@@ -632,7 +648,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Text("FREE", color = PiColors.Gray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(16.dp)) {
             Text("Acesso essencial", color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            listOf("Até 30 contactos", "Até 30 mensagens por dia", "5 respostas do Pi AI por dia", "Conversas e partilha de ficheiros").forEach {
+            listOf("Até 30 contactos", "Até 30 mensagens por dia", "500 respostas por mês através dos links personalizados", "5 respostas do Pi AI por dia", "Conversas e partilha de ficheiros").forEach {
                 Text("•  $it", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp))
             }
             if (current == "free") Text("Plano em utilização", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
@@ -641,7 +657,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Text("PRO", color = PiColors.Gray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(16.dp)) {
             Text("Mais capacidade", color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            listOf("Mensagens sem limite diário", "30 respostas do Pi AI por dia", "Vídeo de apresentação no perfil").forEach {
+            listOf("Mensagens sem limite diário", "Respostas ilimitadas através dos links personalizados", "30 respostas do Pi AI por dia", "Vídeo de apresentação no perfil").forEach {
                 Text("•  $it", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp))
             }
             Spacer(Modifier.height(14.dp))
