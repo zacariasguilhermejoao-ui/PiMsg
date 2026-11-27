@@ -1079,6 +1079,28 @@ fun LinksScreen(onBack: () -> Unit) {
 
 // ---------------------------------------------------------------- Planos
 @Composable
+private fun SubscriptionProductButton(
+    label: String,
+    productId: String,
+    product: ProductDetails?,
+    billingReady: Boolean,
+    activity: android.app.Activity?,
+    onBuy: (ProductDetails) -> Unit,
+) {
+    val price = product?.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice
+    if (product != null && billingReady && activity != null) {
+        PiButton("$label · ${price ?: "Ver preço"}", { onBuy(product) }, primary = true)
+    } else {
+        Text(
+            if (!billingReady) "$label · validação de compras ainda não configurada"
+            else "$label · criar na Google Play: $productId",
+            color = PiColors.TextSecondary, fontSize = 11.sp, lineHeight = 16.sp,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        )
+    }
+}
+
+@Composable
 fun PlansScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val activity = context as? android.app.Activity
@@ -1088,16 +1110,19 @@ fun PlansScreen(onBack: () -> Unit) {
     var purchaseMessage by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var current by remember { mutableStateOf("free") }
+    var currentTier by remember { mutableStateOf("free") }
     var status by remember { mutableStateOf("free") }
     var expiresAt by remember { mutableStateOf<Long?>(null) }
     var messageUsage by remember { mutableStateOf(0) }
     var aiUsage by remember { mutableStateOf(0) }
-    var messageLimit by remember { mutableStateOf<Int?>(30) }
     var aiLimit by remember { mutableStateOf(0) }
+    var messageLimit by remember { mutableStateOf<Int?>(30) }
     var translationUsage by remember { mutableStateOf(0) }
     var translationLimit by remember { mutableStateOf<Int?>(4) }
     var linkReplyUsage by remember { mutableStateOf(0) }
     var linkReplyLimit by remember { mutableStateOf<Int?>(500) }
+    var customBotLimit by remember { mutableStateOf(0) }
+    var businessTools by remember { mutableStateOf(false) }
     var billingReady by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -1106,17 +1131,22 @@ fun PlansScreen(onBack: () -> Unit) {
             val data = Api.get("/v1/plan")
             billingReady = data.optBoolean("billing_ready", false)
             current = data.optString("current_plan", "free")
+            currentTier = data.optString("current_tier", "free")
             status = data.optString("subscription_status", "free")
             expiresAt = if (data.isNull("expires_at")) null else data.optLong("expires_at")
             messageUsage = data.optInt("message_usage")
-            aiUsage = data.optInt("ai_usage")
             messageLimit = if (data.isNull("message_limit")) null else data.optInt("message_limit")
+            aiUsage = data.optInt("ai_usage")
             aiLimit = data.optInt("ai_limit", 0)
             translationUsage = data.optInt("translation_usage", 0)
             translationLimit = if (data.isNull("translation_limit")) null else data.optInt("translation_limit")
             linkReplyUsage = data.optInt("personalized_link_reply_usage", 0)
             linkReplyLimit = if (data.isNull("personalized_link_reply_limit")) null else data.optInt("personalized_link_reply_limit")
-        } catch (_: Exception) { error = "Não foi possível consultar o plano da conta." }
+            customBotLimit = data.optInt("custom_bot_limit", 0)
+            businessTools = data.optBoolean("business_tools", false)
+        } catch (_: Exception) {
+            error = "Não foi possível consultar o plano da conta."
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -1135,92 +1165,75 @@ fun PlansScreen(onBack: () -> Unit) {
         onDispose { billingManager?.close() }
     }
 
-    ScreenFrame("Planos", onBack) {
-        Text("Escolha o nível de acesso adequado à sua utilização do PiMsg.", color = PiColors.TextSecondary, fontSize = 14.sp)
-        Spacer(Modifier.height(18.dp))
-        Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(16.dp)) {
-            Text(if (current == "free") "Plano atual · Free" else "Plano atual · Pro", color = PiColors.White, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
-            Text(
-                if (current == "free") "Está a utilizar o plano gratuito." else "A sua subscrição Pro está ativa.",
-                color = PiColors.TextSecondary, fontSize = 13.sp,
-            )
-            Spacer(Modifier.height(12.dp))
-            Text("Mensagens hoje: $messageUsage" + (messageLimit?.let { " / $it" } ?: " · sem limite diário"), color = PiColors.White, fontSize = 13.sp)
-            Text(if (current == "free") "Traduções gratuitas hoje: $translationUsage / 4" else "Pedidos de IA dos bots hoje: $aiUsage / $aiLimit", color = PiColors.White, fontSize = 13.sp)
-            Text("Respostas através dos links este mês: $linkReplyUsage" + (linkReplyLimit?.let { " / $it" } ?: " · sem limite"), color = PiColors.White, fontSize = 13.sp)
-            if (expiresAt != null) {
-                val date = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(expiresAt!!))
-                Text("Válido até $date", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
-            }
-            if (current != "free") {
-                val statusLabel = when (status) {
-                    "active" -> "Ativo"
-                    "grace" -> "Em período de tolerância"
-                    "on_hold" -> "Suspenso pela Google Play"
-                    else -> "Estado da subscrição indisponível"
-                }
-                Text("Estado: $statusLabel", color = PiColors.TextSecondary, fontSize = 12.sp)
-            }
-        }
-        Spacer(Modifier.height(18.dp))
-        Text("FREE", color = PiColors.Gray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(16.dp)) {
-            Text("Acesso essencial", color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            listOf("Até 30 contactos", "Até 30 mensagens por dia", "500 respostas por mês através dos links personalizados", "4 traduções gratuitas por dia", "Conversas e partilha de ficheiros").forEach {
-                Text("•  $it", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp))
-            }
-            if (current == "free") Text("Plano em utilização", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
-        }
+    ScreenFrame("Subscrições", onBack) {
+        Text("Escolhe o plano que acompanha a tua utilização. Os limites são aplicados no servidor e os preços são apresentados pela Google Play.", color = PiColors.TextSecondary, fontSize = 13.sp, lineHeight = 19.sp)
         Spacer(Modifier.height(14.dp))
-        Text("PRO", color = PiColors.Gray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(16.dp)) {
-            Text("Mais capacidade", color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            listOf("Mensagens sem limite diário", "Respostas ilimitadas através dos links personalizados", "Acesso a todos os bots PiMsg", "30 pedidos de IA por dia", "Traduções sem limite diário", "Vídeo de apresentação no perfil").forEach {
-                Text("•  $it", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp))
+        Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
+            Text("O TEU PLANO", color = PiColors.Gray, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text(when(currentTier) { "plus" -> "PiMsg Plus"; "pro" -> "PiMsg Pro"; "business" -> "PiMsg Business"; else -> "PiMsg Free" }, color = PiColors.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 5.dp))
+            Text("Mensagens hoje: $messageUsage" + (messageLimit?.let { " / $it" } ?: " · sem limite diário"), color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp))
+            Text("Traduções hoje: $translationUsage" + (translationLimit?.let { " / $it" } ?: ""), color = PiColors.TextSecondary, fontSize = 12.sp)
+            Text("Pedidos de IA hoje: $aiUsage / $aiLimit", color = PiColors.TextSecondary, fontSize = 12.sp)
+            Text("Respostas de links este mês: $linkReplyUsage" + (linkReplyLimit?.let { " / $it" } ?: " · sem limite"), color = PiColors.TextSecondary, fontSize = 12.sp)
+            if (currentTier != "free") {
+                val date = expiresAt?.let { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(it)) }
+                if (date != null) Text("Válido até $date · ${if (status == "active") "Activo" else if (status == "grace") "Período de tolerância" else status}", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 5.dp))
+                Text("Bots personalizados: até $customBotLimit · Pi Business: ${if (businessTools) "incluído" else "não incluído"}", color = PiColors.TextSecondary, fontSize = 12.sp)
             }
-            Spacer(Modifier.height(14.dp))
-            if (current == "free" && billingReady) {
-                val weekly = products[PlayBilling.WEEKLY]
-                val monthly = products[PlayBilling.MONTHLY]
-                val weeklyPrice = weekly?.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice
-                val monthlyPrice = monthly?.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice
-                if (weekly != null && activity != null) {
-                    PiButton("Pro semanal · " + (weeklyPrice ?: "Ver preço"), {
-                        billingManager?.buy(activity, weekly)
-                    }, primary = true)
-                } else {
-                    Text("Pro semanal · produto ainda não publicado na Google Play", color = PiColors.TextSecondary, fontSize = 12.sp)
-                }
-                Spacer(Modifier.height(8.dp))
-                if (monthly != null && activity != null) {
-                    PiButton("Pro mensal · " + (monthlyPrice ?: "Ver preço"), {
-                        billingManager?.buy(activity, monthly)
-                    }, primary = true)
-                } else {
-                    Text("Pro mensal · produto ainda não publicado na Google Play", color = PiColors.TextSecondary, fontSize = 12.sp)
-                }
-                TextButton(onClick = { billingManager?.restorePurchases() }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Restaurar compras", color = PiColors.White)
-                }
-            } else if (current == "free") {
-                Text(
-                    "As compras serão ativadas assim que a validação segura da Google Play estiver configurada no servidor.",
-                    color = PiColors.Gray, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 12.dp),
-                )
-            }
-            Text(
-                "Os preços são apresentados diretamente pela Google Play. A ativação do Pro só acontece depois da validação segura da compra no servidor.",
-                color = PiColors.Gray, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 12.dp),
-            )
-            purchaseMessage?.let { Text(it, color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp)) }
-            if (current != "free") {
-                PiButton("Gerir subscrição na Google Play", {
-                    openUrl(context, "https://play.google.com/store/account/subscriptions")
-                }, primary = false)
-            }
+            TextButton(onClick = { billingManager?.restorePurchases() }, modifier = Modifier.fillMaxWidth()) { Text("Restaurar compras", color = PiColors.White) }
         }
-        error?.let { Text(it, color = PiColors.Danger, fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp)) }
-        if (loading) Text("A consultar a sua conta…", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
-        Spacer(Modifier.height(20.dp))
+
+        Spacer(Modifier.height(18.dp))
+        Text("PLANOS DISPONÍVEIS", color = PiColors.Gray, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(8.dp))
+        Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
+            Text("Free", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("Para começar e manter contacto.", color = PiColors.TextSecondary, fontSize = 12.sp)
+            listOf("Até 30 contactos", "30 mensagens por dia", "500 respostas de links personalizados por mês", "4 traduções por dia", "Conversas, grupos e partilha de ficheiros", "Sem bots de IA pagos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
+            if (currentTier == "free") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
+        }
+
+        Spacer(Modifier.height(10.dp))
+        Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
+            Text("PiMsg Plus", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("Para quem conversa e trabalha diariamente.", color = PiColors.TextSecondary, fontSize = 12.sp)
+            listOf("Mensagens sem limite diário", "Até 1.500 respostas de links por mês", "Pi AI e Pi Reminder", "5 pedidos de IA por dia", "25 traduções por dia", "Sem bots personalizados nem Pi Business").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
+            Spacer(Modifier.height(10.dp))
+            SubscriptionProductButton("Mensal", PlayBilling.PLUS_MONTHLY, products[PlayBilling.PLUS_MONTHLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
+            SubscriptionProductButton("Anual", PlayBilling.PLUS_YEARLY, products[PlayBilling.PLUS_YEARLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
+            if (currentTier == "plus") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+        }
+
+        Spacer(Modifier.height(10.dp))
+        Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
+            Text("PiMsg Pro", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("Para utilizadores avançados e criadores.", color = PiColors.TextSecondary, fontSize = 12.sp)
+            listOf("Mensagens e respostas de links sem limite mensal", "Todos os bots, excepto ferramentas exclusivas Business", "20 pedidos de IA por dia", "75 traduções por dia", "Até 5 bots personalizados", "Vídeo de apresentação no perfil").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
+            Spacer(Modifier.height(10.dp))
+            SubscriptionProductButton("Semanal", PlayBilling.WEEKLY, products[PlayBilling.WEEKLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
+            SubscriptionProductButton("Mensal", PlayBilling.MONTHLY, products[PlayBilling.MONTHLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
+            SubscriptionProductButton("Anual", PlayBilling.PRO_YEARLY, products[PlayBilling.PRO_YEARLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
+            if (currentTier == "pro") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+        }
+
+        Spacer(Modifier.height(10.dp))
+        Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
+            Text("PiMsg Business", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("Para lojas, marcas, profissionais e equipas que vendem.", color = PiColors.TextSecondary, fontSize = 12.sp)
+            listOf("Tudo do Pro", "Pi Business para preparar respostas comerciais", "50 pedidos de IA por dia", "150 traduções por dia", "Até 20 bots personalizados", "Ferramentas para organizar informações, produtos, preços e contactos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
+            Spacer(Modifier.height(10.dp))
+            SubscriptionProductButton("Mensal", PlayBilling.BUSINESS_MONTHLY, products[PlayBilling.BUSINESS_MONTHLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
+            SubscriptionProductButton("Anual", PlayBilling.BUSINESS_YEARLY, products[PlayBilling.BUSINESS_YEARLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
+            if (currentTier == "business") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+        }
+
+        if (!billingReady) {
+            Text("As compras ainda não podem ser activadas: falta configurar a credencial de serviço da Google Play na Cloudflare e publicar os produtos na Play Console.", color = PiColors.Danger, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 14.dp))
+        }
+        purchaseMessage?.let { Text(it, color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp)) }
+        Text("Podes gerir ou cancelar uma subscrição na Google Play a qualquer momento.", color = PiColors.Gray, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 12.dp, bottom = 20.dp))
+        PiButton("Gerir subscrições na Google Play", { openUrl(context, "https://play.google.com/store/account/subscriptions") }, primary = false)
+        error?.let { Text(it, color = PiColors.Danger, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp)) }
+        if (loading) Text("A consultar a tua conta…", color = PiColors.TextSecondary, fontSize = 12.sp)
     }
 }
