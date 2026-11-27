@@ -189,8 +189,16 @@ async function handle(request, env) {
     const translationUsage = await env.DB.prepare(
       "SELECT translations FROM bot_translation_usage WHERE user_id = ? AND day = ?"
     ).bind(me.id, day).first();
+    const tier = !sub ? "free" : String(sub.plan).startsWith("business") ? "business" : String(sub.plan).startsWith("plus") ? "plus" : "pro";
+    const tierLimits = {
+      free: { ai: 0, translations: 4, custom_bots: 0, business: false },
+      plus: { ai: 5, translations: 25, custom_bots: 0, business: false },
+      pro: { ai: 20, translations: 75, custom_bots: 5, business: false },
+      business: { ai: 50, translations: 150, custom_bots: 20, business: true },
+    }[tier];
     return json({
       current_plan: sub ? sub.plan : "free",
+      current_tier: tier,
       billing_ready: !!env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON,
       subscription_status: sub?.status || "free",
       expires_at: sub?.expires_at || null,
@@ -202,14 +210,18 @@ async function handle(request, env) {
       personalized_link_reply_remaining: sub ? null : Math.max(0, 500 - linkUsage.used),
       personalized_link_reply_resets_at: linkUsage.resets_at,
       ai_usage: sub ? (aiUsage?.requests || 0) : 0,
-      ai_limit: sub ? 30 : 0,
-      translation_usage: sub ? null : (translationUsage?.translations || 0),
-      translation_limit: sub ? null : 4,
-      translation_remaining: sub ? null : Math.max(0, 4 - (translationUsage?.translations || 0)),
+      ai_limit: tierLimits.ai,
+      translation_usage: translationUsage?.translations || 0,
+      translation_limit: tierLimits.translations,
+      translation_remaining: Math.max(0, tierLimits.translations - (translationUsage?.translations || 0)),
+      custom_bot_limit: tierLimits.custom_bots,
+      business_tools: tierLimits.business,
       bots_available: !!sub,
       plans: {
-        free: { contacts: 30, messages_per_day: 30, personalized_link_replies_per_month: 500, translations_per_day: 4 },
-        pro: { messages_per_day: null, personalized_link_replies_per_month: null, bots: true, ai_requests_per_day: 30, translations: "unlimited", profile_video: true }
+        free: { contacts: 30, messages_per_day: 30, personalized_link_replies_per_month: 500, translations_per_day: 4, ai_requests_per_day: 0 },
+        plus: { messages_per_day: null, personalized_link_replies_per_month: 1500, translations_per_day: 25, ai_requests_per_day: 5, reminder: true },
+        pro: { messages_per_day: null, personalized_link_replies_per_month: null, translations_per_day: 75, ai_requests_per_day: 20, reminder: true, custom_bots: 5, profile_video: true },
+        business: { messages_per_day: null, personalized_link_replies_per_month: null, translations_per_day: 150, ai_requests_per_day: 50, reminder: true, custom_bots: 20, pi_business: true, profile_video: true }
       }
     });
   }
