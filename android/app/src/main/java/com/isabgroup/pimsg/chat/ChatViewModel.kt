@@ -86,10 +86,7 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                     serverMessages.asSequence().filter { it.mediaId != null }
                         .take(12).forEach { message ->
                             runCatching {
-                                val file = downloadMedia(message)
-                                if (PiMsgMedia.saveToGallery(appContext)) {
-                                    saveCachedMediaToGallery(message, file)
-                                }
+                                downloadMedia(message)
                             }
                         }
                 }
