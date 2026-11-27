@@ -1093,7 +1093,9 @@ fun PlansScreen(onBack: () -> Unit) {
     var messageUsage by remember { mutableStateOf(0) }
     var aiUsage by remember { mutableStateOf(0) }
     var messageLimit by remember { mutableStateOf<Int?>(30) }
-    var aiLimit by remember { mutableStateOf(15) }
+    var aiLimit by remember { mutableStateOf(0) }
+    var translationUsage by remember { mutableStateOf(0) }
+    var translationLimit by remember { mutableStateOf<Int?>(4) }
     var linkReplyUsage by remember { mutableStateOf(0) }
     var linkReplyLimit by remember { mutableStateOf<Int?>(500) }
     var billingReady by remember { mutableStateOf(false) }
@@ -1109,7 +1111,9 @@ fun PlansScreen(onBack: () -> Unit) {
             messageUsage = data.optInt("message_usage")
             aiUsage = data.optInt("ai_usage")
             messageLimit = if (data.isNull("message_limit")) null else data.optInt("message_limit")
-            aiLimit = data.optInt("ai_limit", 15)
+            aiLimit = data.optInt("ai_limit", 0)
+            translationUsage = data.optInt("translation_usage", 0)
+            translationLimit = if (data.isNull("translation_limit")) null else data.optInt("translation_limit")
             linkReplyUsage = data.optInt("personalized_link_reply_usage", 0)
             linkReplyLimit = if (data.isNull("personalized_link_reply_limit")) null else data.optInt("personalized_link_reply_limit")
         } catch (_: Exception) { error = "Não foi possível consultar o plano da conta." }
@@ -1142,7 +1146,7 @@ fun PlansScreen(onBack: () -> Unit) {
             )
             Spacer(Modifier.height(12.dp))
             Text("Mensagens hoje: $messageUsage" + (messageLimit?.let { " / $it" } ?: " · sem limite diário"), color = PiColors.White, fontSize = 13.sp)
-            Text(if (current == "free") "Créditos de IA utilizados: $aiUsage / $aiLimit" else "Pi AI hoje: $aiUsage / $aiLimit respostas", color = PiColors.White, fontSize = 13.sp)
+            Text(if (current == "free") "Traduções gratuitas hoje: $translationUsage / 4" else "Pedidos de IA dos bots hoje: $aiUsage / $aiLimit", color = PiColors.White, fontSize = 13.sp)
             Text("Respostas através dos links este mês: $linkReplyUsage" + (linkReplyLimit?.let { " / $it" } ?: " · sem limite"), color = PiColors.White, fontSize = 13.sp)
             if (expiresAt != null) {
                 val date = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(expiresAt!!))
@@ -1162,7 +1166,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Text("FREE", color = PiColors.Gray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(16.dp)) {
             Text("Acesso essencial", color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            listOf("Até 30 contactos", "Até 30 mensagens por dia", "500 respostas por mês através dos links personalizados", "15 créditos iniciais de IA", "Conversas e partilha de ficheiros").forEach {
+            listOf("Até 30 contactos", "Até 30 mensagens por dia", "500 respostas por mês através dos links personalizados", "4 traduções gratuitas por dia", "Conversas e partilha de ficheiros").forEach {
                 Text("•  $it", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp))
             }
             if (current == "free") Text("Plano em utilização", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
@@ -1171,7 +1175,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Text("PRO", color = PiColors.Gray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(16.dp)) {
             Text("Mais capacidade", color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            listOf("Mensagens sem limite diário", "Respostas ilimitadas através dos links personalizados", "30 respostas do Pi AI por dia", "Vídeo de apresentação no perfil").forEach {
+            listOf("Mensagens sem limite diário", "Respostas ilimitadas através dos links personalizados", "Acesso a todos os bots PiMsg", "30 pedidos de IA por dia", "Traduções sem limite diário", "Vídeo de apresentação no perfil").forEach {
                 Text("•  $it", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp))
             }
             Spacer(Modifier.height(14.dp))
