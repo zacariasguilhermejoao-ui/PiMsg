@@ -508,6 +508,23 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
             }
         }
 
+        Section("Avaliação")
+        Text(
+            "Avaliar o PiMsg na Google Play",
+            color = PiColors.White,
+            fontSize = 16.sp,
+            modifier = Modifier.fillMaxWidth().clickable {
+                val activity = context as? android.app.Activity
+                if (activity != null) {
+                    com.isabgroup.pimsg.ui.PlayReview.request(activity) {
+                        com.isabgroup.pimsg.ui.PlayReview.openStoreListing(activity)
+                    }
+                } else {
+                    msg = "Não foi possível abrir a avaliação neste momento."
+                }
+            }.padding(vertical = 12.dp)
+        )
+
         Section("Informações legais")
         listOf("Termos de uso" to "terms", "Política de privacidade" to "privacy", "Política de reembolso" to "refund", "Regras da comunidade" to "community", "Suporte" to "support").forEach { (label, path) ->
             Text(label, color = PiColors.White, fontSize = 16.sp, modifier = Modifier.fillMaxWidth().clickable { openUrl(context, "$SITE/$path") }.padding(vertical = 12.dp))
