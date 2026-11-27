@@ -436,6 +436,57 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
         msg?.let { Text(it, color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp)) }
         Spacer(Modifier.height(24.dp))
     }
+    if (qrOpen && qrBitmap != null) {
+        AlertDialog(
+            onDismissRequest = { qrOpen = false },
+            containerColor = PiColors.Surface,
+            title = { Text(name.ifBlank { "O meu perfil" }, color = PiColors.White) },
+            text = {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Image(qrBitmap!!.asImageBitmap(), contentDescription = "Código QR do perfil PiMsg", modifier = Modifier.size(250.dp))
+                    Text(name, color = PiColors.White, fontWeight = FontWeight.SemiBold)
+                    Text("Lê este código para encontrar a minha conta PiMsg.", color = PiColors.TextSecondary, fontSize = 13.sp)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val share = Intent(Intent.ACTION_SEND).setType("text/plain")
+                        .putExtra(Intent.EXTRA_TEXT, "Encontra-me no PiMsg: $name\nCódigo: $code")
+                    context.startActivity(Intent.createChooser(share, "Partilhar perfil"))
+                }) { Text("Partilhar", color = PiColors.White) }
+            },
+            dismissButton = { TextButton(onClick = { qrOpen = false }) { Text("Fechar", color = PiColors.TextSecondary) } },
+        )
+    }
+    scannedUserId?.let { userId ->
+        AlertDialog(
+            onDismissRequest = { scannedUserId = null },
+            containerColor = PiColors.Surface,
+            title = { Text("Conta encontrada", color = PiColors.White) },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(scannedUserName, color = PiColors.White, fontWeight = FontWeight.Bold, fontSize = 19.sp)
+                    Text("Queres abrir uma conversa com esta pessoa?", color = PiColors.TextSecondary)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        try {
+                            val chat = Api.post("/v1/chats/direct", JSONObject().put("user_id", userId))
+                            scannedUserId = null
+                            onOpenChat(ChatRef(chat.getString("id"), scannedUserName, userId, null))
+                        } catch (_: Exception) {
+                            msg = "Não foi possível iniciar a conversa."
+                            scannedUserId = null
+                        }
+                    }
+                }) { Text("Abrir conversa", color = PiColors.White) }
+            },
+            dismissButton = { TextButton(onClick = { scannedUserId = null }) { Text("Cancelar", color = PiColors.TextSecondary) } },
+        )
+    }
+
     if (addSocialOpen) {
         AlertDialog(
             onDismissRequest = { addSocialOpen = false },
@@ -492,6 +543,38 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             confirmButton = { TextButton(onClick = { previewOpen = false }) { Text("Fechar", color = PiColors.White) } },
         )
     }
+}
+
+private fun createPiMsgQr(context: Context, code: String, name: String): Bitmap {
+    val payload = JSONObject().put("app", "PiMsg").put("type", "user")
+        .put("code", code).put("name", name).toString()
+    val hints = mapOf(
+        EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.H,
+        EncodeHintType.MARGIN to 1,
+    )
+    val matrix = QRCodeWriter().encode(payload, BarcodeFormat.QR_CODE, 720, 720, hints)
+    val bitmap = Bitmap.createBitmap(720, 720, Bitmap.Config.ARGB_8888)
+    for (y in 0 until 720) for (x in 0 until 720) {
+        bitmap.setPixel(x, y, if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
+    }
+    val canvas = Canvas(bitmap)
+    val logo = BitmapFactory.decodeResource(context.resources, R.drawable.pimsg_logo)
+    if (logo != null) {
+        val side = 154f
+        val left = (720f - side) / 2f
+        val top = (720f - side) / 2f
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE }
+        canvas.drawRoundRect(RectF(left - 12f, top - 12f, left + side + 12f, top + side + 12f), 22f, 22f, paint)
+        val scale = minOf(side / logo.width, side / logo.height)
+        val width = logo.width * scale
+        val height = logo.height * scale
+        canvas.drawBitmap(
+            logo, null,
+            RectF(left + (side - width) / 2f, top + (side - height) / 2f, left + (side + width) / 2f, top + (side + height) / 2f),
+            Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG),
+        )
+    }
+    return bitmap
 }
 
 // ---------------------------------------------------------------- Definições
