@@ -26,15 +26,19 @@ class PiMsgMessagingService : FirebaseMessagingService() {
         val title = data["title"] ?: return
         val body = data["body"] ?: ""
 
+        val prefs = getSharedPreferences("pimsg_notifications", MODE_PRIVATE)
+        if (!prefs.getBoolean("push_enabled", true)) return
+        val popupEnabled = prefs.getBoolean("popup_enabled", true)
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(NotificationChannel("messages", "Mensagens", NotificationManager.IMPORTANCE_HIGH))
+        manager.createNotificationChannel(NotificationChannel("messages_silent", "Mensagens silenciosas", NotificationManager.IMPORTANCE_LOW))
 
         val open = PendingIntent.getActivity(
             this, 0,
             Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val notification = NotificationCompat.Builder(this, "messages")
+        val notification = NotificationCompat.Builder(this, if (popupEnabled) "messages" else "messages_silent")
             .setSmallIcon(R.drawable.ic_stat_notification)
             .setContentTitle(title)
             .setContentText(body)
