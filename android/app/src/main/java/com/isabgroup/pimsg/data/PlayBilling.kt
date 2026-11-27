@@ -82,7 +82,7 @@ class PlayBilling(
     fun buy(activity: Activity, product: ProductDetails) {
         val offer = product.subscriptionOfferDetails?.firstOrNull()
         if (offer == null) {
-            onMessage("Este plano ainda não tem uma oferta/base plan ativa na Google Play.")
+            onMessage("Não foi possível abrir esta opção de compra. Tenta novamente mais tarde.")
             return
         }
         val productParams = BillingFlowParams.ProductDetailsParams.newBuilder()
@@ -127,7 +127,7 @@ class PlayBilling(
 
     private fun processPurchase(purchase: Purchase) {
         if (purchase.purchaseState == Purchase.PurchaseState.PENDING) {
-            onMessage("A compra está pendente. O Pro será ativado depois da confirmação da Google Play.")
+            onMessage("A compra está pendente de confirmação da Google Play.")
             return
         }
         if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED) return
@@ -141,7 +141,7 @@ class PlayBilling(
                         .put("product_id", productId),
                 )
                 onVerified()
-                onMessage("Subscrição Pro validada e ativada.")
+                onMessage("Subscrição confirmada.")
             } catch (e: Exception) {
                 onMessage("A Google Play confirmou a compra, mas o servidor ainda não conseguiu validá-la. Não repitas o pagamento; tenta restaurar a compra mais tarde.")
             }
