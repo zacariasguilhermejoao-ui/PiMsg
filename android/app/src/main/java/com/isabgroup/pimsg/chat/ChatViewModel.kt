@@ -72,6 +72,9 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     }
 
     suspend fun refresh() {
+        if (refreshing) return
+        refreshing = true
+        try {
         // Sempre mantém a cópia local visível se a rede falhar.
         _state.update { it.copy(messages = local.read(convId)) }
         try {
