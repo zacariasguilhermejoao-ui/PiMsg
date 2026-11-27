@@ -94,8 +94,6 @@ async function authenticate(request, env) {
       env.DB.prepare(
         "INSERT INTO user_codes (id, user_id, code, is_active, created_at) VALUES (?,?,?,1,?)"
       ).bind(crypto.randomUUID(), id, randomCode(8), now),
-      env.DB.prepare("INSERT INTO ai_credits (user_id, balance, updated_at) VALUES (?, 15, ?)")
-        .bind(id, now),
     ]);
     user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(id).first();
   }
@@ -187,7 +185,9 @@ async function handle(request, env) {
     const aiUsage = await env.DB.prepare(
       "SELECT requests FROM bot_daily_usage WHERE user_id = ? AND day = ?"
     ).bind(me.id, day).first();
-    const aiCredits = await env.DB.prepare("SELECT balance FROM ai_credits WHERE user_id = ?").bind(me.id).first();
+    const translationUsage = await env.DB.prepare(
+      "SELECT translations FROM bot_translation_usage WHERE user_id = ? AND day = ?"
+    ).bind(me.id, day).first();
     return json({
       current_plan: sub ? sub.plan : "free",
       billing_ready: !!env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON,
@@ -200,12 +200,15 @@ async function handle(request, env) {
       personalized_link_reply_limit: sub ? null : 500,
       personalized_link_reply_remaining: sub ? null : Math.max(0, 500 - linkUsage.used),
       personalized_link_reply_resets_at: linkUsage.resets_at,
-      ai_usage: sub ? (aiUsage?.requests || 0) : Math.max(0, 15 - (aiCredits?.balance ?? 15)),
-      ai_limit: sub ? 30 : 15,
-      ai_credit_balance: sub ? null : (aiCredits?.balance ?? 15),
+      ai_usage: sub ? (aiUsage?.requests || 0) : 0,
+      ai_limit: sub ? 30 : 0,
+      translation_usage: sub ? null : (translationUsage?.translations || 0),
+      translation_limit: sub ? null : 4,
+      translation_remaining: sub ? null : Math.max(0, 4 - (translationUsage?.translations || 0)),
+      bots_available: !!sub,
       plans: {
-        free: { contacts: 30, messages_per_day: 30, personalized_link_replies_per_month: 500, pi_ai_credits: 15 },
-        pro: { messages_per_day: null, personalized_link_replies_per_month: null, pi_ai_per_day: 30, profile_video: true }
+        free: { contacts: 30, messages_per_day: 30, personalized_link_replies_per_month: 500, translations_per_day: 4 },
+        pro: { messages_per_day: null, personalized_link_replies_per_month: null, bots: true, ai_requests_per_day: 30, translations: "unlimited", profile_video: true }
       }
     });
   }
