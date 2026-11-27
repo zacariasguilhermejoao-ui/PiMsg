@@ -1,9 +1,13 @@
 package com.isabgroup.pimsg.screens
 
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,6 +50,8 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.isabgroup.pimsg.R
+import com.isabgroup.pimsg.chat.ChatRef
 import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.PlayBilling
 import com.android.billingclient.api.ProductDetails
@@ -60,6 +66,18 @@ import com.isabgroup.pimsg.ui.openUrl
 import com.isabgroup.pimsg.ui.playClick
 import com.isabgroup.pimsg.ui.piFieldColors
 import kotlinx.coroutines.launch
+import com.journeyapps.barcodescanner.IntentIntegrator
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.qrcode.QRCodeWriter
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
+import android.util.Base64
+import java.io.ByteArrayOutputStream
 import org.json.JSONObject
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.tasks.await
@@ -79,7 +97,7 @@ private fun Section(text: String) {
 
 // ---------------------------------------------------------------- Perfil
 @Composable
-fun ProfileScreen(onBack: () -> Unit) {
+fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var loading by remember { mutableStateOf(true) }
@@ -99,6 +117,32 @@ fun ProfileScreen(onBack: () -> Unit) {
     var socialUrl by remember { mutableStateOf("") }
     var msg by remember { mutableStateOf<String?>(null) }
     var previewOpen by remember { mutableStateOf(false) }
+    var qrOpen by remember { mutableStateOf(false) }
+    var qrBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var scannedUserId by remember { mutableStateOf<String?>(null) }
+    var scannedUserName by remember { mutableStateOf("") }
+    val profileCache = remember { context.getSharedPreferences("pimsg_profile_cache", Context.MODE_PRIVATE) }
+    val qrScanner = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val raw = IntentIntegrator.parseActivityResult(result.resultCode, result.data)?.contents
+        val payload = raw?.let { runCatching { JSONObject(it) }.getOrNull() }
+        val scannedCode = payload?.takeIf { it.optString("app") == "PiMsg" && it.optString("type") == "user" }
+            ?.optString("code")?.takeIf { it.isNotBlank() && it != "null" }
+        if (scannedCode != null) {
+            scannedUserName = payload.optString("name", "Utilizador PiMsg")
+            scope.launch {
+                try {
+                    val found = Api.get("/v1/search?q=" + Api.encode(scannedCode)).getJSONArray("users")
+                    val user = (0 until found.length()).map { found.getJSONObject(it) }
+                        .firstOrNull { it.optString("id").isNotBlank() }
+                    if (user == null) msg = "Não encontrámos uma conta activa com este QR."
+                    else {
+                        scannedUserId = user.getString("id")
+                        scannedUserName = user.optString("name", scannedUserName)
+                    }
+                } catch (_: Exception) { msg = "Liga-te à internet para localizar esta conta." }
+            }
+        } else if (!raw.isNullOrBlank()) msg = "Este QR não pertence a uma conta PiMsg."
+    }
     val videoPicker = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri ->
