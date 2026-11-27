@@ -42,7 +42,7 @@ export async function pushToUsers(env, userIds, title, body, data = {}) {
     const sa = JSON.parse(env.FCM_SERVICE_ACCOUNT);
     const marks = userIds.map(() => "?").join(",");
     const rows = await env.DB.prepare(
-      `SELECT d.id, d.fcm_token FROM devices d JOIN users u ON u.id = d.user_id WHERE d.user_id IN (${marks}) AND d.fcm_token IS NOT NULL AND u.push_enabled = 1 LIMIT 100`
+      `SELECT d.id, d.fcm_token, u.popup_enabled FROM devices d JOIN users u ON u.id = d.user_id WHERE d.user_id IN (${marks}) AND d.fcm_token IS NOT NULL AND u.push_enabled = 1 LIMIT 100`
     ).bind(...userIds).all();
     if (!rows.results.length) return;
     const at = await accessToken(sa);
@@ -52,7 +52,7 @@ export async function pushToUsers(env, userIds, title, body, data = {}) {
       const r = await fetch(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {
         method: "POST",
         headers: { authorization: `Bearer ${at}`, "content-type": "application/json" },
-        body: JSON.stringify({ message: { token: d.fcm_token, data: payloadData, android: { priority: "HIGH" } } }),
+        body: JSON.stringify({ message: { token: d.fcm_token, data: { ...payloadData, popup_enabled: String(!!d.popup_enabled) }, android: { priority: "HIGH" } } }),
       });
       if (r.status === 404) await env.DB.prepare("UPDATE devices SET fcm_token = NULL WHERE id = ?").bind(d.id).run();
     });
