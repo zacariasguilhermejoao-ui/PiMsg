@@ -150,6 +150,8 @@ fun MenuSheet(
             if (hasMyStory) Entry(MenuEntry("mystory", "Ver o meu story"))
             Heading("A MINHA CONTA")
             account.forEach { Entry(it) }
+            Heading("NEGÓCIOS")
+            business.forEach { Entry(it) }
             Heading("CRIAR")
             create.forEach { Entry(it) }
             Heading("APLICAÇÃO")
