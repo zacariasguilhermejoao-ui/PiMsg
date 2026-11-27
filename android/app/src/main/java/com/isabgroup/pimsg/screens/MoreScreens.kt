@@ -649,6 +649,59 @@ private fun createPiMsgQr(context: Context, code: String, name: String): Bitmap 
     return bitmap
 }
 
+// ---------------------------------------------------------------- Ferramentas
+@Composable
+fun ToolsScreen(
+    onBack: () -> Unit,
+    onQr: () -> Unit,
+    onPiBot: () -> Unit,
+    onLinks: () -> Unit,
+    onPlans: () -> Unit,
+) {
+    ScreenFrame("Ferramentas", onBack) {
+        Text("Acesso rápido às ferramentas disponíveis no PiMsg.", color = PiColors.TextSecondary, fontSize = 13.sp)
+        Spacer(Modifier.height(12.dp))
+        PiButton("Código QR", onQr, primary = false)
+        PiButton("PiBot", onPiBot, primary = false)
+        PiButton("Meus links", onLinks, primary = false)
+        PiButton("Planos e funcionalidades", onPlans, primary = false)
+    }
+}
+
+// ---------------------------------------------------------------- Acessibilidade
+@Composable
+fun AccessibilityScreen(onBack: () -> Unit, onLargeTextChanged: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("pimsg_accessibility", Context.MODE_PRIVATE) }
+    var largeText by remember { mutableStateOf(prefs.getBoolean("large_text", false)) }
+    ScreenFrame("Acessibilidade", onBack) {
+        Text("Adapte a leitura do PiMsg às suas necessidades.", color = PiColors.TextSecondary, fontSize = 13.sp)
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Texto maior", color = PiColors.White, fontSize = 16.sp)
+                Text("Aumenta o tamanho dos textos e dos controlos em todo o aplicativo.", color = PiColors.TextSecondary, fontSize = 12.sp)
+            }
+            Switch(
+                checked = largeText,
+                onCheckedChange = {
+                    largeText = it
+                    prefs.edit().putBoolean("large_text", it).apply()
+                    onLargeTextChanged(it)
+                },
+                colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = PiColors.White),
+            )
+        }
+        Section("Leitor de ecrã")
+        Text("O PiMsg utiliza as descrições dos controlos do Android. Para ouvir os elementos do ecrã, active o TalkBack nas definições de Acessibilidade do seu telemóvel.", color = PiColors.TextSecondary, fontSize = 13.sp)
+        PiButton("Abrir definições de acessibilidade", {
+            runCatching {
+                context.startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
+        }, primary = false)
+    }
+}
+
 // ---------------------------------------------------------------- Definições
 @Composable
 fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> Unit) {
