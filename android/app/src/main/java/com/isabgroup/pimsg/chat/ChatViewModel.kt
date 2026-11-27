@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.isabgroup.pimsg.data.Api
+import com.google.firebase.auth.FirebaseAuth
 import com.isabgroup.pimsg.data.ApiException
 import com.isabgroup.pimsg.data.PiMsgMedia
 import com.isabgroup.pimsg.ui.PiI18n
@@ -59,6 +60,7 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     private var syncing = false
     private var refreshing = false
     private var identityVerified = false
+    private var verifiedFirebaseUid: String? = FirebaseAuth.getInstance().currentUser?.uid
     private val mediaInFlight = mutableSetOf<String>()
     private var typingActive = false
     private var lastTypingPingAt = 0L
@@ -78,11 +80,13 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
         // Sempre mantém a cópia local visível se a rede falhar.
         _state.update { it.copy(messages = local.read(convId)) }
         try {
-            if (!identityVerified) {
+            val activeFirebaseUid = FirebaseAuth.getInstance().currentUser?.uid
+            if (!identityVerified || activeFirebaseUid != verifiedFirebaseUid) {
                 val me = Api.get("/v1/me")
                 val currentUserId = me.getString("id")
                 appContext.getSharedPreferences("pimsg_local", Context.MODE_PRIVATE).edit().putString("my_id", currentUserId).apply()
                 _state.update { it.copy(myId = currentUserId) }
+                verifiedFirebaseUid = activeFirebaseUid
                 identityVerified = true
             }
             syncPending()
