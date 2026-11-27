@@ -38,6 +38,7 @@ import com.isabgroup.pimsg.screens.LinksScreen
 import com.isabgroup.pimsg.screens.PiBotScreen
 import com.isabgroup.pimsg.screens.PlansScreen
 import com.isabgroup.pimsg.screens.ProfileScreen
+import com.isabgroup.pimsg.screens.QrScreen
 import com.isabgroup.pimsg.screens.SecurityScreen
 import com.isabgroup.pimsg.screens.SettingsScreen
 import com.isabgroup.pimsg.ui.PiI18n
@@ -193,6 +194,7 @@ private sealed interface Screen {
     data object Home : Screen
     data class Chat(val ref: ChatRef) : Screen
     data object Profile : Screen
+    data object QR : Screen
     data object Settings : Screen
     data object Security : Screen
     data object Links : Screen
@@ -266,6 +268,7 @@ private fun AppRoot(activity: MainActivity) {
                         onNavigate = { key ->
                             when (key) {
                                 "profile" -> screen = Screen.Profile
+                                "qr" -> screen = Screen.QR
                                 "settings" -> screen = Screen.Settings
                                 "links" -> screen = Screen.Links
                                 "bot" -> screen = Screen.PiBot
@@ -288,6 +291,10 @@ private fun AppRoot(activity: MainActivity) {
                         onOpenBots = { screen = Screen.PiBot },
                     )
                     is Screen.Profile -> ProfileScreen(
+                        onBack = { screen = Screen.Home },
+                        onOpenChat = { screen = Screen.Chat(it) },
+                    )
+                    is Screen.QR -> QrScreen(
                         onBack = { screen = Screen.Home },
                         onOpenChat = { screen = Screen.Chat(it) },
                     )
