@@ -712,11 +712,13 @@ fun PlansScreen(onBack: () -> Unit) {
     var aiLimit by remember { mutableStateOf(15) }
     var linkReplyUsage by remember { mutableStateOf(0) }
     var linkReplyLimit by remember { mutableStateOf<Int?>(500) }
+    var billingReady by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
     suspend fun refreshPlan() {
         try {
             val data = Api.get("/v1/plan")
+            billingReady = data.optBoolean("billing_ready", false)
             current = data.optString("current_plan", "free")
             status = data.optString("subscription_status", "free")
             expiresAt = if (data.isNull("expires_at")) null else data.optLong("expires_at")
@@ -789,27 +791,34 @@ fun PlansScreen(onBack: () -> Unit) {
                 Text("•  $it", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp))
             }
             Spacer(Modifier.height(14.dp))
-            val weekly = products[PlayBilling.WEEKLY]
-            val monthly = products[PlayBilling.MONTHLY]
-            val weeklyPrice = weekly?.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice
-            val monthlyPrice = monthly?.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice
-            if (weekly != null && activity != null) {
-                PiButton("Pro semanal · " + (weeklyPrice ?: "Ver preço"), {
-                    billingManager?.buy(activity, weekly)
-                }, primary = true)
-            } else {
-                Text("Pro semanal · produto ainda não publicado na Google Play", color = PiColors.TextSecondary, fontSize = 12.sp)
-            }
-            Spacer(Modifier.height(8.dp))
-            if (monthly != null && activity != null) {
-                PiButton("Pro mensal · " + (monthlyPrice ?: "Ver preço"), {
-                    billingManager?.buy(activity, monthly)
-                }, primary = true)
-            } else {
-                Text("Pro mensal · produto ainda não publicado na Google Play", color = PiColors.TextSecondary, fontSize = 12.sp)
-            }
-            TextButton(onClick = { billingManager?.restorePurchases() }, modifier = Modifier.fillMaxWidth()) {
-                Text("Restaurar compras", color = PiColors.White)
+            if (current == "free" && billingReady) {
+                val weekly = products[PlayBilling.WEEKLY]
+                val monthly = products[PlayBilling.MONTHLY]
+                val weeklyPrice = weekly?.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice
+                val monthlyPrice = monthly?.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice
+                if (weekly != null && activity != null) {
+                    PiButton("Pro semanal · " + (weeklyPrice ?: "Ver preço"), {
+                        billingManager?.buy(activity, weekly)
+                    }, primary = true)
+                } else {
+                    Text("Pro semanal · produto ainda não publicado na Google Play", color = PiColors.TextSecondary, fontSize = 12.sp)
+                }
+                Spacer(Modifier.height(8.dp))
+                if (monthly != null && activity != null) {
+                    PiButton("Pro mensal · " + (monthlyPrice ?: "Ver preço"), {
+                        billingManager?.buy(activity, monthly)
+                    }, primary = true)
+                } else {
+                    Text("Pro mensal · produto ainda não publicado na Google Play", color = PiColors.TextSecondary, fontSize = 12.sp)
+                }
+                TextButton(onClick = { billingManager?.restorePurchases() }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Restaurar compras", color = PiColors.White)
+                }
+            } else if (current == "free") {
+                Text(
+                    "As compras serão ativadas assim que a validação segura da Google Play estiver configurada no servidor.",
+                    color = PiColors.Gray, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 12.dp),
+                )
             }
             Text(
                 "Os preços são apresentados diretamente pela Google Play. A ativação do Pro só acontece depois da validação segura da compra no servidor.",
