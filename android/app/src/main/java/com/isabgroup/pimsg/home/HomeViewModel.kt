@@ -31,6 +31,7 @@ data class ChatItem(
     val hasStory: Boolean = false,
     val otherId: String? = null,
     val inviteCode: String? = null,
+    val isTyping: Boolean = false,
 )
 
 data class UserItem(
@@ -113,6 +114,7 @@ class HomeViewModel : ViewModel() {
                         ringColor = o.str("other_ring"),
                         otherId = o.str("other_id"),
                         inviteCode = o.str("invite_code"),
+                        isTyping = o.optBoolean("other_typing"),
                     )
                 }
                 _state.update { it.copy(loading = false, chats = list) }
