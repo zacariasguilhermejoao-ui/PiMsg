@@ -175,6 +175,32 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
     }
 
     LaunchedEffect(Unit) {
+        val cached = profileCache.getString("profile", null)
+        if (!cached.isNullOrBlank()) {
+            runCatching {
+                val c = JSONObject(cached)
+                name = c.optString("name")
+                bio = c.optString("bio")
+                email = c.optString("email")
+                emailVerified = c.optBoolean("email_verified")
+                introVideoKey = c.optString("intro_video_key").takeIf { it.isNotBlank() && it != "null" }
+                code = c.optString("code")
+                showPhone = c.optBoolean("show_phone")
+                phoneVerified = c.optBoolean("phone_verified")
+                avatarKey = c.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
+                val encoded = c.optString("avatar_jpeg")
+                if (encoded.isNotBlank()) {
+                    val bytes = Base64.decode(encoded, Base64.DEFAULT)
+                    avatarBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                }
+                val links = c.optJSONArray("social_links") ?: org.json.JSONArray()
+                socialLinks = (0 until links.length()).map { i ->
+                    val item = links.getJSONObject(i)
+                    SocialLinkUi(item.optString("id"), item.optString("label"), item.optString("url"))
+                }
+                loading = false
+            }
+        }
         try {
             val j = Api.get("/v1/me")
             name = j.optString("name")
@@ -203,6 +229,23 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                     avatarBitmap = android.graphics.BitmapFactory.decodeByteArray(d.bytes, 0, d.bytes.size)
                 } catch (_: Exception) { }
             }
+            val cache = JSONObject()
+                .put("name", name).put("bio", bio).put("email", email)
+                .put("email_verified", emailVerified).put("intro_video_key", introVideoKey)
+                .put("code", code).put("show_phone", showPhone).put("phone_verified", phoneVerified)
+                .put("avatar_key", avatarKey)
+            avatarBitmap?.let { bitmap ->
+                val scaled = Bitmap.createScaledBitmap(bitmap, 256, 256, true)
+                val bytes = ByteArrayOutputStream().use { out ->
+                    scaled.compress(Bitmap.CompressFormat.JPEG, 78, out)
+                    out.toByteArray()
+                }
+                cache.put("avatar_jpeg", Base64.encodeToString(bytes, Base64.NO_WRAP))
+            }
+            val linksCache = org.json.JSONArray()
+            socialLinks.forEach { linksCache.put(JSONObject().put("id", it.id).put("label", it.label).put("url", it.url)) }
+            cache.put("social_links", linksCache)
+            profileCache.edit().putString("profile", cache.toString()).apply()
         } catch (e: Exception) {
             msg = "Não foi possível carregar o perfil."
         }
