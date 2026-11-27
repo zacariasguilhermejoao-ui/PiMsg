@@ -170,7 +170,6 @@ fun MenuSheet(
                     fontSize = 12.sp,
                     modifier = Modifier.clickable { view.playClick(); close { onItem("plans") } },
                 )
-            }
             if (hasMyStory) Entry(MenuEntry("mystory", "Ver o meu story"))
             Heading("A MINHA CONTA")
             account.forEach { Entry(it) }
