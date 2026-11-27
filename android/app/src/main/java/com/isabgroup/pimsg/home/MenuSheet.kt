@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.GroupAdd
@@ -52,7 +54,10 @@ private data class MenuEntry(val key: String, val label: String)
 private val account = listOf(
     MenuEntry("qr", "Código QR"),
     MenuEntry("links", "Meus links"),
-    MenuEntry("plans", "Planos"),
+    MenuEntry("plans", "Subscrições"),
+)
+private val business = listOf(
+    MenuEntry("business", "PiMsg Business"),
 )
 private val create = listOf(
     MenuEntry("newstory", "Criar story"),
@@ -97,7 +102,8 @@ fun MenuSheet(
         ) {
             when (entry.key) {
                 "bot" -> PiBotAvatar(size = 25.dp)
-                "plans" -> Icon(Icons.Filled.Star, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
+                "plans" -> Icon(Icons.Filled.AttachMoney, contentDescription = "Subscrições", tint = PiColors.White, modifier = Modifier.size(24.dp))
+                "business" -> Icon(Icons.Filled.Storefront, contentDescription = "PiMsg Business", tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "settings" -> Icon(PiIcons.More, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "links" -> Icon(Icons.Filled.Person, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "newstory" -> Icon(Icons.Filled.AddAPhoto, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
@@ -133,12 +139,12 @@ fun MenuSheet(
                 Text(profileName.ifBlank { "O meu perfil" }, color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                 Text("Ver e editar perfil", color = PiColors.TextSecondary, fontSize = 13.sp)
                 val language = java.util.Locale.getDefault().language
-                val planLabel = if (profilePlan.startsWith("pro")) "Pro" else when (language) {
+                val planLabel = when { profilePlan.startsWith("business") -> "Business"; profilePlan.startsWith("pro") -> "Pro"; profilePlan.startsWith("plus") -> "Plus"; else -> when (language) {
                     "en" -> "Free"
                     "es" -> "Gratis"
                     "fr" -> "Gratuit"
                     else -> "Grátis"
-                }
+                } }
                 Text("Plano $planLabel", color = androidx.compose.ui.graphics.Color(0xFF9BE7A5), fontSize = 12.sp)
             }
             if (hasMyStory) Entry(MenuEntry("mystory", "Ver o meu story"))
