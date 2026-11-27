@@ -113,6 +113,8 @@ async function authenticate(request, env) {
     user.email = claims.email;
     user.email_verified = 1;
   }
+  await env.DB.prepare("UPDATE users SET last_seen_at = ? WHERE id = ?").bind(now, user.id).run();
+  user.last_seen_at = now;
   return user;
 }
 
@@ -139,6 +141,7 @@ const publicUser = (u) => ({
   avatar_key: u.avatar_key,
   ring_color: u.ring_color,
   phone: u.show_phone ? u.phone_e164 : null,
+  online: !!u.show_online_status && !!u.last_seen_at && u.last_seen_at > Date.now() - 90000,
 });
 
 async function activeCode(env, userId) {
@@ -214,7 +217,7 @@ async function handle(request, env) {
       instagram_url: me.instagram_url, facebook_url: me.facebook_url,
       tiktok_url: me.tiktok_url, youtube_url: me.youtube_url, website_url: me.website_url,
       email: me.email, email_verified: !!me.email_verified, professional_profile: !!me.email_verified, phone_verified: !!me.phone_verified,
-      show_phone: !!me.show_phone, intro_video_key: me.intro_video_key, timezone: me.timezone, code: code?.code,
+      show_phone: !!me.show_phone, show_online_status: me.show_online_status !== 0, intro_video_key: me.intro_video_key, timezone: me.timezone, code: code?.code,
     });
   }
   if (path === "/v1/me" && method === "PATCH") {
@@ -222,6 +225,7 @@ async function handle(request, env) {
     const name = typeof b.name === "string" ? b.name.trim().slice(0, 60) : me.display_name;
     const bio = typeof b.bio === "string" ? b.bio.slice(0, 300) : me.bio;
     const show = typeof b.show_phone === "boolean" ? (b.show_phone && me.phone_verified ? 1 : 0) : me.show_phone;
+    const showOnline = typeof b.show_online_status === "boolean" ? (b.show_online_status ? 1 : 0) : (me.show_online_status ?? 1);
     const tz = typeof b.timezone === "string" ? b.timezone.slice(0, 60) : me.timezone;
     const hasPhone = Object.prototype.hasOwnProperty.call(b, "phone_e164");
     const phone = hasPhone && typeof b.phone_e164 === "string" ? b.phone_e164.trim() : null;
@@ -243,8 +247,8 @@ async function handle(request, env) {
     const ringColor = typeof b.ring_color === "string" ? b.ring_color.trim().slice(0, 7) : me.ring_color;
     if (ringColor && !/^#[0-9a-fA-F]{6}$/.test(ringColor)) return fail(400, "cor do perfil invalida");
     await env.DB.prepare(
-      "UPDATE users SET display_name=?, bio=?, show_phone=?, timezone=?, instagram_url=?, facebook_url=?, tiktok_url=?, youtube_url=?, website_url=?, ring_color=? WHERE id=?"
-    ).bind(name, bio, show, tz, ...values, ringColor || "#8E8E93", me.id).run();
+      "UPDATE users SET display_name=?, bio=?, show_phone=?, show_online_status=?, timezone=?, instagram_url=?, facebook_url=?, tiktok_url=?, youtube_url=?, website_url=?, ring_color=? WHERE id=?"
+    ).bind(name, bio, show, showOnline, tz, ...values, ringColor || "#8E8E93", me.id).run();
     return json({ ok: true, phone_verified: !!me.phone_verified });
   }
 
