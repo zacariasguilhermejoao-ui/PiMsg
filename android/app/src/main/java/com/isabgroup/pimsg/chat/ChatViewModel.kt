@@ -54,6 +54,7 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     private var lastNewestId: String? = null
     private var syncing = false
     private val translationCache = mutableMapOf<String, String?>()
+    private val translationInFlight = mutableSetOf<String>()
 
     init {
         // O histórico aparece imediatamente, mesmo sem rede.
@@ -77,28 +78,38 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                     if (o.isNull("expires_at")) null else o.optLong("expires_at"))
             }
             local.saveServer(convId, serverMessages)
-            val targetLanguage = PiI18n.language
-            val translationCandidates = serverMessages.take(15).map { it.id }.toSet()
-            val translatedMessages = serverMessages.map { message ->
-                if (message.id in translationCandidates && message.senderId != _state.value.myId && message.kind == "text" && !message.body.isNullOrBlank()) {
-                    val cacheKey = "${message.id}:$targetLanguage"
-                    val translated = if (translationCache.containsKey(cacheKey)) translationCache[cacheKey] else {
-                        runCatching {
-                            Api.post("/v1/chats/$convId/messages/${message.id}/translate",
-                                JSONObject().put("language", targetLanguage))
-                                .takeIf { it.optBoolean("translated") }
-                                ?.optString("translation")?.takeIf { it.isNotBlank() }
-                        }.getOrNull().also { translationCache[cacheKey] = it }
-                    }
-                    message.copy(translatedBody = translated)
-                } else message
-            }
-            val combined = (translatedMessages + local.pending(convId)).sortedByDescending { it.createdAt }
+            val combined = (serverMessages + local.pending(convId)).sortedByDescending { it.createdAt }
             val typingName = runCatching {
                 val typing = Api.get("/v1/chats/$convId/typing").getJSONArray("typing")
                 if (typing.length() > 0) typing.getJSONObject(0).optString("display_name").takeIf { it.isNotBlank() } else null
             }.getOrNull()
             _state.update { it.copy(messages = combined, loading = false, typingName = typingName) }
+            val targetLanguage = PiI18n.language
+            viewModelScope.launch {
+                for (message in serverMessages.take(15)) {
+                    if (message.senderId == _state.value.myId || message.kind != "text" || message.body.isNullOrBlank()) continue
+                    val cacheKey = "${message.id}:$targetLanguage"
+                    if (translationCache.containsKey(cacheKey) || !translationInFlight.add(cacheKey)) continue
+                    try {
+                        val response = Api.post("/v1/chats/$convId/messages/${message.id}/translate",
+                            JSONObject().put("language", targetLanguage))
+                        val translated = response.takeIf { it.optBoolean("translated") }
+                            ?.optString("translation")?.takeIf { it.isNotBlank() }
+                        translationCache[cacheKey] = translated
+                        if (translated != null) {
+                            _state.update { current ->
+                                current.copy(messages = current.messages.map { item ->
+                                    if (item.id == message.id) item.copy(translatedBody = translated) else item
+                                })
+                            }
+                        }
+                    } catch (_: Exception) {
+                        // Uma falha de tradução não bloqueia a conversa; tenta novamente na próxima sincronização.
+                    } finally {
+                        translationInFlight.remove(cacheKey)
+                    }
+                }
+            }
             val newest = serverMessages.firstOrNull()?.id
             if (newest != null && newest != lastNewestId) {
                 lastNewestId = newest
