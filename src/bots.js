@@ -3,9 +3,9 @@ const MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8-fast";
 const FREE_TRANSLATIONS_PER_DAY = 4;
 const GLOBAL_AI_DAILY_LIMIT = 2000;
 const PLAN_LIMITS = {
-  plus: { ai: 5, translations: 25, customBots: 0, business: false },
-  pro: { ai: 20, translations: 75, customBots: 5, business: false },
-  business: { ai: 50, translations: 150, customBots: 20, business: true },
+  plus: { ai: 5, translations: 25, customBots: 0, reminders: 20, business: false },
+  pro: { ai: 20, translations: 75, customBots: 5, reminders: 100, business: false },
+  business: { ai: 50, translations: 150, customBots: 20, reminders: 500, business: true },
 };
 function tierFor(plan) {
   if (String(plan || "").startsWith("business")) return "business";
@@ -174,6 +174,8 @@ export async function handleBots(request, env, me, path, method) {
   if (path === "/v1/bots/reminders" && method === "POST") {
     const sub = await subscriptionFor(env, me.id, now);
     if (!sub) return fail(402, "O Pi Reminder está disponível no plano pago.", { reason: "paid_plan_required" });
+    const activeCount = await env.DB.prepare("SELECT COUNT(*) AS n FROM bot_reminders WHERE user_id = ? AND status = 'active'").bind(me.id).first();
+    if ((activeCount?.n || 0) >= limitsFor(sub.plan).reminders) return fail(409, `O teu plano permite até ${limitsFor(sub.plan).reminders} lembretes activos.`);
     const b = await request.json().catch(() => ({}));
     const title = typeof b.title === "string" ? b.title.trim().slice(0, 120) : "";
     const details = typeof b.details === "string" ? b.details.trim().slice(0, 500) : null;
@@ -321,7 +323,7 @@ export async function handleBots(request, env, me, path, method) {
         { role: "system", content: aiSystem() + " És o Pi AI, o assistente oficial do PiMsg. Ajuda com perguntas gerais, escrita, ideias, explicações e utilização do PiMsg. Não afirmes que executaste ações fora desta conversa." },
         ...history,
         { role: "user", content: prompt },
-      ], 700);
+      ], 450);
       return json({ reply, model: MODEL, plan: reservation.sub.plan, limit: reservation.limit, remaining: Math.max(0, reservation.limit - reservation.requests) });
     } catch (error) {
       await releasePaidAi(env, me, reservation.day);
