@@ -433,8 +433,9 @@ private fun ImageBody(m: Message, vm: ChatViewModel, fg: Color) {
 private fun FileBody(m: Message, vm: ChatViewModel, fg: Color, sub: Color) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val vmState by vm.state.collectAsStateWithLifecycle()
     val label = when (m.kind) { "video" -> "Vídeo"; "audio" -> "Áudio"; "music" -> "Música"; else -> "Ficheiro" }
-    val cached = vm.isMediaCached(m.mediaId)
+    val cached = vmState.mediaRevision.let { vm.isMediaCached(m.mediaId) }
     Column(Modifier.padding(vertical = 2.dp)) {
         Text(label, color = fg, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         Text(
