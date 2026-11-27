@@ -104,6 +104,7 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                                 error = errorText(e, upload = false),
                             )
                         }
+                        break
                     } else {
                         // Mantém na fila para tentar novamente na próxima sincronização.
                         break
