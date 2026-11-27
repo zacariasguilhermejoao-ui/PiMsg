@@ -172,6 +172,21 @@ async function handle(request, env) {
     return fail(403, message);
   }
 
+  if (path === "/v1/legal/accept" && method === "POST") {
+    const body = await request.json().catch(() => ({}));
+    const now = Date.now();
+    if (body.terms_version !== "1.3" || body.privacy_version !== "1.3") {
+      return fail(400, "versão dos documentos inválida; actualize a aplicação");
+    }
+    await env.DB.batch([
+      env.DB.prepare("INSERT OR IGNORE INTO legal_acceptances (user_id, doc_type, version, accepted_at) VALUES (?,?,?,?)")
+        .bind(me.id, "terms", "1.3", now),
+      env.DB.prepare("INSERT OR IGNORE INTO legal_acceptances (user_id, doc_type, version, accepted_at) VALUES (?,?,?,?)")
+        .bind(me.id, "privacy", "1.3", now),
+    ]);
+    return json({ ok: true, accepted_at: now, version: "1.3" });
+  }
+
   if (path === "/v1/plan" && method === "GET") {
     const now = Date.now();
     const sub = await env.DB.prepare(
