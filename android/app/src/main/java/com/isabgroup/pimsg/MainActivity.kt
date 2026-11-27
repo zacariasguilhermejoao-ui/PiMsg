@@ -15,12 +15,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -41,6 +43,8 @@ import com.isabgroup.pimsg.screens.ProfileScreen
 import com.isabgroup.pimsg.screens.QrScreen
 import com.isabgroup.pimsg.screens.SecurityScreen
 import com.isabgroup.pimsg.screens.SettingsScreen
+import com.isabgroup.pimsg.screens.ToolsScreen
+import com.isabgroup.pimsg.screens.AccessibilityScreen
 import com.isabgroup.pimsg.ui.PiI18n
 import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiMsgTheme
@@ -200,6 +204,8 @@ private sealed interface Screen {
     data object Links : Screen
     data object PiBot : Screen
     data object Plans : Screen
+    data object Tools : Screen
+    data object Accessibility : Screen
     data class Stories(val items: List<StoryItem>) : Screen
 }
 
@@ -210,6 +216,7 @@ private fun AppRoot(activity: MainActivity) {
     var splash by remember { mutableStateOf(true) }
     var invalidClock by remember { mutableStateOf(false) }
     var checkingClock by remember { mutableStateOf(false) }
+    var largeText by remember { mutableStateOf(activity.getSharedPreferences("pimsg_accessibility", android.content.Context.MODE_PRIVATE).getBoolean("large_text", false)) }
     val scope = rememberCoroutineScope()
 
     suspend fun verifyClock() {
@@ -250,6 +257,8 @@ private fun AppRoot(activity: MainActivity) {
         activity.clearShare()
     }
 
+    val baseDensity = LocalDensity.current
+    CompositionLocalProvider(LocalDensity provides baseDensity.copy(fontScale = if (largeText) baseDensity.fontScale * 1.15f else baseDensity.fontScale)) {
     Crossfade(targetState = splash, label = "splash") { showing ->
         when {
             showing -> SplashScreen()
@@ -273,6 +282,8 @@ private fun AppRoot(activity: MainActivity) {
                                 "links" -> screen = Screen.Links
                                 "bot" -> screen = Screen.PiBot
                                 "plans" -> screen = Screen.Plans
+                                "tools" -> screen = Screen.Tools
+                                "accessibility" -> screen = Screen.Accessibility
                             }
                         },
                         initialContactCode = activity.pendingPiLink?.takeIf { it.type == "contact_code" }?.value,
@@ -303,10 +314,22 @@ private fun AppRoot(activity: MainActivity) {
                     is Screen.Links -> LinksScreen(onBack = { screen = Screen.Home })
                     is Screen.PiBot -> PiBotScreen(onBack = { screen = Screen.Home })
                     is Screen.Plans -> PlansScreen(onBack = { screen = Screen.Home })
+                    is Screen.Tools -> ToolsScreen(
+                        onBack = { screen = Screen.Home },
+                        onQr = { screen = Screen.QR },
+                        onPiBot = { screen = Screen.PiBot },
+                        onLinks = { screen = Screen.Links },
+                        onPlans = { screen = Screen.Plans },
+                    )
+                    is Screen.Accessibility -> AccessibilityScreen(
+                        onBack = { screen = Screen.Home },
+                        onLargeTextChanged = { largeText = it },
+                    )
                     is Screen.Stories -> StoryViewer(stories = s.items, onClose = { screen = Screen.Home })
                 }
             }
         }
+    }
     }
 }
 
