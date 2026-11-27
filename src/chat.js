@@ -234,7 +234,7 @@ export async function handleChat(request, env, me, path, method) {
     return json({ id: g.id });
   }
 
-  const messageItem = path.match(/^\/v1\/chats\/([\\w-]+)\/messages\/([\\w-]+)$/);
+  const messageItem = path.match(/^\/v1\/chats\/([\w-]+)\/messages\/([\\w-]+)$/);
   if (messageItem && method === "DELETE") {
     const convId = messageItem[1];
     const messageId = messageItem[2];
