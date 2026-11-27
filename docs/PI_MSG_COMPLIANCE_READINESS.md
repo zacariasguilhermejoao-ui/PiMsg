@@ -52,12 +52,12 @@ Before launch:
 
 ### 4. Terms acceptance and version history — implementation gap
 
-The app currently displays links and an acceptance statement, but a durable, versioned record of the user's acceptance is not yet wired to account creation. The D1 schema has a `legal_acceptances` table, but no confirmed API flow records the current terms/privacy versions.
+New sign-ins and account creation now require an explicit, unticked checkbox for the Terms and Privacy Policy. The Worker records the accepted document versions and timestamp in D1 using the existing `legal_acceptances` table.
 
-Before launch:
-- add explicit, unticked acceptance controls where legally required;
-- record user ID, document type, version, timestamp and app version;
-- require renewed acceptance for material changes when appropriate;
+Still required before launch:
+- verify that the acceptance API succeeds on Google sign-in, anonymous phone-based account creation and MFA flows;
+- add re-acceptance for existing sessions when a material policy change requires it;
+- record the app version and locale alongside acceptance in a future schema update;
 - do not bundle optional marketing consent with acceptance of essential terms.
 
 ### 5. Subscriptions and payments
