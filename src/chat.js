@@ -159,8 +159,10 @@ export async function handleChat(request, env, me, path, method) {
         env.DB.prepare("UPDATE conversation_members SET left_at = NULL WHERE conversation_id = ? AND user_id = ?")
           .bind(existing.id, me.id),
         ...(contactRequest ? [
-          env.DB.prepare("UPDATE conversations SET link_id = COALESCE(link_id, ?) WHERE id = ?")
-            .bind(contactRequest.link_id, existing.id),
+          env.DB.prepare("UPDATE conversations SET link_id = COALESCE(link_id, ?), last_message_at = ? WHERE id = ?")
+            .bind(contactRequest.link_id, now, existing.id),
+          env.DB.prepare("INSERT INTO messages (id, conversation_id, sender_id, kind, body, created_at) VALUES (?,?,?,'system',?,?)")
+            .bind(crypto.randomUUID(), existing.id, me.id, "Interessado em: " + contactRequest.subject, now),
           env.DB.prepare("UPDATE contact_requests SET status = 'used' WHERE id = ? AND status = 'pending'")
             .bind(contactRequest.id),
         ] : []),
