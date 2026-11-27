@@ -95,6 +95,7 @@ private fun readCachedChats(context: android.content.Context, tab: Tab): List<Ch
                 ringColor = item.optString("ringColor").takeIf { it.isNotBlank() },
                 otherId = item.optString("otherId").takeIf { it.isNotBlank() },
                 inviteCode = item.optString("inviteCode").takeIf { it.isNotBlank() },
+                isOnline = item.optBoolean("isOnline", false),
             )
         }
     }.getOrDefault(emptyList())
@@ -247,7 +248,7 @@ fun HomeScreen(
                 array.put(JSONObject().put("id", item.id).put("title", item.title)
                     .put("preview", item.preview).put("unread", item.unread)
                     .put("isGroup", item.isGroup).put("ringColor", item.ringColor)
-                    .put("otherId", item.otherId).put("inviteCode", item.inviteCode))
+                    .put("otherId", item.otherId).put("inviteCode", item.inviteCode).put("isOnline", item.isOnline))
             }
             context.getSharedPreferences("pimsg_offline", android.content.Context.MODE_PRIVATE)
                 .edit().putString("chats_${state.tab.key}", array.toString()).putString("chats", array.toString()).apply()
@@ -400,6 +401,7 @@ fun HomeScreen(
                             title = c.title, subtitle = if (c.isTyping) "A escrever..." else c.preview, unread = c.unread,
                             ring = if (stories.isNotEmpty()) parseColor(c.ringColor) else null,
                             onAvatarClick = if (stories.isNotEmpty()) ({ onOpenStories(stories) }) else null,
+                            isOnline = c.isOnline,
                             onClick = { onOpenChat(ChatRef(c.id, c.title, c.otherId, c.inviteCode)) },
                         )
                     }
@@ -558,6 +560,7 @@ private fun PersonRow(
     ring: Color?,
     onClick: () -> Unit,
     onAvatarClick: (() -> Unit)? = null,
+    isOnline: Boolean = false,
 ) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 10.dp),
@@ -571,6 +574,12 @@ private fun PersonRow(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.size(48.dp).clip(CircleShape),
             )
+            if (isOnline) {
+                Box(
+                    Modifier.align(Alignment.BottomEnd).size(12.dp).clip(CircleShape)
+                        .background(Color(0xFF36A3FF)).border(2.dp, PiColors.Background, CircleShape)
+                )
+            }
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
