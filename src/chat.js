@@ -100,6 +100,7 @@ export async function handleChat(request, env, me, path, method) {
     const rows = await env.DB.prepare(
       `SELECT c.id, c.type, c.name, c.avatar_key, c.invite_code, c.last_message_at, cm.is_favorite, cm.is_muted,
         u.id AS other_id, u.display_name AS other_name, u.avatar_key AS other_avatar, u.ring_color AS other_ring,
+        CASE WHEN u.show_online_status = 1 AND u.last_seen_at > ?3 THEN 1 ELSE 0 END AS other_online,
         (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.created_at > cm.last_read_at
            AND m.sender_id <> ?1 AND m.deleted_at IS NULL) AS unread,
         (SELECT kind FROM messages m WHERE m.conversation_id = c.id AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 1) AS last_kind,
@@ -110,7 +111,7 @@ export async function handleChat(request, env, me, path, method) {
        LEFT JOIN users u ON c.type = 'direct' AND u.id = (CASE WHEN c.user_a_id = ?1 THEN c.user_b_id ELSE c.user_a_id END)
        WHERE cm.user_id = ?1 AND cm.left_at IS NULL
        ORDER BY other_typing DESC, COALESCE(c.last_message_at, c.created_at) DESC LIMIT 100`
-    ).bind(me.id, now - 6000).all();
+    ).bind(me.id, now - 6000, now - 90000).all();
     let list = rows.results;
     if (tab === "new") list = list.filter((r) => r.unread > 0);
     else if (tab === "favorites") list = list.filter((r) => r.is_favorite);
