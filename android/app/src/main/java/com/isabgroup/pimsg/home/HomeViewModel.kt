@@ -85,6 +85,10 @@ class HomeViewModel : ViewModel() {
     private val _state = MutableStateFlow(HomeState())
     val state: StateFlow<HomeState> = _state.asStateFlow()
 
+    fun finishInitialLoading() {
+        _state.update { if (it.loading) it.copy(loading = false) else it }
+    }
+
     fun restoreCachedChats(chats: List<ChatItem>) {
         if (chats.isNotEmpty() && _state.value.chats.isEmpty()) {
             _state.update { it.copy(chats = chats, loading = false) }
