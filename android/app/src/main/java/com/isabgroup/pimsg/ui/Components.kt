@@ -22,6 +22,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.graphics.Color
 import com.isabgroup.pimsg.ui.PiText as Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -60,9 +61,24 @@ fun openUrl(context: Context, url: String) {
 
 @Composable
 fun piFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = PiColors.White, unfocusedBorderColor = PiColors.GrayDark,
-    focusedTextColor = PiColors.White, unfocusedTextColor = PiColors.White, cursorColor = PiColors.White,
-    focusedLabelColor = PiColors.White, unfocusedLabelColor = PiColors.Gray,
+    focusedBorderColor = PiColors.White,
+    unfocusedBorderColor = PiColors.GrayDark,
+    disabledBorderColor = PiColors.GrayDark.copy(alpha = 0.55f),
+    focusedTextColor = PiColors.White,
+    unfocusedTextColor = PiColors.White,
+    disabledTextColor = PiColors.TextSecondary,
+    cursorColor = PiColors.White,
+    focusedLabelColor = PiColors.White,
+    unfocusedLabelColor = PiColors.Gray,
+    focusedPlaceholderColor = PiColors.Gray,
+    unfocusedPlaceholderColor = PiColors.Gray,
+    focusedLeadingIconColor = PiColors.TextSecondary,
+    unfocusedLeadingIconColor = PiColors.Gray,
+    focusedTrailingIconColor = PiColors.TextSecondary,
+    unfocusedTrailingIconColor = PiColors.Gray,
+    focusedContainerColor = PiColors.Surface,
+    unfocusedContainerColor = PiColors.Surface,
+    disabledContainerColor = PiColors.Surface.copy(alpha = 0.65f),
 )
 
 /** Botão principal de ação — toca som de clique. */
