@@ -13,6 +13,7 @@ import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileOutputStream
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -319,12 +320,15 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
         }
 
         Section("Informações pessoais")
-        OutlinedTextField(value = name, onValueChange = { name = it.take(60) }, label = { Text("Nome") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            shape = RoundedCornerShape(22.dp),value = name, onValueChange = { name = it.take(60) }, label = { Text("Nome") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
-        OutlinedTextField(value = bio, onValueChange = { bio = it.take(300) }, label = { Text("Biografia / apresentação") }, minLines = 3, supportingText = { Text("${bio.length}/300") }, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            shape = RoundedCornerShape(22.dp),value = bio, onValueChange = { bio = it.take(300) }, label = { Text("Biografia / apresentação") }, minLines = 3, supportingText = { Text("${bio.length}/300") }, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
 
         Section("E-mail e verificação")
-        OutlinedTextField(value = email, onValueChange = { email = it.take(180); if (it.trim() != FirebaseAuth.getInstance().currentUser?.email) emailVerified = false }, label = { Text("E-mail") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            shape = RoundedCornerShape(22.dp),value = email, onValueChange = { email = it.take(180); if (it.trim() != FirebaseAuth.getInstance().currentUser?.email) emailVerified = false }, label = { Text("E-mail") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
         Text(if (emailVerified) "E-mail confirmado · Perfil profissional activo" else "Confirme o seu e-mail para activar o perfil profissional.", color = if (emailVerified) Color(0xFF8AB4F8) else PiColors.TextSecondary, fontSize = 12.sp)
         if (!emailVerified) {
             PiButton("Enviar confirmação", {
@@ -444,7 +448,8 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             title = { Text("Adicionar rede social", color = PiColors.White) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(value = socialUrl, onValueChange = { socialUrl = it.take(500) }, label = { Text("Ligação do site ou perfil") }, singleLine = true, colors = piFieldColors())
+                    OutlinedTextField(
+            shape = RoundedCornerShape(22.dp),value = socialUrl, onValueChange = { socialUrl = it.take(500) }, label = { Text("Ligação do site ou perfil") }, singleLine = true, colors = piFieldColors())
                     Text("O ícone do site será carregado automaticamente quando existir.", color = PiColors.TextSecondary, fontSize = 12.sp)
                 }
             },
@@ -1065,9 +1070,11 @@ fun LinksScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(12.dp))
         }
         Spacer(Modifier.height(16.dp))
-        OutlinedTextField(value = subject, onValueChange = { subject = it.take(80) }, label = { Text("Assunto ou produto") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            shape = RoundedCornerShape(22.dp),value = subject, onValueChange = { subject = it.take(80) }, label = { Text("Assunto ou produto") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
-        OutlinedTextField(value = intro, onValueChange = { intro = it.take(400) }, label = { Text("Descrição na página do link (opcional)") }, minLines = 2, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            shape = RoundedCornerShape(22.dp),value = intro, onValueChange = { intro = it.take(400) }, label = { Text("Descrição na página do link (opcional)") }, minLines = 2, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
         PiButton(if (imageUploading) "A carregar fotografia..." else "Adicionar fotografia ao link", { linkImagePicker.launch("image/*") }, primary = false, enabled = !imageUploading)
         if (imageUploading) androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = PiColors.White, trackColor = PiColors.SurfaceHigh)
