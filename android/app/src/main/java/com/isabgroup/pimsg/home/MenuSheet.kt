@@ -120,7 +120,7 @@ fun MenuSheet(
                 Text(profileName.ifBlank { "O meu perfil" }, color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                 Text("Ver e editar perfil", color = PiColors.TextSecondary, fontSize = 13.sp)
                 val language = java.util.Locale.getDefault().language
-                val planLabel = if (profilePlan == "pro") "Pro" else when (language) {
+                val planLabel = if (profilePlan.startsWith("pro")) "Pro" else when (language) {
                     "en" -> "Free"
                     "es" -> "Gratis"
                     "fr" -> "Gratuit"
