@@ -459,7 +459,7 @@ fun HomeScreen(
                         PersonRow(title = g.name, subtitle = "Grupo, toque para entrar", ring = null, unread = 0, onClick = { joinTarget = g })
                     }
                 }
-                state.loading || initialSkeleton -> Column { repeat(8) { ChatRowSkeleton() } }
+                state.loading || (initialSkeleton && state.chats.isEmpty()) -> Column { repeat(8) { ChatRowSkeleton() } }
                 state.error != null -> Hint(state.error!!)
                 state.chats.isEmpty() -> EmptyTabState(
                     tab = state.tab,
