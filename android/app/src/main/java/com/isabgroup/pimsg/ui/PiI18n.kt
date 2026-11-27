@@ -255,7 +255,20 @@ object PiI18n {
         "Código de seis dígitos" to mapOf("en" to "Six-digit code", "es" to "Código de seis dígitos", "fr" to "Code à six chiffres"),
         "Ativar verificação em duas etapas" to mapOf("en" to "Enable two-step verification", "es" to "Activar verificación en dos pasos", "fr" to "Activer la vérification en deux étapes"),
         "Não foi possível iniciar sessão com o Google." to mapOf("en" to "Could not sign in with Google.", "es" to "No se pudo iniciar sesión con Google.", "fr" to "Impossible de se connecter avec Google."),
-        "Não foi possível enviar o código. Confirme o número e a configuração do Firebase." to mapOf("en" to "Could not send the code. Check the number and Firebase configuration.", "es" to "No se pudo enviar el código. Comprueba el número y la configuración de Firebase.", "fr" to "Impossible d'envoyer le code. Vérifiez le numéro et la configuration Firebase.")
+        "Não foi possível enviar o código. Confirme o número e a configuração do Firebase." to mapOf("en" to "Could not send the code. Check the number and Firebase configuration.", "es" to "No se pudo enviar el código. Comprueba el número y la configuración de Firebase.", "fr" to "Impossible d'envoyer le code. Vérifiez le numéro et la configuration Firebase."),
+
+        "Até 30 contactos" to mapOf("en" to "Up to 30 contacts", "es" to "Hasta 30 contactos", "fr" to "Jusqu'à 30 contacts"),
+        "Até 30 mensagens por dia" to mapOf("en" to "Up to 30 messages per day", "es" to "Hasta 30 mensajes al día", "fr" to "Jusqu'à 30 messages par jour"),
+        "500 respostas por mês através dos links personalizados" to mapOf("en" to "500 replies per month through personalized links", "es" to "500 respuestas al mes mediante enlaces personalizados", "fr" to "500 réponses par mois via les liens personnalisés"),
+        "5 respostas do Pi AI por dia" to mapOf("en" to "5 Pi AI replies per day", "es" to "5 respuestas de Pi AI al día", "fr" to "5 réponses de Pi AI par jour"),
+        "Conversas e partilha de ficheiros" to mapOf("en" to "Chats and file sharing", "es" to "Chats y uso compartido de archivos", "fr" to "Discussions et partage de fichiers"),
+        "Mensagens sem limite diário" to mapOf("en" to "Messages without a daily limit", "es" to "Mensajes sin límite diario", "fr" to "Messages sans limite quotidien"),
+        "30 respostas do Pi AI por dia" to mapOf("en" to "30 Pi AI replies per day", "es" to "30 respuestas de Pi AI al día", "fr" to "30 réponses de Pi AI par jour"),
+        "Vídeo de apresentação no perfil" to mapOf("en" to "Profile presentation video", "es" to "Vídeo de presentación en el perfil", "fr" to "Vidéo de présentation sur le profil"),
+        "Plano atual · Free" to mapOf("en" to "Current plan · Free", "es" to "Plan actual · Gratis", "fr" to "Offre actuelle · Gratuit"),
+        "Plano atual · Pro" to mapOf("en" to "Current plan · Pro", "es" to "Plan actual · Pro", "fr" to "Offre actuelle · Pro"),
+        "Atingiu as 500 respostas mensais através dos links personalizados. Poderá responder novamente no dia 1, às 00h00 (hora de Angola), ou ativar o Pro." to mapOf("en" to "You've reached the 500 monthly replies through personalized links. You can reply again on the 1st at 00:00 (Angola time), or activate Pro.", "es" to "Has alcanzado las 500 respuestas mensuales mediante enlaces personalizados. Podrás responder de nuevo el día 1 a las 00:00 (hora de Angola), o activar Pro.", "fr" to "Vous avez atteint les 500 réponses mensuelles via les liens personnalisés. Vous pourrez répondre à nouveau le 1er à 00 h 00 (heure d'Angola), ou activer Pro."),
+        "Limite diário de mensagens atingido. Volte amanhã, compre créditos ou ative o plano Pro." to mapOf("en" to "Daily message limit reached. Return tomorrow, buy credits or activate Pro.", "es" to "Has alcanzado el límite diario de mensajes. Vuelve mañana, compra créditos o activa Pro.", "fr" to "Limite quotidien de messages atteint. Revenez demain, achetez des crédits ou activez Pro.")
     )
 }
 
