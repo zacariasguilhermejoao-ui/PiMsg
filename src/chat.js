@@ -285,7 +285,7 @@ export async function handleChat(request, env, me, path, method) {
         if (await isBlockedBetween(env, me.id, otherId)) return fail(403, "mensagem nao enviada");
       }
       if (conv.link_id && conv.type === "direct" && !(await isPro(env, me.id, now))) {
-        const ownedLink = await env.DB.prepare("SELECT id FROM contact_links WHERE id = ? AND user_id = ? AND is_active = 1").bind(conv.link_id, me.id).first();
+        const ownedLink = await env.DB.prepare("SELECT id FROM contact_links WHERE id = ? AND user_id = ?").bind(conv.link_id, me.id).first();
         if (ownedLink) {
           const linkUsage = await linkReplyUsage(env, me.id, now);
           if (linkUsage.used >= 500) {
