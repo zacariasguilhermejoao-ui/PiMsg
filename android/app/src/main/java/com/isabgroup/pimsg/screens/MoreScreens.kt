@@ -1170,6 +1170,7 @@ fun PlansScreen(onBack: () -> Unit) {
             billingReady = data.optBoolean("billing_ready", false)
             current = data.optString("current_plan", "free")
             currentTier = data.optString("current_tier", "free")
+            if (currentTier != "free") context.getSharedPreferences("pimsg_translation", Context.MODE_PRIVATE).edit().remove("blocked_day").apply()
             status = data.optString("subscription_status", "free")
             expiresAt = if (data.isNull("expires_at")) null else data.optLong("expires_at")
             messageUsage = data.optInt("message_usage")
