@@ -1,7 +1,7 @@
 // PiMsg Pi AI — inference exclusively through Cloudflare Workers AI.
 const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
-const FREE_DAILY_LIMIT = 5;
 const PRO_DAILY_LIMIT = 30;
+const FREE_STARTING_AI_CREDITS = 15;
 
 const json = (data, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -27,7 +27,11 @@ async function isPro(env, userId, now) {
 
 export async function handleBots(request, env, me, path, method) {
   if (path === "/v1/bots" && method === "GET") {
+    await env.DB.prepare("INSERT OR IGNORE INTO ai_credits (user_id, balance, updated_at) VALUES (?, ?, ?)")
+      .bind(me.id, FREE_STARTING_AI_CREDITS, Date.now()).run();
+    const creditRow = await env.DB.prepare("SELECT balance FROM ai_credits WHERE user_id = ?").bind(me.id).first();
     return json({
+      ai_credits: creditRow?.balance ?? FREE_STARTING_AI_CREDITS,
       bots: [{
         id: "pi-ai",
         name: "Pi AI",
@@ -57,21 +61,33 @@ export async function handleBots(request, env, me, path, method) {
 
   const now = Date.now();
   const subscription = await isPro(env, me.id, now);
-  const limit = subscription ? PRO_DAILY_LIMIT : FREE_DAILY_LIMIT;
+  const limit = subscription ? PRO_DAILY_LIMIT : null;
   const day = localDay(me.timezone || "Africa/Luanda");
-  const quota = await env.DB.prepare(
-    `INSERT INTO bot_daily_usage (user_id, day, requests, updated_at) VALUES (?, ?, 1, ?)
-     ON CONFLICT(user_id, day) DO UPDATE SET requests = requests + 1, updated_at = excluded.updated_at
-     WHERE requests < ?
-     RETURNING requests`
-  ).bind(me.id, day, now, limit).first();
-
-  if (!quota) {
-    return fail(429, "Atingiu o limite diário do Pi AI.", {
-      reason: "bot_daily_limit",
-      limit,
-      plan: subscription ? subscription.plan : "free",
-    });
+  let quota = null;
+  let creditCost = 0;
+  let remainingCredits = null;
+  if (subscription) {
+    quota = await env.DB.prepare(
+      `INSERT INTO bot_daily_usage (user_id, day, requests, updated_at) VALUES (?, ?, 1, ?)
+       ON CONFLICT(user_id, day) DO UPDATE SET requests = requests + 1, updated_at = excluded.updated_at
+       WHERE requests < ?
+       RETURNING requests`
+    ).bind(me.id, day, now, PRO_DAILY_LIMIT).first();
+    if (!quota) return fail(429, "Atingiu o limite diário do Pi AI.", { reason: "bot_daily_limit", limit: PRO_DAILY_LIMIT, plan: subscription.plan });
+  } else {
+    creditCost = 2 + (prompt.length > 800 ? 1 : 0) + (prompt.length > 1600 ? 2 : 0) + (normalizedHistory.length > 8 ? 1 : 0);
+    await env.DB.prepare("INSERT OR IGNORE INTO ai_credits (user_id, balance, updated_at) VALUES (?, ?, ?)")
+      .bind(me.id, FREE_STARTING_AI_CREDITS, now).run();
+    const debit = await env.DB.prepare(
+      "UPDATE ai_credits SET balance = balance - ?, updated_at = ? WHERE user_id = ? AND balance >= ? RETURNING balance"
+    ).bind(creditCost, now, me.id, creditCost).first();
+    if (!debit) {
+      const current = await env.DB.prepare("SELECT balance FROM ai_credits WHERE user_id = ?").bind(me.id).first();
+      return fail(402, "Os créditos de IA terminaram. Ative o Pro ou aguarde a disponibilização de créditos.", {
+        reason: "ai_credits_empty", balance: current?.balance || 0, required: creditCost,
+      });
+    }
+    remainingCredits = debit.balance;
   }
 
   const messages = [
@@ -101,12 +117,18 @@ export async function handleBots(request, env, me, path, method) {
       model: MODEL,
       plan: subscription ? subscription.plan : "free",
       limit,
-      remaining: Math.max(0, limit - quota.requests),
+      remaining: subscription ? Math.max(0, limit - quota.requests) : remainingCredits,
+      credits_used: creditCost,
     });
   } catch (error) {
-    await env.DB.prepare(
-      "UPDATE bot_daily_usage SET requests = CASE WHEN requests > 0 THEN requests - 1 ELSE 0 END, updated_at = ? WHERE user_id = ? AND day = ?"
-    ).bind(Date.now(), me.id, day).run();
+    if (subscription) {
+      await env.DB.prepare(
+        "UPDATE bot_daily_usage SET requests = CASE WHEN requests > 0 THEN requests - 1 ELSE 0 END, updated_at = ? WHERE user_id = ? AND day = ?"
+      ).bind(Date.now(), me.id, day).run();
+    } else if (creditCost > 0) {
+      await env.DB.prepare("UPDATE ai_credits SET balance = balance + ?, updated_at = ? WHERE user_id = ?")
+        .bind(creditCost, Date.now(), me.id).run();
+    }
     console.error("Pi AI inference failed:", String(error));
     return fail(502, "O Pi AI não conseguiu responder neste momento. Tente novamente.");
   }
