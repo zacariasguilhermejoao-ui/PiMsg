@@ -90,9 +90,9 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    fun selectTab(tab: Tab) {
-        _state.update { it.copy(tab = tab) }
-        load()
+    fun selectTab(tab: Tab, cachedChats: List<ChatItem> = emptyList()) {
+        _state.update { it.copy(tab = tab, chats = cachedChats, loading = false, error = null) }
+        load(silent = true)
     }
 
     fun load(silent: Boolean = false) {
