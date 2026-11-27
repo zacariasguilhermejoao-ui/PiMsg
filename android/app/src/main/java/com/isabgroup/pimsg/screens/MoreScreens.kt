@@ -1106,6 +1106,12 @@ fun LinksScreen(onBack: () -> Unit) {
 
 
 // ---------------------------------------------------------------- Planos
+private fun formatPiStorage(bytes: Long): String {
+    val mb = bytes.coerceAtLeast(0L) / (1024.0 * 1024.0)
+    return if (mb >= 1024.0) String.format(java.util.Locale.US, "%.1f GB", mb / 1024.0)
+    else String.format(java.util.Locale.US, "%.0f MB", mb)
+}
+
 @Composable
 private fun SubscriptionProductButton(
     label: String,
@@ -1150,6 +1156,8 @@ fun PlansScreen(onBack: () -> Unit) {
     var linkReplyUsage by remember { mutableStateOf(0) }
     var linkReplyLimit by remember { mutableStateOf<Int?>(500) }
     var customBotLimit by remember { mutableStateOf(0) }
+    var storageUsedBytes by remember { mutableStateOf(0L) }
+    var storageLimitBytes by remember { mutableStateOf(250L * 1024L * 1024L) }
     var businessTools by remember { mutableStateOf(false) }
     var billingReady by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -1171,6 +1179,8 @@ fun PlansScreen(onBack: () -> Unit) {
             linkReplyUsage = data.optInt("personalized_link_reply_usage", 0)
             linkReplyLimit = if (data.isNull("personalized_link_reply_limit")) null else data.optInt("personalized_link_reply_limit")
             customBotLimit = data.optInt("custom_bot_limit", 0)
+            storageUsedBytes = data.optLong("storage_used_bytes", 0L)
+            storageLimitBytes = data.optLong("storage_limit_bytes", 250L * 1024L * 1024L)
             businessTools = data.optBoolean("business_tools", false)
         } catch (_: Exception) {
             error = "Não foi possível consultar o plano da conta."
@@ -1202,6 +1212,7 @@ fun PlansScreen(onBack: () -> Unit) {
             Text("Mensagens hoje: $messageUsage" + (messageLimit?.let { " / $it" } ?: " · sem limite diário"), color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp))
             Text("Traduções hoje: $translationUsage" + (translationLimit?.let { " / $it" } ?: ""), color = PiColors.TextSecondary, fontSize = 12.sp)
             Text("Pedidos de IA hoje: $aiUsage / $aiLimit", color = PiColors.TextSecondary, fontSize = 12.sp)
+            Text("Armazenamento: ${formatPiStorage(storageUsedBytes)} / ${formatPiStorage(storageLimitBytes)}", color = PiColors.TextSecondary, fontSize = 12.sp)
             Text("Respostas de links este mês: $linkReplyUsage" + (linkReplyLimit?.let { " / $it" } ?: " · sem limite"), color = PiColors.TextSecondary, fontSize = 12.sp)
             if (currentTier != "free") {
                 val date = expiresAt?.let { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(it)) }
@@ -1217,7 +1228,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
             Text("Free", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text("Para começar e manter contacto.", color = PiColors.TextSecondary, fontSize = 12.sp)
-            listOf("Até 30 contactos", "30 mensagens por dia", "500 respostas de links personalizados por mês", "4 traduções por dia", "Conversas, grupos e partilha de ficheiros", "Sem bots de IA pagos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
+            listOf("Até 30 contactos", "30 mensagens por dia", "500 respostas de links personalizados por mês", "4 traduções por dia", "Conversas, grupos e partilha de ficheiros", "250 MB para ficheiros e multimédia", "Sem bots de IA pagos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             if (currentTier == "free") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
         }
 
@@ -1225,7 +1236,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
             Text("PiMsg Plus", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text("Para quem conversa e trabalha diariamente.", color = PiColors.TextSecondary, fontSize = 12.sp)
-            listOf("Mensagens sem limite diário", "Respostas ilimitadas através dos links personalizados", "Pi AI e Pi Reminder", "5 pedidos de IA por dia", "25 traduções por dia", "Sem bots personalizados nem Pi Business").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
+            listOf("Mensagens sem limite diário", "Respostas ilimitadas através dos links personalizados", "Pi AI e Pi Reminder", "5 pedidos de IA por dia", "25 traduções por dia", "2 GB para ficheiros e multimédia", "Sem bots personalizados nem Pi Business").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
             SubscriptionProductButton("Mensal", PlayBilling.PLUS_MONTHLY, products[PlayBilling.PLUS_MONTHLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
             SubscriptionProductButton("Anual", PlayBilling.PLUS_YEARLY, products[PlayBilling.PLUS_YEARLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
@@ -1236,7 +1247,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
             Text("PiMsg Pro", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text("Para utilizadores avançados e criadores.", color = PiColors.TextSecondary, fontSize = 12.sp)
-            listOf("Mensagens e respostas de links sem limite mensal", "Todos os bots, excepto ferramentas exclusivas Business", "20 pedidos de IA por dia", "75 traduções por dia", "Até 5 bots personalizados", "Vídeo de apresentação no perfil").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
+            listOf("Mensagens e respostas de links sem limite mensal", "Todos os bots, excepto ferramentas exclusivas Business", "20 pedidos de IA por dia", "75 traduções por dia", "Até 5 bots personalizados", "5 GB para ficheiros e multimédia", "Vídeo de apresentação no perfil").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
             SubscriptionProductButton("Semanal", PlayBilling.WEEKLY, products[PlayBilling.WEEKLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
             SubscriptionProductButton("Mensal", PlayBilling.MONTHLY, products[PlayBilling.MONTHLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
@@ -1248,7 +1259,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
             Text("PiMsg Business", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text("Para lojas, marcas, profissionais e equipas que vendem.", color = PiColors.TextSecondary, fontSize = 12.sp)
-            listOf("Tudo do Pro", "Pi Business para preparar respostas comerciais", "50 pedidos de IA por dia", "150 traduções por dia", "Até 20 bots personalizados", "Ferramentas para organizar informações, produtos, preços e contactos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
+            listOf("Tudo do Pro", "Pi Business para preparar respostas comerciais", "50 pedidos de IA por dia", "150 traduções por dia", "Até 20 bots personalizados", "20 GB para ficheiros e multimédia", "Ferramentas para organizar informações, produtos, preços e contactos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
             SubscriptionProductButton("Mensal", PlayBilling.BUSINESS_MONTHLY, products[PlayBilling.BUSINESS_MONTHLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
             SubscriptionProductButton("Anual", PlayBilling.BUSINESS_YEARLY, products[PlayBilling.BUSINESS_YEARLY], billingReady, activity) { billingManager?.buy(activity!!, it) }
