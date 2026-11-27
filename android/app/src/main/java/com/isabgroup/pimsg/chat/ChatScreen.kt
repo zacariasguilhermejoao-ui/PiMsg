@@ -301,14 +301,16 @@ fun ChatScreen(
                             peerProfile = profile
                             profileCache.edit().putString(ref.otherId, profile.toString()).apply()
                             val avatarKey = profile.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
-                            peerAvatar = avatarKey?.let { key ->
-                                val cached = PiMsgMedia.findCached(context, key)
-                                if (cached != null) android.graphics.BitmapFactory.decodeFile(cached.absolutePath)
+                            if (avatarKey == null) {
+                                peerAvatar = null
+                            } else {
+                                val cached = PiMsgMedia.findCached(context, avatarKey)
+                                if (cached != null) peerAvatar = android.graphics.BitmapFactory.decodeFile(cached.absolutePath)
                                 if (Api.hasInternet(context)) {
-                                    val downloaded = Api.download("/v1/media/$key")
-                                    val file = PiMsgMedia.store(context, key, downloaded.mime, "avatar", downloaded.bytes)
-                                    android.graphics.BitmapFactory.decodeFile(file.absolutePath)
-                                } else null
+                                    val downloaded = Api.download("/v1/media/$avatarKey")
+                                    val file = PiMsgMedia.store(context, avatarKey, downloaded.mime, "avatar", downloaded.bytes)
+                                    peerAvatar = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                                }
                             }
                         } catch (_: Exception) {
                             if (peerProfile == null) peerProfileLoading = false
