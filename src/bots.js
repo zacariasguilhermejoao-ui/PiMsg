@@ -121,7 +121,7 @@ export async function handleBots(request, env, me, path, method) {
     ).bind(me.id, day, now, PRO_DAILY_LIMIT).first();
     if (!quota) return fail(429, "Atingiu o limite diário do Pi AI.", { reason: "bot_daily_limit", limit: PRO_DAILY_LIMIT, plan: subscription.plan });
   } else {
-    creditCost = 2 + (prompt.length > 800 ? 1 : 0) + (prompt.length > 1600 ? 2 : 0) + (normalizedHistory.length > 8 ? 1 : 0);
+    creditCost = Math.min(5, 2 + (prompt.length > 800 ? 1 : 0) + (prompt.length > 1600 ? 2 : 0) + (normalizedHistory.length > 8 ? 1 : 0));
     await env.DB.prepare("INSERT OR IGNORE INTO ai_credits (user_id, balance, updated_at) VALUES (?, ?, ?)")
       .bind(me.id, FREE_STARTING_AI_CREDITS, now).run();
     const debit = await env.DB.prepare(
