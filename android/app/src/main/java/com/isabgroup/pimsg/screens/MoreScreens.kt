@@ -1297,8 +1297,6 @@ fun PlansScreen(onBack: () -> Unit) {
             SubscriptionProductButton("Semanal", products[PlayBilling.WEEKLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
             SubscriptionProductButton("Mensal", products[PlayBilling.MONTHLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
             SubscriptionProductButton("Anual", products[PlayBilling.PRO_YEARLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
-            } else {
-            Text("Já tens uma subscrição activa. Para mudar de plano ou período, utiliza a gestão de subscrições da Google Play.", color = PiColors.TextSecondary, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 8.dp))
             }
             if (currentTier == "pro") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         }
@@ -1312,8 +1310,6 @@ fun PlansScreen(onBack: () -> Unit) {
             if (currentTier == "free") {
             SubscriptionProductButton("Mensal", products[PlayBilling.BUSINESS_MONTHLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
             SubscriptionProductButton("Anual", products[PlayBilling.BUSINESS_YEARLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
-            } else {
-            Text("Já tens uma subscrição activa. Para mudar de plano ou período, utiliza a gestão de subscrições da Google Play.", color = PiColors.TextSecondary, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 8.dp))
             }
             if (currentTier == "business") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         }
