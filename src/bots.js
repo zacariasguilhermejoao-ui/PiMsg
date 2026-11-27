@@ -30,8 +30,13 @@ export async function handleBots(request, env, me, path, method) {
     await env.DB.prepare("INSERT OR IGNORE INTO ai_credits (user_id, balance, updated_at) VALUES (?, ?, ?)")
       .bind(me.id, FREE_STARTING_AI_CREDITS, Date.now()).run();
     const creditRow = await env.DB.prepare("SELECT balance FROM ai_credits WHERE user_id = ?").bind(me.id).first();
+    const subscription = await isPro(env, me.id, Date.now());
+    const day = localDay(me.timezone || "Africa/Luanda");
+    const usage = subscription ? await env.DB.prepare("SELECT requests FROM bot_daily_usage WHERE user_id = ? AND day = ?").bind(me.id, day).first() : null;
     return json({
+      plan: subscription ? subscription.plan : "free",
       ai_credits: creditRow?.balance ?? FREE_STARTING_AI_CREDITS,
+      remaining_today: subscription ? Math.max(0, PRO_DAILY_LIMIT - (usage?.requests || 0)) : null,
       bots: [{
         id: "pi-ai",
         name: "Pi AI",
