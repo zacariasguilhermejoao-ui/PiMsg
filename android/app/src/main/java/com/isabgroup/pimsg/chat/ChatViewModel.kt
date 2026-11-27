@@ -41,6 +41,7 @@ data class ChatState(
     val error: String? = null,
     val typingName: String? = null,
     val mediaRevision: Int = 0,
+    val receivingMedia: Boolean = false,
 )
 
 private const val MAX_MEDIA = 50L * 1024 * 1024
@@ -63,7 +64,8 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
 
     init {
         // O histórico aparece imediatamente, mesmo sem rede.
-        _state.update { it.copy(messages = local.read(convId), loading = false) }
+        val savedMyId = appContext.getSharedPreferences("pimsg_local", Context.MODE_PRIVATE).getString("my_id", null)
+        _state.update { it.copy(messages = local.read(convId), myId = savedMyId, loading = false) }
     }
 
     suspend fun refresh() {
@@ -72,7 +74,9 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
         try {
             if (_state.value.myId == null) {
                 val me = Api.get("/v1/me")
-                _state.update { it.copy(myId = me.getString("id")) }
+                val currentUserId = me.getString("id")
+                appContext.getSharedPreferences("pimsg_local", Context.MODE_PRIVATE).edit().putString("my_id", currentUserId).apply()
+                _state.update { it.copy(myId = currentUserId) }
             }
             syncPending()
             val arr = Api.get("/v1/chats/$convId/messages?limit=100").getJSONArray("messages")
@@ -85,12 +89,15 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
             local.saveServer(convId, serverMessages)
             if (PiMsgMedia.shouldAutoDownload(appContext)) {
                 viewModelScope.launch {
-                    serverMessages.asSequence().filter { it.mediaId != null }
-                        .take(12).forEach { message ->
-                            runCatching {
-                                downloadMedia(message)
+                    _state.update { it.copy(receivingMedia = true) }
+                    try {
+                        serverMessages.asSequence().filter { it.mediaId != null }
+                            .take(12).forEach { message ->
+                                runCatching { downloadMedia(message) }
                             }
-                        }
+                    } finally {
+                        _state.update { it.copy(receivingMedia = false) }
+                    }
                 }
             }
             val combined = local.read(convId).sortedByDescending { it.createdAt }
