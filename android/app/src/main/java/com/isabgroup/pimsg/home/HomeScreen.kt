@@ -68,6 +68,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.isabgroup.pimsg.R
 import com.isabgroup.pimsg.chat.ChatRef
 import com.isabgroup.pimsg.data.Api
+import com.isabgroup.pimsg.data.uploadUri
 import com.isabgroup.pimsg.data.PiMsgMedia
 import com.isabgroup.pimsg.data.Push
 import com.isabgroup.pimsg.ui.ChatRowSkeleton
@@ -79,6 +80,7 @@ import com.isabgroup.pimsg.ui.components.PresenteAnimado
 import com.isabgroup.pimsg.ui.components.RoboMascoteAnimado
 import com.isabgroup.pimsg.ui.piFieldColors
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -159,6 +161,7 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val view = LocalView.current
+    val scope = rememberCoroutineScope()
     val state by vm.state.collectAsStateWithLifecycle()
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -183,19 +186,25 @@ fun HomeScreen(
         if (uri != null) vm.postStory(context.contentResolver, uri)
     }
     val pickProfileCover = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) {
+        if (uri != null) scope.launch {
             runCatching {
-                val file = java.io.File(context.filesDir, "pimsg_profile_cover")
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    java.io.FileOutputStream(file).use { output -> input.copyTo(output) }
-                }
-                ownProfileCover = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                val uploaded = uploadUri(context.contentResolver, uri)
+                Api.patch("/v1/me/media", JSONObject().put("profile_cover_media_id", uploaded.id))
+                val downloaded = Api.download("/v1/media/" + uploaded.id)
+                val cached = PiMsgMedia.store(context, uploaded.id, downloaded.mime, "profile-cover", downloaded.bytes)
+                ownProfileCover = android.graphics.BitmapFactory.decodeFile(cached.absolutePath)
+                context.getSharedPreferences("pimsg_home_profile", android.content.Context.MODE_PRIVATE)
+                    .edit().putString("profile_cover_key", uploaded.id).apply()
+            }.onFailure { error ->
+                android.util.Log.w("PiMsg", "Não foi possível sincronizar a capa do perfil", error)
             }
         }
     }
     LaunchedEffect(Unit) {
-        val file = java.io.File(context.filesDir, "pimsg_profile_cover")
-        if (file.exists()) ownProfileCover = runCatching { android.graphics.BitmapFactory.decodeFile(file.absolutePath) }.getOrNull()
+        val prefs = context.getSharedPreferences("pimsg_home_profile", android.content.Context.MODE_PRIVATE)
+        prefs.getString("profile_cover_key", null)?.let { key ->
+            PiMsgMedia.findCached(context, key)?.let { ownProfileCover = android.graphics.BitmapFactory.decodeFile(it.absolutePath) }
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -325,7 +334,18 @@ fun HomeScreen(
             ownProfileName = me.optString("name", "O meu perfil")
             ownPlan = runCatching { Api.get("/v1/plan").optString("current_plan", "free") }.getOrDefault("free")
             val key = me.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
-            homeProfile.edit().putString("name", ownProfileName).putString("avatar_key", key).apply()
+            val coverKey = me.optString("profile_cover_key").takeIf { it.isNotBlank() && it != "null" }
+            homeProfile.edit().putString("name", ownProfileName).putString("avatar_key", key).putString("profile_cover_key", coverKey).apply()
+            if (coverKey != null) {
+                val cachedCover = PiMsgMedia.findCached(context, coverKey)
+                val coverFile = cachedCover ?: run {
+                    val downloadedCover = Api.download("/v1/media/" + coverKey)
+                    PiMsgMedia.store(context, coverKey, downloadedCover.mime, "profile-cover", downloadedCover.bytes)
+                }
+                ownProfileCover = android.graphics.BitmapFactory.decodeFile(coverFile.absolutePath)
+            } else {
+                ownProfileCover = null
+            }
             if (key != null) {
                 val cachedFile = PiMsgMedia.findCached(context, key)
                 val file = cachedFile ?: run {
