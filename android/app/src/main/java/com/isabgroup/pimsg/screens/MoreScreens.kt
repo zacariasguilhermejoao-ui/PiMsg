@@ -228,7 +228,7 @@ fun ProfileScreen(onBack: () -> Unit) {
         OutlinedTextField(value = bio, onValueChange = { bio = it.take(300) }, label = { Text("Biografia / apresentação") }, minLines = 3, supportingText = { Text("${bio.length}/300") }, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
 
         Section("E-mail e verificação")
-        OutlinedTextField(value = email, onValueChange = { email = it.take(180) }, label = { Text("E-mail") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = email, onValueChange = { email = it.take(180); if (it.trim() != FirebaseAuth.getInstance().currentUser?.email) emailVerified = false }, label = { Text("E-mail") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
         Text(if (emailVerified) "E-mail confirmado · Perfil profissional activo" else "Confirme o seu e-mail para activar o perfil profissional.", color = if (emailVerified) Color(0xFF8AB4F8) else PiColors.TextSecondary, fontSize = 12.sp)
         if (!emailVerified) {
             PiButton("Enviar confirmação", {
