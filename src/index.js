@@ -4,6 +4,7 @@ import { handleBots } from "./bots.js";
 import { handleExtra } from "./extra.js";
 import { handlePublic } from "./pages.js";
 import { handleBilling } from "./billing.js";
+import { pushToUsers } from "./push.js";
 
 const JWKS_URL = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -439,6 +440,21 @@ export default {
     } catch (err) {
       console.error(JSON.stringify({ msg: "erro", error: String(err) }));
       return fail(500, "erro interno");
+    }
+  },
+  async scheduled(controller, env) {
+    const now = Date.now();
+    const due = await env.DB.prepare(
+      "SELECT id, user_id, title FROM bot_reminders WHERE status = 'active' AND notified_at IS NULL AND due_at <= ? ORDER BY due_at ASC LIMIT 100"
+    ).bind(now).all();
+    for (const reminder of due.results || []) {
+      const sent = await pushToUsers(env, [reminder.user_id], "Lembrete PiMsg", reminder.title, {
+        type: "bot_reminder", reminder_id: reminder.id
+      });
+      if (sent) {
+        await env.DB.prepare("UPDATE bot_reminders SET notified_at = ? WHERE id = ? AND notified_at IS NULL")
+          .bind(now, reminder.id).run();
+      }
     }
   },
 };
