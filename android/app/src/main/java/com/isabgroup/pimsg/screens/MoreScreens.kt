@@ -31,6 +31,7 @@ import androidx.compose.material3.SwitchDefaults
 import com.isabgroup.pimsg.ui.PiText as Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +47,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.isabgroup.pimsg.data.Api
+import com.isabgroup.pimsg.data.PlayBilling
+import com.android.billingclient.api.ProductDetails
 import com.isabgroup.pimsg.data.Push
 import com.isabgroup.pimsg.data.strOrNull
 import com.isabgroup.pimsg.ui.PiButton
@@ -694,6 +697,11 @@ fun LinksScreen(onBack: () -> Unit) {
 @Composable
 fun PlansScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val activity = context as? android.app.Activity
+    val scope = rememberCoroutineScope()
+    var billingManager by remember { mutableStateOf<PlayBilling?>(null) }
+    var products by remember { mutableStateOf<Map<String, ProductDetails>>(emptyMap()) }
+    var purchaseMessage by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var current by remember { mutableStateOf("free") }
     var status by remember { mutableStateOf("free") }
@@ -706,7 +714,7 @@ fun PlansScreen(onBack: () -> Unit) {
     var linkReplyLimit by remember { mutableStateOf<Int?>(500) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(Unit) {
+    suspend fun refreshPlan() {
         try {
             val data = Api.get("/v1/plan")
             current = data.optString("current_plan", "free")
@@ -718,8 +726,23 @@ fun PlansScreen(onBack: () -> Unit) {
             aiLimit = data.optInt("ai_limit", 15)
             linkReplyUsage = data.optInt("personalized_link_reply_usage", 0)
             linkReplyLimit = if (data.isNull("personalized_link_reply_limit")) null else data.optInt("personalized_link_reply_limit")
-        } catch (e: Exception) { error = "Não foi possível consultar o plano da conta." }
-        finally { loading = false }
+        } catch (_: Exception) { error = "Não foi possível consultar o plano da conta." }
+    }
+
+    LaunchedEffect(Unit) {
+        val manager = PlayBilling(
+            context = context,
+            onProducts = { products = it },
+            onMessage = { purchaseMessage = it },
+            onVerified = { scope.launch { refreshPlan() } },
+        )
+        billingManager = manager
+        manager.connect()
+        refreshPlan()
+        loading = false
+    }
+    DisposableEffect(billingManager) {
+        onDispose { billingManager?.close() }
     }
 
     ScreenFrame("Planos", onBack) {
@@ -766,20 +789,33 @@ fun PlansScreen(onBack: () -> Unit) {
                 Text("•  $it", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp))
             }
             Spacer(Modifier.height(14.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Column(Modifier.weight(1f).background(PiColors.SurfaceHigh, androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).padding(12.dp)) {
-                    Text("Pro semanal", color = PiColors.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Acesso por semana", color = PiColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
-                }
-                Column(Modifier.weight(1f).background(PiColors.SurfaceHigh, androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).padding(12.dp)) {
-                    Text("Pro mensal", color = PiColors.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Acesso por mês", color = PiColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
-                }
+            val weekly = products[PlayBilling.WEEKLY]
+            val monthly = products[PlayBilling.MONTHLY]
+            val weeklyPrice = weekly?.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice
+            val monthlyPrice = monthly?.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice
+            if (weekly != null && activity != null) {
+                PiButton("Pro semanal · " + (weeklyPrice ?: "Ver preço"), {
+                    billingManager?.buy(activity, weekly)
+                }, primary = true)
+            } else {
+                Text("Pro semanal · produto ainda não publicado na Google Play", color = PiColors.TextSecondary, fontSize = 12.sp)
+            }
+            Spacer(Modifier.height(8.dp))
+            if (monthly != null && activity != null) {
+                PiButton("Pro mensal · " + (monthlyPrice ?: "Ver preço"), {
+                    billingManager?.buy(activity, monthly)
+                }, primary = true)
+            } else {
+                Text("Pro mensal · produto ainda não publicado na Google Play", color = PiColors.TextSecondary, fontSize = 12.sp)
+            }
+            TextButton(onClick = { billingManager?.restorePurchases() }, modifier = Modifier.fillMaxWidth()) {
+                Text("Restaurar compras", color = PiColors.White)
             }
             Text(
-                "A consulta dos planos já está disponível. A adesão e os preços só serão apresentados quando os produtos de subscrição estiverem publicados e validados na Google Play.",
+                "Os preços são apresentados diretamente pela Google Play. A ativação do Pro só acontece depois da validação segura da compra no servidor.",
                 color = PiColors.Gray, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 12.dp),
             )
+            purchaseMessage?.let { Text(it, color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp)) }
             if (current != "free") {
                 PiButton("Gerir subscrição na Google Play", {
                     openUrl(context, "https://play.google.com/store/account/subscriptions")
