@@ -107,7 +107,7 @@ fun PiBotScreen(onBack: () -> Unit) {
                 Row(
                     Modifier.fillMaxWidth().padding(top = 10.dp)
                         .background(PiColors.Surface, RoundedCornerShape(15.dp))
-                        .clickable(enabled = bot.available) { selected = bot.id }
+                        .clickable(enabled = bot.available && bot.id != "pi-translate") { selected = bot.id }
                         .padding(15.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -155,7 +155,7 @@ private fun PiReminderScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(8.dp))
         BotTextInput(details, { details = it.take(500) }, "Detalhes (opcional)", true)
         Spacer(Modifier.height(8.dp))
-        Text("O lembrete será marcado para amanhã à mesma hora. Podes editar a data através da gestão de lembretes.", color = PiColors.Gray, fontSize = 11.sp)
+        Text("O lembrete será marcado para amanhã à mesma hora.", color = PiColors.Gray, fontSize = 11.sp)
         Text("Adicionar lembrete", color = PiColors.White, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 12.dp).clickable(enabled = title.isNotBlank() && !busy) {
             scope.launch { busy = true; try { Api.post("/v1/bots/reminders", JSONObject().put("title", title).put("details", details).put("due_at", System.currentTimeMillis() + 86400000)); title = ""; details = ""; load() } catch (e: Exception) { error = "Não foi possível guardar o lembrete." } finally { busy = false } }
         }.background(PiColors.SurfaceHigh, RoundedCornerShape(12.dp)).padding(13.dp))
