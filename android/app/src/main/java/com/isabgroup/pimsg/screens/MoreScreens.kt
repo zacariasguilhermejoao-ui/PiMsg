@@ -25,10 +25,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import com.isabgroup.pimsg.ui.PiText as Text
-import com.isabgroup.pimsg.ui.PiText as TextButton
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,6 +49,7 @@ import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.strOrNull
 import com.isabgroup.pimsg.ui.PiButton
 import com.isabgroup.pimsg.ui.PiFeedback
+import com.isabgroup.pimsg.ui.PiI18n
 import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.ScreenFrame
 import com.isabgroup.pimsg.ui.openUrl
@@ -394,6 +396,7 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
     var msg by remember { mutableStateOf<String?>(null) }
     var soundEnabled by remember { mutableStateOf(PiFeedback.soundEnabled(context)) }
     var hapticEnabled by remember { mutableStateOf(PiFeedback.hapticEnabled(context)) }
+    var showLanguagePicker by remember { mutableStateOf(false) }
 
     suspend fun loadBlocked() {
         try {
@@ -404,6 +407,14 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
     LaunchedEffect(Unit) { loadBlocked() }
 
     ScreenFrame("Definições", onBack) {
+        Section("Idioma")
+        Row(Modifier.fillMaxWidth().clickable { showLanguagePicker = true }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Idioma da aplicação", color = PiColors.White, fontSize = 16.sp)
+                Text(PiI18n.languageName(), color = PiColors.TextSecondary, fontSize = 13.sp)
+            }
+            androidx.compose.material3.Icon(Icons.Filled.Add, contentDescription = "Escolher idioma", tint = PiColors.TextSecondary)
+        }
         Section("Som e vibração")
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -454,6 +465,26 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
         Text("Sair", color = PiColors.White, fontSize = 16.sp, modifier = Modifier.fillMaxWidth().clickable { onSignOut() }.padding(vertical = 12.dp))
         Text("Apagar conta", color = PiColors.Danger, fontSize = 16.sp, modifier = Modifier.fillMaxWidth().clickable { confirmDelete = true }.padding(vertical = 12.dp))
         msg?.let { Text(it, color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp)) }
+    }
+
+
+    if (showLanguagePicker) {
+        AlertDialog(
+            onDismissRequest = { showLanguagePicker = false },
+            containerColor = PiColors.Surface,
+            title = { Text("Escolher idioma", color = PiColors.White) },
+            text = {
+                Column {
+                    listOf("pt" to "Português", "en" to "Inglês", "es" to "Espanhol", "fr" to "Francês").forEach { (code, label) ->
+                        Row(Modifier.fillMaxWidth().clickable { PiI18n.setLanguage(context, code); showLanguagePicker = false }.padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = PiI18n.language == code, onClick = { PiI18n.setLanguage(context, code); showLanguagePicker = false })
+                            Text(label, color = PiColors.White)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showLanguagePicker = false }) { Text("Fechar", color = PiColors.White) } },
+        )
     }
 
     if (confirmDelete) {
