@@ -203,7 +203,7 @@ fun ChatScreen(
     LaunchedEffect(convId) {
         while (true) {
             if (Api.hasInternet(context)) vm.refresh()
-            delay(2000)
+            delay(5000)
         }
     }
 
