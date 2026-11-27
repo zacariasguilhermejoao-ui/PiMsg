@@ -246,14 +246,14 @@ export async function handleBots(request, env, me, path, method) {
     if (!prompt) { await releasePaidAi(env, me, reservation.day, reservation.globalDay); return fail(400, "Escreve a mensagem do cliente."); }
     try {
       const p = await env.DB.prepare("SELECT * FROM bot_business_profiles WHERE user_id = ? AND enabled = 1").bind(me.id).first();
-      if (!p) { await releasePaidAi(env, me, reservation.day); return fail(409, "Configura e activa primeiro o teu Pi Business.", { reason: "business_not_configured" }); }
+      if (!p) { await releasePaidAi(env, me, reservation.day, reservation.globalDay); return fail(409, "Configura e activa primeiro o teu Pi Business.", { reason: "business_not_configured" }); }
       const reply = await runModel(env, [
         { role: "system", content: aiSystem() + " És o assistente de atendimento do negócio " + p.business_name + ". Responde apenas com base nos dados seguintes; se não souberes, informa que a equipa precisa confirmar. Nunca inventes preços, stock ou prazos.\nDescrição: " + (p.description || "") + "\nFAQ: " + (p.faq || "") + "\nHorário: " + (p.hours || "") + "\nContacto: " + (p.contact || "") + "\nSaudação: " + (p.greeting || "") },
         { role: "user", content: prompt },
       ]);
       return json({ reply, remaining: Math.max(0, reservation.limit - reservation.requests), plan: reservation.sub.plan });
     } catch (error) {
-      await releasePaidAi(env, me, reservation.day);
+      await releasePaidAi(env, me, reservation.day, reservation.globalDay);
       console.error("Pi Business failed:", String(error));
       return fail(502, "O Pi Business não conseguiu responder. Tenta novamente.");
     }
@@ -296,7 +296,7 @@ export async function handleBots(request, env, me, path, method) {
     const bot = await env.DB.prepare("SELECT * FROM custom_bots WHERE id = ? AND user_id = ?").bind(customChatMatch[1], me.id).first();
     const b = await request.json().catch(() => ({}));
     const prompt = typeof b.message === "string" ? b.message.trim().slice(0, 2000) : "";
-    if (!bot || !prompt) { await releasePaidAi(env, me, reservation.day); return fail(bot ? 400 : 404, bot ? "Escreve uma mensagem." : "Bot não encontrado."); }
+    if (!bot || !prompt) { await releasePaidAi(env, me, reservation.day, reservation.globalDay); return fail(bot ? 400 : 404, bot ? "Escreve uma mensagem." : "Bot não encontrado."); }
     try {
       const reply = await runModel(env, [
         { role: "system", content: aiSystem() + "\nNome: " + bot.name + "\nDescrição: " + (bot.description || "") + "\nInstruções do criador: " + bot.instructions },
@@ -304,7 +304,7 @@ export async function handleBots(request, env, me, path, method) {
       ]);
       return json({ reply, remaining: Math.max(0, reservation.limit - reservation.requests), plan: reservation.sub.plan });
     } catch (error) {
-      await releasePaidAi(env, me, reservation.day);
+      await releasePaidAi(env, me, reservation.day, reservation.globalDay);
       console.error("Custom Pi Bot failed:", String(error));
       return fail(502, "Este bot não conseguiu responder. Tenta novamente.");
     }
@@ -315,10 +315,10 @@ export async function handleBots(request, env, me, path, method) {
     const reservation = await reservePaidAi(env, me, now);
     if (reservation.error) return reservation.error;
     const body = await request.json().catch(() => null);
-    if (!body || typeof body !== "object") { await releasePaidAi(env, me, reservation.day); return fail(400, "pedido inválido"); }
+    if (!body || typeof body !== "object") { await releasePaidAi(env, me, reservation.day, reservation.globalDay); return fail(400, "pedido inválido"); }
     const prompt = typeof body.message === "string" ? body.message.trim() : "";
-    if (!prompt) { await releasePaidAi(env, me, reservation.day); return fail(400, "Escreve uma mensagem."); }
-    if (prompt.length > 2000) { await releasePaidAi(env, me, reservation.day); return fail(413, "A mensagem não pode ultrapassar 2.000 caracteres."); }
+    if (!prompt) { await releasePaidAi(env, me, reservation.day, reservation.globalDay); return fail(400, "Escreve uma mensagem."); }
+    if (prompt.length > 2000) { await releasePaidAi(env, me, reservation.day, reservation.globalDay); return fail(413, "A mensagem não pode ultrapassar 2.000 caracteres."); }
     const history = Array.isArray(body.history) ? body.history.slice(-10).filter(x => x && ["user","assistant"].includes(x.role) && typeof x.content === "string").map(x => ({ role: x.role, content: x.content.trim().slice(0,2500) })).filter(x => x.content) : [];
     try {
       const reply = await runModel(env, [
@@ -328,7 +328,7 @@ export async function handleBots(request, env, me, path, method) {
       ], 450);
       return json({ reply, model: MODEL, plan: reservation.sub.plan, limit: reservation.limit, remaining: Math.max(0, reservation.limit - reservation.requests) });
     } catch (error) {
-      await releasePaidAi(env, me, reservation.day);
+      await releasePaidAi(env, me, reservation.day, reservation.globalDay);
       console.error("Pi AI inference failed:", String(error));
       return fail(502, "O Pi AI não conseguiu responder neste momento. Tenta novamente.");
     }
