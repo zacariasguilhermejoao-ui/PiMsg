@@ -98,9 +98,11 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
             }
             syncPending()
             val arr = Api.get("/v1/chats/$convId/messages?limit=100").getJSONArray("messages")
-            val serverMessages = (0 until arr.length()).map { i ->
+            val serverMessages = (0 until arr.length()).mapNotNull { i ->
                 val o = arr.getJSONObject(i)
-                Message(o.getString("id"), o.getString("sender_id"), o.getString("kind"),
+                val messageId = o.getString("id")
+                if (local.isHidden(convId, messageId)) return@mapNotNull null
+                Message(messageId, o.getString("sender_id"), o.getString("kind"),
                     o.str("body"), o.str("media_id"), o.getLong("created_at"),
                     if (o.isNull("expires_at")) null else o.optLong("expires_at"))
             }
@@ -390,9 +392,17 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
             "Atingiu as 500 respostas mensais através dos links personalizados. Poderá responder novamente no dia 1, às 00h00 (hora de Angola), ou ativar o Pro."
         e is ApiException && e.code == 402 && e.reason == "limit_messages" ->
             "Limite diário de mensagens atingido. Volte amanhã, compre créditos ou ative o plano Pro."
-        e is ApiException && e.code == 403 -> "Mensagem não enviada."
-        e is ApiException && e.code == 413 -> "O ficheiro passa de 50 MB."
-        upload -> "Não foi possível enviar o ficheiro. Verifique a ligação à Internet."
+        e is ApiException && e.code == 413 && e.reason == "storage_quota_exceeded" ->
+            "O armazenamento da tua conta está cheio. Liberta espaço ou muda de plano."
+        e is ApiException && e.code == 413 -> "O ficheiro excede o limite permitido de 50 MB."
+        e is ApiException -> {
+            val detail = runCatching {
+                JSONObject(e.message ?: "{}").optString("error").ifBlank { JSONObject(e.message ?: "{}").optString("message") }
+            }.getOrNull().orEmpty()
+            if (detail.isNotBlank()) "O servidor recusou o envio (${e.code}): $detail"
+            else "O servidor recusou o envio (erro ${e.code})."
+        }
+        upload -> "Falha de rede ao enviar o ficheiro: ${e.message ?: "tente novamente"}."
         else -> "Mensagem guardada no telefone; será enviada quando a ligação voltar."
     }
 }
