@@ -956,7 +956,7 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
         ) {
             Text("ZONA DE PERIGO", color = PiColors.Danger, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Text("Apagar conta", color = PiColors.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
-            Text("Esta acção agenda a eliminação da conta. O pedido pode ser cancelado ao voltar a iniciar sessão nos 14 dias seguintes.", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+            Text("O pedido será enviado à equipa PiMsg para análise. Poderemos pedir confirmação adicional para proteger a tua conta.", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
             Text("Apagar a minha conta", color = PiColors.Danger, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.fillMaxWidth().clickable { confirmDelete = true }.padding(top = 14.dp))
         }
@@ -971,7 +971,7 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
             title = { Text("Apagar conta", color = PiColors.White) },
             text = {
                 Text(
-                    "O pedido fica pendente durante 14 dias. Se entrar de novo nesse período, pode cancelar. Depois, os seus dados são removidos.",
+                    "Ao confirmar, será enviado um pedido de eliminação à equipa PiMsg. Poderemos pedir informações adicionais para confirmar que és o titular da conta.",
                     color = PiColors.TextSecondary,
                 )
             },
