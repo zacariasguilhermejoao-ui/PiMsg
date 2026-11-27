@@ -196,6 +196,7 @@ fun HomeScreen(
                         ringColor = item.optString("ringColor").takeIf { it.isNotBlank() },
                         otherId = item.optString("otherId").takeIf { it.isNotBlank() },
                         inviteCode = item.optString("inviteCode").takeIf { it.isNotBlank() },
+                        isOnline = item.optBoolean("isOnline", false),
                     )
                 }
                 vm.restoreCachedChats(cached)
