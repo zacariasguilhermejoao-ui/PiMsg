@@ -982,7 +982,7 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
                         try { Api.post("/v1/me/delete", JSONObject()); onSignOut() }
                         catch (e: Exception) { msg = "Não foi possível enviar o pedido." }
                     }
-                }) { Text("Apagar", color = PiColors.Danger) }
+                }) { Text("Enviar pedido", color = PiColors.Danger) }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancelar", color = PiColors.White) } },
         )
