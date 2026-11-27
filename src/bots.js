@@ -319,7 +319,7 @@ export async function handleBots(request, env, me, path, method) {
     const prompt = typeof body.message === "string" ? body.message.trim() : "";
     if (!prompt) { await releasePaidAi(env, me, reservation.day, reservation.globalDay); return fail(400, "Escreve uma mensagem."); }
     if (prompt.length > 2000) { await releasePaidAi(env, me, reservation.day, reservation.globalDay); return fail(413, "A mensagem não pode ultrapassar 2.000 caracteres."); }
-    const history = Array.isArray(body.history) ? body.history.slice(-10).filter(x => x && ["user","assistant"].includes(x.role) && typeof x.content === "string").map(x => ({ role: x.role, content: x.content.trim().slice(0,2500) })).filter(x => x.content) : [];
+    const history = Array.isArray(body.history) ? body.history.slice(-6).filter(x => x && ["user","assistant"].includes(x.role) && typeof x.content === "string").map(x => ({ role: x.role, content: x.content.trim().slice(0,1200) })).filter(x => x.content) : [];
     try {
       const reply = await runModel(env, [
         { role: "system", content: aiSystem() + " És o Pi AI, o assistente oficial do PiMsg. Ajuda com perguntas gerais, escrita, ideias, explicações e utilização do PiMsg. Não afirmes que executaste ações fora desta conversa." },
