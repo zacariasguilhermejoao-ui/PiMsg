@@ -4,6 +4,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.provider.Settings
+import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
@@ -800,12 +803,30 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
 
     ScreenFrame("Definições", onBack) {
         Section("Idioma")
-        Row(Modifier.fillMaxWidth().clickable { showLanguagePicker = true }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().clickable {
+            if (Build.VERSION.SDK_INT >= 33) {
+                runCatching {
+                    context.startActivity(
+                        Intent(Settings.ACTION_APP_LOCALE_SETTINGS).setData(
+                            Uri.fromParts("package", context.packageName, null)
+                        )
+                    )
+                }
+            }
+        }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Idioma da aplicação", color = PiColors.White, fontSize = 16.sp)
-                Text(PiI18n.languageName(), color = PiColors.TextSecondary, fontSize = 13.sp)
+                Text(
+                    if (Build.VERSION.SDK_INT >= 33) PiI18n.languageName() else "Segue o idioma do telemóvel",
+                    color = PiColors.TextSecondary,
+                    fontSize = 13.sp
+                )
             }
-            androidx.compose.material3.Icon(Icons.Filled.Add, contentDescription = "Escolher idioma", tint = PiColors.TextSecondary)
+            androidx.compose.material3.Icon(
+                Icons.Filled.Add,
+                contentDescription = if (Build.VERSION.SDK_INT >= 33) "Idioma da aplicação" else null,
+                tint = PiColors.TextSecondary
+            )
         }
         Section("Armazenamento e dados")
         Text("Descarregar ficheiros automaticamente", color = PiColors.White, fontSize = 16.sp)
@@ -942,25 +963,6 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
         msg?.let { Text(it, color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp)) }
     }
 
-
-    if (showLanguagePicker) {
-        AlertDialog(
-            onDismissRequest = { showLanguagePicker = false },
-            containerColor = PiColors.Surface,
-            title = { Text("Escolher idioma", color = PiColors.White) },
-            text = {
-                Column {
-                    listOf("pt" to "Português", "en" to "Inglês", "es" to "Espanhol", "fr" to "Francês").forEach { (code, label) ->
-                        Row(Modifier.fillMaxWidth().clickable { PiI18n.setLanguage(context, code); showLanguagePicker = false }.padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = PiI18n.language == code, onClick = { PiI18n.setLanguage(context, code); showLanguagePicker = false })
-                            Text(label, color = PiColors.White)
-                        }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { showLanguagePicker = false }) { Text("Fechar", color = PiColors.White) } },
-        )
-    }
 
     if (confirmDelete) {
         AlertDialog(
