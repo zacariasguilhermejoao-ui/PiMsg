@@ -37,14 +37,14 @@ async function accessToken(sa) {
 }
 
 export async function pushToUsers(env, userIds, title, body, data = {}) {
-  if (!env.FCM_SERVICE_ACCOUNT || !userIds.length) return;
+  if (!env.FCM_SERVICE_ACCOUNT || !userIds.length) return false;
   try {
     const sa = JSON.parse(env.FCM_SERVICE_ACCOUNT);
     const marks = userIds.map(() => "?").join(",");
     const rows = await env.DB.prepare(
       `SELECT d.id, d.fcm_token, u.popup_enabled FROM devices d JOIN users u ON u.id = d.user_id WHERE d.user_id IN (${marks}) AND d.fcm_token IS NOT NULL AND u.push_enabled = 1 AND u.status = 'active' LIMIT 100`
     ).bind(...userIds).all();
-    if (!rows.results.length) return;
+    if (!rows.results.length) return true;
     const at = await accessToken(sa);
     const payloadData = { title: String(title), body: String(body) };
     for (const [k, v] of Object.entries(data)) payloadData[k] = String(v);
@@ -57,7 +57,9 @@ export async function pushToUsers(env, userIds, title, body, data = {}) {
       if (r.status === 404) await env.DB.prepare("UPDATE devices SET fcm_token = NULL WHERE id = ?").bind(d.id).run();
     });
     await Promise.race([Promise.allSettled(send), new Promise((res) => setTimeout(res, 2500))]);
+    return true;
   } catch (err) {
     console.error(JSON.stringify({ msg: "push falhou", error: String(err) }));
+    return false;
   }
 }
