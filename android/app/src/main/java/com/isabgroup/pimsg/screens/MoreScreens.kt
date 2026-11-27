@@ -370,14 +370,14 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
         Section("O meu código PiMsg")
         Text(code, color = PiColors.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp)
         Text("Partilhe este código para que outras pessoas o encontrem no PiMsg.", color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(vertical = 8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PiButton("Copiar", { copy(context, "codigo", code); msg = "Código copiado." }, Modifier.weight(1f), primary = false)
-            PiButton("Gerar novo", {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            PiButton("Copiar código", { copy(context, "codigo", code); msg = "Código copiado." }, primary = false)
+            PiButton("Gerar novo código", {
                 scope.launch {
                     try { code = Api.post("/v1/me/code/regenerate", JSONObject()).getString("code"); msg = "Novo código criado." }
                     catch (e: Exception) { msg = "Não foi possível gerar o código." }
                 }
-            }, Modifier.weight(1f), primary = false)
+            }, primary = false)
         }
 
         Section("Privacidade")
@@ -512,7 +512,7 @@ fun QrScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
         val scannedCode = payload?.takeIf { it.optString("app") == "PiMsg" && it.optString("type") == "user" }
             ?.optString("code")?.takeIf { it.isNotBlank() && it != "null" }
         if (scannedCode != null) {
-            scannedUserName = payload.optString("name").ifBlank { "Utilizador PiMsg" }
+            scannedUserName = payload?.optString("name").orEmpty().ifBlank { "Utilizador PiMsg" }
             scope.launch {
                 try {
                     val found = Api.get("/v1/search?q=" + Api.encode(scannedCode)).getJSONArray("users")
