@@ -552,7 +552,6 @@ fun HomeScreen(
                             .edit().putString("profile_cover_key", uploaded.id).apply()
                     } catch (_: Exception) {
                         android.widget.Toast.makeText(context, "Não foi possível guardar a fotografia de capa.", android.widget.Toast.LENGTH_LONG).show()
-                    } finally {
                     }
                 }
             },
@@ -565,7 +564,7 @@ fun HomeScreen(
             profileAvatar = ownProfileAvatar,
             profileCover = ownProfileCover,
             profilePlan = ownPlan,
-            onPickCover = { pickProfileCover.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            onPickCover = { menuOpen = false; pickProfileCover.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onDismiss = { menuOpen = false },
             onItem = { key ->
                 when (key) {
