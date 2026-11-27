@@ -32,6 +32,7 @@ data class ChatItem(
     val otherId: String? = null,
     val inviteCode: String? = null,
     val isTyping: Boolean = false,
+    val isOnline: Boolean = false,
 )
 
 data class UserItem(
@@ -115,6 +116,7 @@ class HomeViewModel : ViewModel() {
                         otherId = o.str("other_id"),
                         inviteCode = o.str("invite_code"),
                         isTyping = o.optInt("other_typing", 0) == 1 || o.optBoolean("other_typing"),
+                        isOnline = o.optInt("other_online", 0) == 1 || o.optBoolean("other_online"),
                     )
                 }
                 _state.update { it.copy(loading = false, chats = list) }
