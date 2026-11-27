@@ -114,7 +114,7 @@ class HomeViewModel : ViewModel() {
                         ringColor = o.str("other_ring"),
                         otherId = o.str("other_id"),
                         inviteCode = o.str("invite_code"),
-                        isTyping = o.optBoolean("other_typing"),
+                        isTyping = o.optInt("other_typing", 0) == 1 || o.optBoolean("other_typing"),
                     )
                 }
                 _state.update { it.copy(loading = false, chats = list) }
