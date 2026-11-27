@@ -14,6 +14,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.isabgroup.pimsg.data.ApiException
 import com.isabgroup.pimsg.data.PiMsgMedia
 import com.isabgroup.pimsg.ui.PiI18n
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -288,6 +289,20 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                 _state.update { it.copy(busy = false, error = errorText(e, upload = true)) }
             } finally {
                 onComplete?.invoke()
+            }
+        }
+    }
+
+    fun sendMediaBatch(cr: ContentResolver, uris: List<Uri>) {
+        viewModelScope.launch {
+            for (uri in uris) {
+                val completed = CompletableDeferred<Unit>()
+                val mime = cr.getType(uri).orEmpty()
+                sendMedia(cr, uri, if (mime.startsWith("audio/")) "music" else "file") {
+                    if (!completed.isCompleted) completed.complete(Unit)
+                }
+                completed.await()
+                if (_state.value.error != null) break
             }
         }
     }
