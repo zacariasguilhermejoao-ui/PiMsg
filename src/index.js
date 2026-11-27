@@ -203,6 +203,8 @@ async function handle(request, env) {
       current_plan: sub ? sub.plan : "free",
       current_tier: tier,
       billing_ready: !!env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON,
+      email: me.email || null,
+      email_verified: !!me.email_verified,
       subscription_status: sub?.status || "free",
       expires_at: sub?.expires_at || null,
       auto_renewing: sub ? !!sub.auto_renewing : false,
