@@ -56,6 +56,7 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     val images = mutableStateMapOf<String, Bitmap>()
     private var lastNewestId: String? = null
     private var syncing = false
+    private var identityVerified = false
     private val mediaInFlight = mutableSetOf<String>()
     private var typingActive = false
     private var lastTypingPingAt = 0L
@@ -72,11 +73,12 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
         // Sempre mantém a cópia local visível se a rede falhar.
         _state.update { it.copy(messages = local.read(convId)) }
         try {
-            if (_state.value.myId == null) {
+            if (!identityVerified) {
                 val me = Api.get("/v1/me")
                 val currentUserId = me.getString("id")
                 appContext.getSharedPreferences("pimsg_local", Context.MODE_PRIVATE).edit().putString("my_id", currentUserId).apply()
                 _state.update { it.copy(myId = currentUserId) }
+                identityVerified = true
             }
             syncPending()
             val arr = Api.get("/v1/chats/$convId/messages?limit=100").getJSONArray("messages")
