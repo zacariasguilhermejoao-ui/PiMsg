@@ -128,7 +128,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
         val scannedCode = payload?.takeIf { it.optString("app") == "PiMsg" && it.optString("type") == "user" }
             ?.optString("code")?.takeIf { it.isNotBlank() && it != "null" }
         if (scannedCode != null) {
-            scannedUserName = payload.optString("name", "Utilizador PiMsg")
+            scannedUserName = payload?.optString("name")?.takeIf { it.isNotBlank() } ?: "Utilizador PiMsg"
             scope.launch {
                 try {
                     val found = Api.get("/v1/search?q=" + Api.encode(scannedCode)).getJSONArray("users")
