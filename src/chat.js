@@ -32,6 +32,27 @@ async function isPro(env, userId, now) {
   return !!r;
 }
 
+
+function localMonthWindow(now) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Africa/Luanda", year: "numeric", month: "2-digit" }).formatToParts(new Date(now));
+  const year = Number(parts.find((p) => p.type === "year")?.value);
+  const month = Number(parts.find((p) => p.type === "month")?.value);
+  // Angola is UTC+1 year-round: local midnight on day 1 is 23:00 UTC on the previous day.
+  return { key: `${year}-${String(month).padStart(2, "0")}`, start: Date.UTC(year, month - 1, 1) - 3600000, end: Date.UTC(year, month, 1) - 3600000 };
+}
+
+async function linkReplyUsage(env, userId, now) {
+  const month = localMonthWindow(now);
+  const row = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM messages m
+     JOIN conversations c ON c.id = m.conversation_id
+     JOIN contact_links l ON l.id = c.link_id
+     WHERE l.user_id = ? AND m.sender_id = ? AND m.kind <> 'system'
+       AND m.deleted_at IS NULL AND m.created_at >= ? AND m.created_at < ?`
+  ).bind(userId, userId, month.start, month.end).first();
+  return { used: row?.n || 0, resets_at: month.end, month: month.key };
+}
+
 async function membership(env, convId, userId) {
   return env.DB.prepare(
     "SELECT * FROM conversation_members WHERE conversation_id = ? AND user_id = ? AND left_at IS NULL"
@@ -258,10 +279,21 @@ export async function handleChat(request, env, me, path, method) {
         const m = await env.DB.prepare("SELECT id FROM media WHERE id = ? AND owner_id = ?").bind(b.media_id || "", me.id).first();
         if (!m) return fail(400, "ficheiro invalido");
       }
-      const conv = await env.DB.prepare("SELECT type, user_a_id, user_b_id, disappearing_seconds FROM conversations WHERE id = ?").bind(convId).first();
+      const conv = await env.DB.prepare("SELECT type, user_a_id, user_b_id, disappearing_seconds, link_id FROM conversations WHERE id = ?").bind(convId).first();
       if (conv.type === "direct") {
         const otherId = conv.user_a_id === me.id ? conv.user_b_id : conv.user_a_id;
         if (await isBlockedBetween(env, me.id, otherId)) return fail(403, "mensagem nao enviada");
+      }
+      if (conv.link_id && conv.type === "direct" && !(await isPro(env, me.id, now))) {
+        const ownedLink = await env.DB.prepare("SELECT id FROM contact_links WHERE id = ? AND user_id = ? AND is_active = 1").bind(conv.link_id, me.id).first();
+        if (ownedLink) {
+          const linkUsage = await linkReplyUsage(env, me.id, now);
+          if (linkUsage.used >= 500) {
+            return fail(402, "Atingiu o limite mensal de 500 respostas através dos links personalizados. O limite renova no dia 1, às 00h00 (hora de Angola).", {
+              reason: "limit_link_replies", limit: 500, used: linkUsage.used, resets_at: linkUsage.resets_at
+            });
+          }
+        }
       }
       const plan = await planSend(env, me, now);
       if (!plan.ok) {
