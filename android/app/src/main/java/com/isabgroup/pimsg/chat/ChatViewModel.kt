@@ -40,6 +40,7 @@ data class ChatState(
     val busy: Boolean = false,
     val error: String? = null,
     val typingName: String? = null,
+    val mediaRevision: Int = 0,
 )
 
 private const val MAX_MEDIA = 50L * 1024 * 1024
@@ -226,6 +227,7 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                     cr.openInputStream(uri)?.use { input ->
                         PiMsgMedia.store(appContext, mediaId, mime, name ?: "ficheiro", input.readBytes())
                     }
+                    _state.update { it.copy(mediaRevision = it.mediaRevision + 1) }
                 }
                 val kind = when {
                     hint == "music" -> "music"
@@ -262,11 +264,13 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
         try {
             PiMsgMedia.findCached(appContext, mediaId)?.let { return it }
             val data = Api.download("/v1/media/$mediaId")
-            return PiMsgMedia.store(
+            val stored = PiMsgMedia.store(
                 appContext, mediaId, data.mime,
                 message.body?.takeIf { it.isNotBlank() } ?: mediaId,
                 data.bytes,
             )
+            _state.update { it.copy(mediaRevision = it.mediaRevision + 1) }
+            return stored
         } finally {
             synchronized(mediaInFlight) { mediaInFlight.remove(mediaId) }
         }
