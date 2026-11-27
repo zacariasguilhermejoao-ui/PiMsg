@@ -33,6 +33,8 @@ import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import com.isabgroup.pimsg.ui.PiText as Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -69,8 +71,6 @@ import org.json.JSONObject
 import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiIcons
 import com.isabgroup.pimsg.ui.playClick
-import com.isabgroup.pimsg.ui.components.PresenteAnimado
-import com.isabgroup.pimsg.ui.components.RoboMascoteAnimado
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
@@ -96,7 +96,6 @@ fun ChatScreen(
     val cr = context.contentResolver
     val view = LocalView.current
     var text by remember { mutableStateOf("") }
-    var isTypingNow by remember { mutableStateOf(false) }
     LaunchedEffect(pendingShare) {
         val share = pendingShare ?: return@LaunchedEffect
         if (!share.text.isNullOrBlank() && text.isEmpty()) {
@@ -120,6 +119,10 @@ fun ChatScreen(
     var disappearingOpen by remember { mutableStateOf(false) }
     var disappearingSeconds by remember { mutableStateOf(0) }
     var info by remember { mutableStateOf<String?>(null) }
+    var peerProfileOpen by remember { mutableStateOf(false) }
+    var peerProfileLoading by remember { mutableStateOf(false) }
+    var peerProfile by remember { mutableStateOf<JSONObject?>(null) }
+    var peerAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     val scope = rememberCoroutineScope()
     val isGroup = ref.inviteCode != null
 
@@ -138,14 +141,11 @@ fun ChatScreen(
 
     LaunchedEffect(text, convId) {
         if (text.isBlank()) {
-            isTypingNow = false
             vm.setTyping(false)
             return@LaunchedEffect
         }
-        isTypingNow = true
         vm.setTyping(true)
         delay(5000)
-        isTypingNow = false
         vm.setTyping(false)
     }
     DisposableEffect(convId) {
@@ -181,6 +181,30 @@ fun ChatScreen(
         Row(Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { view.playClick(); onBack() }) { Icon(PiIcons.Back, "Voltar", tint = PiColors.White) }
             Text(title, color = PiColors.White, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f))
+            if (!isGroup && !ref.otherId.isNullOrBlank()) {
+                IconButton(onClick = {
+                    view.playClick()
+                    peerProfileOpen = true
+                    peerProfileLoading = true
+                    scope.launch {
+                        try {
+                            val profile = Api.get("/v1/users/${ref.otherId}")
+                            peerProfile = profile
+                            val avatarKey = profile.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
+                            peerAvatar = avatarKey?.let { key ->
+                                val cached = PiMsgMedia.findCached(context, key)
+                                val file = cached ?: run {
+                                    val downloaded = Api.download("/v1/media/$key")
+                                    PiMsgMedia.store(context, key, downloaded.mime, "avatar", downloaded.bytes)
+                                }
+                                android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                            }
+                        } catch (_: Exception) {
+                            peerProfile = null
+                        } finally { peerProfileLoading = false }
+                    }
+                }) { Icon(Icons.Filled.Person, "Ver perfil de ${title}", tint = PiColors.White) }
+            }
             IconButton(onClick = { view.playClick(); optionsOpen = true }) { Icon(PiIcons.More, "Mais opções", tint = PiColors.White) }
         }
 
@@ -218,18 +242,6 @@ fun ChatScreen(
             Text("$name está a escrever…", color = PiColors.TextSecondary, fontSize = 12.sp,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 3.dp))
         }
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 2.dp),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(Modifier.size(48.dp).clickable { view.playClick(); onOpenBots() }, contentAlignment = Alignment.Center) {
-                    RoboMascoteAnimado(estaEscrevendo = isTypingNow, progressoTexto = (text.length / 2000f).coerceIn(0f, 1f), tamanho = 46.dp)
-                }
-                PresenteAnimado(tamanho = 42.dp)
-            }
-        }
-
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.Bottom) {
             IconButton(onClick = { view.playClick(); attachOpen = true }, enabled = !state.busy) {
                 Icon(PiIcons.Plus, "Anexar", tint = PiColors.White)
@@ -263,6 +275,42 @@ fun ChatScreen(
                 contentAlignment = Alignment.Center,
             ) { Icon(PiIcons.Send, "Enviar", tint = Color.Black) }
         }
+    }
+
+    if (peerProfileOpen) {
+        val profile = peerProfile
+        AlertDialog(
+            onDismissRequest = { peerProfileOpen = false },
+            containerColor = PiColors.Surface,
+            title = { Text(profile?.optString("name")?.takeIf { !it.isNullOrBlank() } ?: title, color = PiColors.White) },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (peerAvatar != null) Image(peerAvatar!!.asImageBitmap(), "Fotografia de perfil", Modifier.size(88.dp).clip(CircleShape), contentScale = ContentScale.Crop)
+                    else Box(Modifier.size(88.dp).clip(CircleShape).background(PiColors.SurfaceHigh), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Filled.Person, "Avatar", tint = PiColors.Gray, modifier = Modifier.size(44.dp))
+                    }
+                    if (peerProfileLoading) Text("A carregar perfil...", color = PiColors.TextSecondary)
+                    else if (profile == null) Text("Não foi possível carregar o perfil. Verifique a ligação e tente novamente.", color = PiColors.TextSecondary)
+                    else {
+                        val bio = profile.optString("bio")
+                        if (bio.isNotBlank() && bio != "null") Text(bio, color = PiColors.TextSecondary)
+                        val phone = profile.optString("phone")
+                        if (phone.isNotBlank() && phone != "null") Text("Contacto: $phone", color = PiColors.White)
+                        val links = profile.optJSONArray("social_links") ?: org.json.JSONArray()
+                        for (i in 0 until links.length()) {
+                            val link = links.optJSONObject(i) ?: continue
+                            val url = link.optString("url")
+                            if (url.startsWith("https://")) Text(link.optString("label", "Abrir ligação"), color = PiColors.White,
+                                modifier = Modifier.clickable { context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))) })
+                        }
+                        val video = profile.optString("intro_video_key")
+                        if (video.isNotBlank() && video != "null") Text("Ver vídeo de apresentação", color = PiColors.White,
+                            modifier = Modifier.clickable { context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://pimsg.tchilopop.com/public-media/$video"))) })
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { peerProfileOpen = false }) { Text("Fechar", color = PiColors.White) } },
+        )
     }
 
     if (optionsOpen) {
