@@ -101,8 +101,9 @@ class HomeViewModel : ViewModel() {
     fun selectTab(tab: Tab, cachedChats: List<ChatItem> = emptyList(), syncOnline: Boolean = true) {
         // Online: mostrar Skeleton brevemente durante a confirmação do servidor.
         // Offline: apresentar imediatamente a cópia local, sem bloquear o histórico.
-        _state.update { it.copy(tab = tab, chats = cachedChats, loading = syncOnline, error = null) }
-        if (syncOnline) load(silent = true, minimumSkeleton = true)
+        val showSkeleton = syncOnline && cachedChats.isEmpty()
+        _state.update { it.copy(tab = tab, chats = cachedChats, loading = showSkeleton, error = null) }
+        if (syncOnline) load(silent = true, minimumSkeleton = showSkeleton)
     }
 
     fun load(silent: Boolean = false, minimumSkeleton: Boolean = false) {
