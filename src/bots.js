@@ -46,7 +46,7 @@ export async function handleBots(request, env, me, path, method) {
     });
   }
 
-  const translationMatch = path.match(/^\\/v1\\/chats\\/([\\w-]+)\\/messages\\/([\\w-]+)\\/translate$/);
+  const translationMatch = path.match(/^\/v1\/chats\/([\w-]+)\/messages\/([\w-]+)\/translate$/);
   if (translationMatch && method === "POST") {
     if (!env.AI) return fail(503, "O serviço de tradução ainda não está disponível.");
     const conversationId = translationMatch[1];
@@ -70,7 +70,7 @@ export async function handleBots(request, env, me, path, method) {
       const result = await env.AI.run(MODEL, {
         messages: [
           { role: "system", content: "És um tradutor de mensagens. Detecta o idioma do texto. Se já estiver no idioma de destino, responde exatamente __SAME_LANGUAGE__. Caso contrário, traduz para o idioma pedido preservando significado, tom, nomes, emojis e formatação. Responde apenas com a tradução, sem comentários, rótulos ou aspas." },
-          { role: "user", content: "Idioma de destino: " + languageName + "\\nMensagem: " + message.body.slice(0, 4000) }
+          { role: "user", content: "Idioma de destino: " + languageName + "\nMensagem: " + message.body.slice(0, 4000) }
         ],
         max_tokens: 512,
         temperature: 0.1,
