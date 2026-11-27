@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -45,6 +46,7 @@ fun ImageCropDialog(
 ) {
     var zoom by remember(bitmap) { mutableStateOf(1f) }
     var offset by remember(bitmap) { mutableStateOf(Offset.Zero) }
+    var viewport by remember(bitmap) { mutableStateOf(IntSize.Zero) }
     val image = remember(bitmap) { bitmap.asImageBitmap() }
 
     Dialog(
@@ -60,6 +62,7 @@ fun ImageCropDialog(
             Canvas(
                 Modifier.fillMaxWidth().aspectRatio(aspectRatio)
                     .clip(RoundedCornerShape(14.dp))
+                    .onSizeChanged { viewport = it }
                     .pointerInput(bitmap) {
                         detectTransformGestures { _, pan, zoomChange, _ ->
                             zoom = (zoom * zoomChange).coerceIn(1f, 4f)
@@ -81,7 +84,9 @@ fun ImageCropDialog(
             Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
                 TextButton(onClick = onDismiss) { Text("Cancelar", color = PiColors.TextSecondary) }
                 TextButton(onClick = {
-                    val crop = cropRect(bitmap, 1000f, 1000f / aspectRatio, zoom, offset)
+                    val width = viewport.width.takeIf { it > 0 }?.toFloat() ?: 1000f
+                    val height = viewport.height.takeIf { it > 0 }?.toFloat() ?: width / aspectRatio
+                    val crop = cropRect(bitmap, width, height, zoom, offset)
                     onConfirm(Bitmap.createBitmap(bitmap, crop.left, crop.top, crop.width(), crop.height()))
                 }) { Text("Usar fotografia", color = PiColors.White) }
             }
