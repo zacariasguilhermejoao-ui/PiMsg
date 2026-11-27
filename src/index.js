@@ -473,5 +473,26 @@ export default {
           .bind(now, reminder.id).run();
       }
     }
+    // Remove abandoned uploads and files no longer referenced by messages, active stories or profiles.
+    const orphaned = await env.DB.prepare(
+      `SELECT m.id, m.owner_id, m.r2_key, m.size_bytes FROM media m
+       WHERE m.created_at < ?
+         AND NOT EXISTS (SELECT 1 FROM messages msg WHERE msg.media_id = m.id AND msg.deleted_at IS NULL)
+         AND NOT EXISTS (SELECT 1 FROM stories s WHERE s.media_id = m.id AND s.expires_at > ?)
+         AND NOT EXISTS (SELECT 1 FROM users u WHERE u.avatar_key = m.id OR u.intro_video_key = m.id)
+       ORDER BY m.created_at ASC LIMIT 100`
+    ).bind(now - 24 * 60 * 60 * 1000, now).all();
+    for (const media of orphaned.results || []) {
+      try {
+        await env.MEDIA.delete(media.r2_key);
+        await env.DB.batch([
+          env.DB.prepare("DELETE FROM media WHERE id = ?").bind(media.id),
+          env.DB.prepare("UPDATE user_storage_usage SET used_bytes = CASE WHEN used_bytes >= ? THEN used_bytes - ? ELSE 0 END, updated_at = ? WHERE user_id = ?")
+            .bind(media.size_bytes, media.size_bytes, now, media.owner_id),
+        ]);
+      } catch (error) {
+        console.error("PiMsg orphan media cleanup failed:", String(error));
+      }
+    }
   },
 };
