@@ -249,7 +249,8 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                     }
                 }
                 if (size <= 0) size = cr.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
-                if (size <= 0) throw ApiException(400, "ficheiro invalido")
+                // Alguns fornecedores Android (Galeria, Documentos e nuvem) devolvem SIZE=-1.
+                // Copiamos primeiro para cache e validamos o tamanho real, sem rejeitar esses URIs.
                 if (size > MAX_MEDIA) {
                     _state.update { it.copy(busy = false, error = "O ficheiro passa de 50 MB.") }
                     return@launch
@@ -259,7 +260,8 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                     cr.openInputStream(uri)?.use { input -> staged.outputStream().use { output -> input.copyTo(output) } }
                         ?: throw ApiException(400, "ficheiro ilegivel")
                     val actualSize = staged.length()
-                    if (actualSize <= 0L || actualSize > MAX_MEDIA) throw ApiException(413, "ficheiro invalido ou demasiado grande")
+                    if (actualSize <= 0L) throw ApiException(400, "ficheiro vazio ou ilegivel")
+                    if (actualSize > MAX_MEDIA) throw ApiException(413, "ficheiro invalido ou demasiado grande")
                     val mediaId = Api.upload({ FileInputStream(staged) }, actualSize, mime)
                     val cached = PiMsgMedia.storeFromFile(appContext, mediaId, mime, name ?: "ficheiro", staged)
                     if (mime.startsWith("image/")) {
