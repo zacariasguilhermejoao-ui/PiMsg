@@ -64,6 +64,7 @@ fun MenuSheet(
     hasMyStory: Boolean,
     profileName: String,
     profileAvatar: Bitmap?,
+    profilePlan: String,
     onDismiss: () -> Unit,
     onItem: (String) -> Unit,
 ) {
@@ -103,12 +104,6 @@ fun MenuSheet(
         dragHandle = { BottomSheetDefaults.DragHandle(color = PiColors.GrayDark) },
     ) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState())) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Spacer(Modifier.weight(1f))
-                Text("Menu", color = PiColors.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.weight(1f))
-                IconButton(onClick = { close() }) { Icon(PiIcons.Close, contentDescription = "Fechar", tint = PiColors.Gray) }
-            }
             Column(
                 Modifier.fillMaxWidth().clickable { close { onItem("profile") } }.padding(top = 12.dp, bottom = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -124,6 +119,14 @@ fun MenuSheet(
                 }
                 Text(profileName.ifBlank { "O meu perfil" }, color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                 Text("Ver e editar perfil", color = PiColors.TextSecondary, fontSize = 13.sp)
+                val language = java.util.Locale.getDefault().language
+                val planLabel = if (profilePlan == "pro") "Pro" else when (language) {
+                    "en" -> "Free"
+                    "es" -> "Gratis"
+                    "fr" -> "Gratuit"
+                    else -> "Grátis"
+                }
+                Text("Plano $planLabel", color = PiColors.TextSecondary, fontSize = 12.sp)
             }
             if (hasMyStory) Entry(MenuEntry("mystory", "Ver o meu story"))
             Heading("A MINHA CONTA")
@@ -132,7 +135,6 @@ fun MenuSheet(
             create.forEach { Entry(it) }
             Heading("APLICAÇÃO")
             app.forEach { Entry(it) }
-            Entry(MenuEntry("signout", "Sair"))
             Spacer(Modifier.size(12.dp))
         }
     }
