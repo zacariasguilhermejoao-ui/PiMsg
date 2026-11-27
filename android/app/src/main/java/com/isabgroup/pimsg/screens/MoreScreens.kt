@@ -301,6 +301,36 @@ fun ProfileScreen(onBack: () -> Unit) {
         msg?.let { Text(it, color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp)) }
         Spacer(Modifier.height(24.dp))
     }
+    if (addSocialOpen) {
+        AlertDialog(
+            onDismissRequest = { addSocialOpen = false },
+            containerColor = PiColors.Surface,
+            title = { Text("Adicionar rede social", color = PiColors.White) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(value = socialLabel, onValueChange = { socialLabel = it.take(80) }, label = { Text("Nome (opcional)") }, singleLine = true, colors = piFieldColors())
+                    OutlinedTextField(value = socialUrl, onValueChange = { socialUrl = it.take(500) }, label = { Text("Ligação do site ou perfil") }, singleLine = true, colors = piFieldColors())
+                    Text("O ícone do site será carregado automaticamente quando existir.", color = PiColors.TextSecondary, fontSize = 12.sp)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        try {
+                            val result = Api.post("/v1/me/social-links", JSONObject().put("label", socialLabel).put("url", socialUrl))
+                            val url = result.getString("url")
+                            val icon = runCatching { Api.download("/v1/favicon?url=" + Api.encode(url)) }.getOrNull()
+                            val bitmap = icon?.let { android.graphics.BitmapFactory.decodeByteArray(it.bytes, 0, it.bytes.size) }
+                            socialLinks = socialLinks + SocialLinkUi(result.getString("id"), result.getString("label"), url, bitmap)
+                            addSocialOpen = false
+                            msg = "Ligação adicionada."
+                        } catch (_: Exception) { msg = "Não foi possível adicionar. Confirme se a ligação começa por https://." }
+                    }
+                }) { Text("Adicionar", color = PiColors.White) }
+            },
+            dismissButton = { TextButton(onClick = { addSocialOpen = false }) { Text("Cancelar", color = PiColors.TextSecondary) } },
+        )
+    }
     if (previewOpen) {
         AlertDialog(
             onDismissRequest = { previewOpen = false },
