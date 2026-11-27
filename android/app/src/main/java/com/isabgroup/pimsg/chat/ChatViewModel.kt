@@ -280,12 +280,13 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
     private fun saveCachedMediaToGallery(message: Message, file: File): Boolean {
         val mediaId = message.mediaId ?: return false
         if (PiMsgMedia.wasSavedToGallery(appContext, mediaId)) return true
-        val mime = when (message.kind) {
-            "image" -> "image/jpeg"
-            "video" -> "video/mp4"
-            "audio", "music" -> "audio/mpeg"
-            else -> "application/octet-stream"
-        }
+        val mime = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension)
+            ?: when (message.kind) {
+                "image" -> "image/jpeg"
+                "video" -> "video/mp4"
+                "audio", "music" -> "audio/mpeg"
+                else -> "application/octet-stream"
+            }
         val saved = PiMsgMedia.saveToGallery(appContext, file, mime, message.body?.takeIf { it.isNotBlank() } ?: file.name)
         if (saved) PiMsgMedia.markSavedToGallery(appContext, mediaId)
         return saved
