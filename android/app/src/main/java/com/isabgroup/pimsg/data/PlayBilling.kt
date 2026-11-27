@@ -24,9 +24,14 @@ class PlayBilling(
     private val onVerified: () -> Unit,
 ) : PurchasesUpdatedListener {
     companion object {
+        const val PLUS_MONTHLY = "pimsg_plus_monthly"
+        const val PLUS_YEARLY = "pimsg_plus_yearly"
         const val WEEKLY = "pimsg_pro_weekly"
         const val MONTHLY = "pimsg_pro_monthly"
-        private val PRODUCT_IDS = listOf(WEEKLY, MONTHLY)
+        const val PRO_YEARLY = "pimsg_pro_yearly"
+        const val BUSINESS_MONTHLY = "pimsg_business_monthly"
+        const val BUSINESS_YEARLY = "pimsg_business_yearly"
+        val PRODUCT_IDS = listOf(PLUS_MONTHLY, PLUS_YEARLY, WEEKLY, MONTHLY, PRO_YEARLY, BUSINESS_MONTHLY, BUSINESS_YEARLY)
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
