@@ -1,6 +1,7 @@
 // PiMsg Bots — all inference runs through Cloudflare Workers AI.
 const MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8-fast";
 const FREE_TRANSLATIONS_PER_DAY = 4;
+const GLOBAL_AI_DAILY_LIMIT = 2000;
 const PLAN_LIMITS = {
   plus: { ai: 5, translations: 25, customBots: 0, business: false },
   pro: { ai: 20, translations: 75, customBots: 5, business: false },
@@ -27,23 +28,43 @@ async function subscriptionFor(env, userId, now = Date.now()) {
     "SELECT plan FROM subscriptions WHERE user_id = ? AND status IN ('active','grace') AND expires_at > ? ORDER BY expires_at DESC LIMIT 1"
   ).bind(userId, now).first();
 }
+async function reserveGlobalRequest(env, day, now) {
+  const row = await env.DB.prepare(
+    `INSERT INTO bot_global_usage (day, requests, updated_at) VALUES (?, 1, ?)
+     ON CONFLICT(day) DO UPDATE SET requests = requests + 1, updated_at = excluded.updated_at
+     WHERE requests < ? RETURNING requests`
+  ).bind(day, now, GLOBAL_AI_DAILY_LIMIT).first();
+  return !!row;
+}
+async function releaseGlobalRequest(env, day) {
+  await env.DB.prepare(
+    "UPDATE bot_global_usage SET requests = CASE WHEN requests > 0 THEN requests - 1 ELSE 0 END, updated_at = ? WHERE day = ?"
+  ).bind(Date.now(), day).run();
+}
 async function reservePaidAi(env, me, now) {
   const sub = await subscriptionFor(env, me.id, now);
   if (!sub) return { error: fail(402, "Este bot está disponível apenas no plano pago do PiMsg.", { reason: "paid_plan_required" }) };
   const day = localDay(me.timezone || "Africa/Luanda");
   const limits = limitsFor(sub.plan);
+  if (!await reserveGlobalRequest(env, day, now)) {
+    return { error: fail(503, "O limite diário global de utilização de IA do PiMsg foi atingido. Tenta novamente amanhã.", { reason: "global_ai_daily_limit" }) };
+  }
   const usage = await env.DB.prepare(
     `INSERT INTO bot_daily_usage (user_id, day, requests, updated_at) VALUES (?, ?, 1, ?)
      ON CONFLICT(user_id, day) DO UPDATE SET requests = requests + 1, updated_at = excluded.updated_at
      WHERE requests < ? RETURNING requests`
   ).bind(me.id, day, now, limits.ai).first();
-  if (!usage) return { error: fail(429, "Atingiste o limite diário de utilização dos bots com IA do teu plano.", { reason: "bot_daily_limit", limit: limits.ai, plan: sub.plan }) };
+  if (!usage) {
+    await releaseGlobalRequest(env, day);
+    return { error: fail(429, "Atingiste o limite diário de utilização dos bots com IA do teu plano.", { reason: "bot_daily_limit", limit: limits.ai, plan: sub.plan }) };
+  }
   return { sub, day, requests: usage.requests, limit: limits.ai };
 }
 async function releasePaidAi(env, me, day) {
-  await env.DB.prepare(
-    "UPDATE bot_daily_usage SET requests = CASE WHEN requests > 0 THEN requests - 1 ELSE 0 END, updated_at = ? WHERE user_id = ? AND day = ?"
-  ).bind(Date.now(), me.id, day).run();
+  await env.DB.batch([
+    env.DB.prepare("UPDATE bot_daily_usage SET requests = CASE WHEN requests > 0 THEN requests - 1 ELSE 0 END, updated_at = ? WHERE user_id = ? AND day = ?").bind(Date.now(), me.id, day),
+    env.DB.prepare("UPDATE bot_global_usage SET requests = CASE WHEN requests > 0 THEN requests - 1 ELSE 0 END, updated_at = ? WHERE day = ?").bind(Date.now(), day),
+  ]);
 }
 async function runModel(env, messages, maxTokens = 450) {
   const result = await env.AI.run(MODEL, { messages, max_tokens: maxTokens, temperature: 0.45, top_p: 0.9 });
@@ -119,6 +140,13 @@ export async function handleBots(request, env, me, path, method) {
        WHERE translations < ? RETURNING translations`
     ).bind(me.id, day, now, translationLimit).first();
     if (!usage) return fail(429, `Atingiste o limite de ${translationLimit} traduções de hoje do teu plano. O limite será renovado à meia-noite (hora de Angola).`, { reason: "translation_daily_limit", limit: translationLimit, remaining: 0 });
+    if (!await reserveGlobalRequest(env, day, now)) {
+      await env.DB.batch([
+        env.DB.prepare("UPDATE bot_translation_usage SET translations = CASE WHEN translations > 0 THEN translations - 1 ELSE 0 END, updated_at = ? WHERE user_id = ? AND day = ?").bind(Date.now(), me.id, day),
+        env.DB.prepare("UPDATE bot_global_usage SET requests = CASE WHEN requests > 0 THEN requests - 1 ELSE 0 END, updated_at = ? WHERE day = ?").bind(Date.now(), day),
+      ]);
+      return fail(503, "O limite diário global de IA do PiMsg foi atingido. Tenta novamente amanhã.", { reason: "global_ai_daily_limit" });
+    }
     const languageName = ({ pt: "português", en: "inglês", es: "espanhol", fr: "francês" })[language];
     try {
       const translated = await runModel(env, [
@@ -294,7 +322,7 @@ export async function handleBots(request, env, me, path, method) {
         ...history,
         { role: "user", content: prompt },
       ], 700);
-      return json({ reply, model: MODEL, plan: reservation.sub.plan, limit: reservation.limit, remaining: Math.max(0, PAID_DAILY_AI_LIMIT - reservation.requests) });
+      return json({ reply, model: MODEL, plan: reservation.sub.plan, limit: reservation.limit, remaining: Math.max(0, reservation.limit - reservation.requests) });
     } catch (error) {
       await releasePaidAi(env, me, reservation.day);
       console.error("Pi AI inference failed:", String(error));
