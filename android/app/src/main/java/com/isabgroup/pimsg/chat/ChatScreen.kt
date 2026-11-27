@@ -422,39 +422,32 @@ private fun FileBody(m: Message, vm: ChatViewModel, fg: Color, sub: Color) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val label = when (m.kind) { "video" -> "Vídeo"; "audio" -> "Áudio"; "music" -> "Música"; else -> "Ficheiro" }
-    Column(
-        Modifier.clickable(enabled = m.mediaId != null) {
-            scope.launch { openMedia(context, m, vm) }
-        }.padding(vertical = 2.dp),
-    ) {
+    val cached = vm.isMediaCached(m.mediaId)
+    Column(Modifier.padding(vertical = 2.dp)) {
         Text(label, color = fg, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         Text(
-            if (m.mediaId == null) "Indisponível" else m.body?.takeIf { it.isNotBlank() } ?: "Toque para abrir",
+            if (m.mediaId == null) "Indisponível" else m.body?.takeIf { it.isNotBlank() } ?: if (cached) "Disponível offline" else "Ficheiro por descarregar",
             color = sub, fontSize = 13.sp, maxLines = 2,
         )
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text(if (cached) "Abrir" else "Descarregar", color = fg, fontSize = 12.sp,
+                modifier = Modifier.clickable(enabled = m.mediaId != null) { scope.launch { openMedia(context, m, vm) } }.padding(top = 8.dp))
+            if (cached) Text("Guardar no telemóvel", color = fg, fontSize = 12.sp,
+                modifier = Modifier.clickable { scope.launch {
+                    val ok = runCatching { vm.saveMediaToGallery(m) }.getOrDefault(false)
+                    vm.showError(if (ok) "Ficheiro guardado nas pastas PiMsg da galeria." else "Não foi possível guardar. Verifique o formato e o espaço disponível.")
+                } }.padding(top = 8.dp))
+        }
     }
 }
 
 private suspend fun openMedia(context: Context, m: Message, vm: ChatViewModel) {
     try {
-        val category = when (m.kind) {
-            "image" -> "Images"
-            "video" -> "Videos"
-            "audio", "music" -> "Audio"
-            else -> "Documents"
+        if (!vm.isMediaCached(m.mediaId) && !Api.hasInternet(context)) {
+            vm.showError("Este ficheiro ainda não foi descarregado. Liga-te à Internet para o abrir.")
+            return
         }
-        val dir = File(context.getExternalFilesDir(null) ?: context.filesDir, "PiMsg/$category").apply { mkdirs() }
-        val existing = dir.listFiles()?.firstOrNull { it.name.startsWith("${m.mediaId}.") }
-        val file = if (existing != null) existing else {
-            val d = Api.download("/v1/media/${m.mediaId}")
-            val mime = d.mime.substringBefore(";")
-            val ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)
-            val safe = (m.body?.takeIf { it.isNotBlank() } ?: "ficheiro")
-                .replace(Regex("[^A-Za-z0-9._-]"), "_").take(80)
-            val stored = File(dir, "${m.mediaId}_" + if (ext != null) "$safe.$ext" else safe)
-            stored.writeBytes(d.bytes)
-            stored
-        }
+        val file = vm.downloadMedia(m)
         val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension)
             ?: when (m.kind) {
                 "image" -> "image/*"
@@ -470,7 +463,7 @@ private suspend fun openMedia(context: Context, m: Message, vm: ChatViewModel) {
     } catch (e: android.content.ActivityNotFoundException) {
         vm.showError("Não há uma app no telemóvel para abrir este ficheiro.")
     } catch (e: Exception) {
-        vm.showError("Não foi possível abrir o ficheiro.")
+        vm.showError("Não foi possível abrir o ficheiro. Verifique a ligação à Internet.")
     }
 }
 
