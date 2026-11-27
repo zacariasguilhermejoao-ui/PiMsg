@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.isabgroup.pimsg.data.Api
+import com.isabgroup.pimsg.data.Push
 import com.isabgroup.pimsg.data.strOrNull
 import com.isabgroup.pimsg.ui.PiButton
 import com.isabgroup.pimsg.ui.PiFeedback
@@ -451,7 +452,7 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
             }
             Switch(checked = pushEnabled, onCheckedChange = {
                 pushEnabled = it
-                if (it) runCatching { Push.register(context) }
+                if (it) scope.launch { runCatching { Push.register(context) } }
                 saveNotificationPreferences()
             }, colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = PiColors.White))
         }
