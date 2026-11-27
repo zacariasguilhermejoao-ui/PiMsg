@@ -63,8 +63,8 @@ private data class AiMessage(val role: String, val content: String)
 private data class AiBotInfo(val id: String, val name: String, val description: String, val available: Boolean, val requiresPaid: Boolean = false)
 
 @Composable
-fun PiBotScreen(onBack: () -> Unit) {
-    var selected by remember { mutableStateOf<String?>(null) }
+fun PiBotScreen(onBack: () -> Unit, onPlans: () -> Unit = {}) {
+    var selected by remember { mutableStateOf<String?>("pi-ai") }
     var bots by remember { mutableStateOf<List<AiBotInfo>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var catalogError by remember { mutableStateOf<String?>(null) }
@@ -90,7 +90,7 @@ fun PiBotScreen(onBack: () -> Unit) {
     }
 
     when (selected) {
-        "pi-ai" -> PiAiChatScreen(onBack = { selected = null }, initialCredits = null, initialPro = true, initialProRemaining = aiRemaining)
+        "pi-ai" -> PiAiChatScreen(onBack = { selected = null }, initialCredits = null, initialPro = true, initialProRemaining = aiRemaining, onPlans = onPlans)
         "pi-reminder" -> PiReminderScreen(onBack = { selected = null })
         "pi-business" -> PiBusinessScreen(onBack = { selected = null })
         "pi-bots" -> PiCustomBotsScreen(onBack = { selected = null })
@@ -263,7 +263,7 @@ private fun PiCustomBotsScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun PiAiChatScreen(onBack: () -> Unit, initialCredits: Int?, initialPro: Boolean, initialProRemaining: Int?) {
+private fun PiAiChatScreen(onBack: () -> Unit, initialCredits: Int?, initialPro: Boolean, initialProRemaining: Int?, onPlans: () -> Unit = {}) {
     val context = LocalContext.current
     val view = LocalView.current
     val scope = rememberCoroutineScope()
@@ -276,6 +276,7 @@ private fun PiAiChatScreen(onBack: () -> Unit, initialCredits: Int?, initialPro:
     var creditBalance by remember { mutableStateOf(initialCredits) }
     var isPro by remember { mutableStateOf(initialPro) }
     var notice by remember { mutableStateOf<String?>(null) }
+    var showPlanOffer by remember { mutableStateOf(false) }
 
     val transition = rememberInfiniteTransition(label = "pi-ai-working")
     val pulse by transition.animateFloat(
@@ -348,6 +349,7 @@ private fun PiAiChatScreen(onBack: () -> Unit, initialCredits: Int?, initialPro:
                 val safe = message?.takeIf { it.isNotBlank() }
                     ?: "Não foi possível obter uma resposta. Verifique a ligação e tente novamente."
                 notice = safe
+                showPlanOffer = (e as? ApiException)?.code == 402 || safe.contains("limite", ignoreCase = true) || safe.contains("plano", ignoreCase = true)
                 messages.add(AiMessage("assistant", safe))
             } finally {
                 busy = false
@@ -416,6 +418,15 @@ private fun PiAiChatScreen(onBack: () -> Unit, initialCredits: Int?, initialPro:
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PiBotAvatar(size = 27.dp, modifier = Modifier.scale(pulse))
                         Text("A responder…", color = PiColors.TextSecondary, fontSize = 12.sp)
+                    }
+                }
+            }
+            if (showPlanOffer) {
+                item {
+                    Column(Modifier.fillMaxWidth().background(PiColors.Surface, RoundedCornerShape(16.dp)).padding(15.dp)) {
+                        Text("Os teus créditos terminaram", color = PiColors.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Subscreve um plano PiMsg para continuares a conversar com o Pi AI e desbloqueares mais pedidos diários, tradução ampliada, bots e outras ferramentas.", color = PiColors.TextSecondary, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 6.dp))
+                        Text("Ver planos e vantagens  →", color = Color(0xFF9BE7A5), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 12.dp).clickable { onPlans() })
                     }
                 }
             }
