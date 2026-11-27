@@ -2,7 +2,7 @@
 import { pushToUsers } from "./push.js";
 
 const PLAY_URL = "https://play.google.com/store/apps/details?id=com.pimsg.isabstudio";
-const LEGAL_VERSION = "1.2";
+const LEGAL_VERSION = "1.3";
 const LEGAL_DATE = "27 de novembro de 2026";
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -93,7 +93,7 @@ const LEGAL = {
   ], env),
 
   subscriptions: (env) => legalDoc("Política de subscrições", "Esta política explica o funcionamento dos planos pagos do PiMsg, incluindo cobrança, renovação, cancelamento e gestão de benefícios.", [
-    ["1. Planos e informação prévia", "<p>Os planos disponíveis podem incluir Plus, Pro e Business. Antes de confirmar a compra, a Google Play apresenta o preço, a moeda, o período, os condições de renovação e a conta Google que será cobrada. O utilizador deve confirmar esses dados no ecrã oficial de compra.</p>"],
+    ["1. Planos e informação prévia", "<p>Os planos disponíveis podem incluir Plus, Pro e Business. Antes de confirmar a compra, a Google Play apresenta o preço, a moeda, o período, as condições de renovação e a conta Google que será cobrada. O utilizador deve confirmar esses dados no ecrã oficial de compra.</p>"],
     ["2. Renovação automática", "<p>Quando uma subscrição é identificada como renovável, será renovada automaticamente no fim do período, salvo cancelamento antes da próxima cobrança. A data e as condições exactas são as indicadas pela Google Play.</p>"],
     ["3. Cancelamento", "<p>O cancelamento é feito na Google Play, em Pagamentos e subscrições. Desinstalar o PiMsg ou terminar sessão não cancela uma subscrição. Após cancelar, os benefícios normalmente permanecem até à data de expiração já paga, salvo regras diferentes da Google Play ou da lei aplicável.</p>"],
     ["4. Conta e email", "<p>Para iniciar uma compra no PiMsg é necessário associar um endereço de e-mail à conta e confirmar esse endereço. O servidor verifica o estado de confirmação recebido do Firebase Authentication antes de aceitar a validação da compra. O número de telefone indicado como contacto não substitui esta confirmação.</p>"],
@@ -119,7 +119,7 @@ const LEGAL = {
     ["Como peço um reembolso?", "<p>Use o histórico de encomendas ou o fluxo de reembolso da Google Play. Se pagou e o plano não foi activado, contacte contas@tchilopop.com com o ID da encomenda.</p>"],
     ["As mensagens têm cifragem de ponta a ponta?", "<p>Não nesta versão. As mensagens são transmitidas e armazenadas nos servidores do serviço. Não envie palavras-passe, dados bancários ou informação extremamente sensível nas conversas.</p>"],
     ["Como bloqueio ou denuncio alguém?", "<p>Abra o perfil ou as opções da conversa e escolha Bloquear ou Denunciar. Para denúncias urgentes, escreva para denuncia@tchilopop.com.</p>"],
-    ["Como apago a minha conta?", "<p>Use Menu &gt; Definições &gt; Apagar conta ou visite /delete-account. A eliminação pode exigir verificação de identidade e certos registos podem ser conservados quando a lei o exigir.</p>"],
+    ["Como apago a minha conta?", "<p>Use Menu &gt; Definições &gt; Apagar conta ou visite /delete-account. A equipa poderá solicitar confirmação adicional da identidade. Alguns registos poderão ser conservados quando a lei o exigir.</p>"],
     ["Porque o PiMsg pede acesso ao microfone?", "<p>O microfone é necessário para gravar mensagens de voz. O Android apresenta o pedido nativo quando tenta utilizar essa função. Pode negar a permissão e continuar a usar as mensagens de texto.</p>"],
     ["Porque não aparece pedido para aceder às fotografias?", "<p>O PiMsg utiliza o selector de fotografias e ficheiros do Android. Esse selector permite escolher apenas os ficheiros pretendidos sem conceder acesso geral à galeria.</p>"],
     ["Como contacto o suporte?", "<p>Escreva para suporte@tchilopop.com. Para privacidade, utilize privacidade@tchilopop.com; para pagamentos, contas@tchilopop.com.</p>"],
@@ -193,7 +193,7 @@ async function deleteRequest(request, env) {
   if (n.n >= 3) return jsonRes({ error: "Já recebemos o seu pedido." }, 429);
   await env.DB.prepare(
     "INSERT INTO data_requests (id, user_id, type, source, contact_email, status, requested_at, scheduled_for) VALUES (?, NULL, 'delete', 'web', ?, 'pending', ?, ?)"
-  ).bind(crypto.randomUUID(), contact, now, now + 14 * 86400_000).run();
+  ).bind(crypto.randomUUID(), contact, now, null).run();
   return jsonRes({ ok: true });
 }
 
