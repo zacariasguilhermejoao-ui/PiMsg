@@ -70,6 +70,7 @@ import com.isabgroup.pimsg.R
 import com.isabgroup.pimsg.chat.ChatRef
 import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.uploadUri
+import com.isabgroup.pimsg.data.uploadBitmap
 import com.isabgroup.pimsg.data.PiMsgMedia
 import com.isabgroup.pimsg.data.Push
 import com.isabgroup.pimsg.ui.ChatRowSkeleton
@@ -78,6 +79,7 @@ import com.isabgroup.pimsg.ui.PiIcons
 import com.isabgroup.pimsg.ui.openUrl
 import com.isabgroup.pimsg.ui.playClick
 import com.isabgroup.pimsg.ui.components.PresenteAnimado
+import com.isabgroup.pimsg.ui.components.ImageCropDialog
 import com.isabgroup.pimsg.ui.components.RoboMascoteAnimado
 import com.isabgroup.pimsg.ui.piFieldColors
 import kotlinx.coroutines.delay
@@ -176,6 +178,8 @@ fun HomeScreen(
     var ownPlan by remember { mutableStateOf("free") }
     var ownProfileAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var ownProfileCover by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var coverCropSource by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var coverUploading by remember { mutableStateOf(false) }
     var profileLoading by remember { mutableStateOf(false) }
     var initialSkeleton by remember { mutableStateOf(false) }
     var newGroupOpen by remember { mutableStateOf(false) }
@@ -187,18 +191,13 @@ fun HomeScreen(
         if (uri != null) vm.postStory(context.contentResolver, uri)
     }
     val pickProfileCover = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) scope.launch {
-            runCatching {
-                val uploaded = uploadUri(context.contentResolver, uri)
-                Api.patch("/v1/me/media", JSONObject().put("profile_cover_media_id", uploaded.id))
-                val downloaded = Api.download("/v1/media/" + uploaded.id)
-                val cached = PiMsgMedia.store(context, uploaded.id, downloaded.mime, "profile-cover", downloaded.bytes)
-                ownProfileCover = android.graphics.BitmapFactory.decodeFile(cached.absolutePath)
-                context.getSharedPreferences("pimsg_home_profile", android.content.Context.MODE_PRIVATE)
-                    .edit().putString("profile_cover_key", uploaded.id).apply()
-            }.onFailure { error ->
-                android.util.Log.w("PiMsg", "Não foi possível sincronizar a capa do perfil", error)
-            }
+        if (uri != null) {
+            val selected = runCatching {
+                context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
+            }.getOrNull()
+            if (selected == null) {
+                android.widget.Toast.makeText(context, "Não foi possível abrir esta fotografia.", android.widget.Toast.LENGTH_SHORT).show()
+            } else coverCropSource = selected
         }
     }
     LaunchedEffect(Unit) {
@@ -529,7 +528,7 @@ fun HomeScreen(
                 Box(Modifier.size(42.dp).clickable { onNavigate("bot") }, contentAlignment = Alignment.Center) {
                     RoboMascoteAnimado(estaEscrevendo = false, tamanho = 40.dp)
                 }
-                PresenteAnimado(tamanho = 38.dp)
+                PresenteAnimado(tamanho = 38.dp, aoTocar = { opened -> if (opened) onNavigate("plans") })
             }
         }
 
@@ -539,6 +538,33 @@ fun HomeScreen(
         )
     }
 
+    coverCropSource?.let { source ->
+        ImageCropDialog(
+            bitmap = source,
+            aspectRatio = 16f / 9f,
+            title = "Ajustar fotografia de capa",
+            onDismiss = { coverCropSource = null },
+            onConfirm = { cropped ->
+                coverCropSource = null
+                scope.launch {
+                    coverUploading = true
+                    try {
+                        val uploaded = uploadBitmap(context, cropped, "profile-cover.jpg")
+                        Api.patch("/v1/me/media", JSONObject().put("profile_cover_media_id", uploaded.id))
+                        val downloaded = Api.download("/v1/media/${uploaded.id}")
+                        val cached = PiMsgMedia.store(context, uploaded.id, downloaded.mime, "profile-cover", downloaded.bytes)
+                        ownProfileCover = android.graphics.BitmapFactory.decodeFile(cached.absolutePath)
+                        context.getSharedPreferences("pimsg_home_profile", android.content.Context.MODE_PRIVATE)
+                            .edit().putString("profile_cover_key", uploaded.id).apply()
+                    } catch (_: Exception) {
+                        android.widget.Toast.makeText(context, "Não foi possível guardar a fotografia de capa.", android.widget.Toast.LENGTH_LONG).show()
+                    } finally {
+                        coverUploading = false
+                    }
+                }
+            },
+        )
+    }
     if (menuOpen) {
         MenuSheet(
             hasMyStory = myStories.isNotEmpty(),
