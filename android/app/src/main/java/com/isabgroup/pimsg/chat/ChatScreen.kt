@@ -136,15 +136,9 @@ fun ChatScreen(
             vm.setTyping(false)
             return@LaunchedEffect
         }
-        try {
-            delay(450)
-            while (true) {
-                vm.setTyping(true)
-                delay(3000)
-            }
-        } finally {
-            vm.setTyping(false)
-        }
+        vm.setTyping(true)
+        delay(5000)
+        vm.setTyping(false)
     }
     DisposableEffect(convId) {
         onDispose { vm.setTyping(false) }
