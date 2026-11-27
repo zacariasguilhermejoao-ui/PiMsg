@@ -43,6 +43,14 @@ fun PresenteAnimado(
         label = "aberturaTampa"
     )
 
+    LaunchedEffect(aberto) {
+        if (aberto) {
+            delay(1400)
+            aberto = false
+            aoTocar?.invoke(false)
+        }
+    }
+
     val alphaBrilho by animateFloatAsState(
         targetValue = if (aberto) 1f else 0f,
         animationSpec = tween(durationMillis = 300),
