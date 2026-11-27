@@ -237,7 +237,6 @@ fun AuthScreen(onSignedIn: () -> Unit) {
             modifier = Modifier.fillMaxWidth(), colors = fieldColors,
         )
         Spacer(Modifier.height(8.dp))
-        Text("A conta será criada sem SMS. O número fica guardado como contacto, ainda não verificado.", color = PiColors.TextSecondary, fontSize = 11.sp)
         Spacer(Modifier.height(12.dp))
         Button(
             onClick = ::continueWithPhone, enabled = !busy && mfaResolver == null,
