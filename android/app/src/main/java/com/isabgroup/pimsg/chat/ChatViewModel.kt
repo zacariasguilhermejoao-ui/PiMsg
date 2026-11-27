@@ -255,7 +255,6 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
                         if (!c.isNull(1)) size = c.getLong(1)
                     }
                 }
-                if (size <= 0) size = cr.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
                 // Alguns fornecedores Android (Galeria, Documentos e nuvem) devolvem SIZE=-1.
                 // Copiamos primeiro para cache e validamos o tamanho real, sem rejeitar esses URIs.
                 if (size > MAX_MEDIA) {
