@@ -94,6 +94,10 @@ class PlayBilling(
         }
     }
 
+    fun restorePurchases() {
+        if (client.isReady) syncPurchases() else connect()
+    }
+
     private fun syncPurchases() {
         val params = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.SUBS)
