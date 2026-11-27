@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
+import android.media.MediaMetadataRetriever
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
 import android.os.Build
@@ -50,6 +51,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import com.isabgroup.pimsg.ui.PiText as Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -83,6 +85,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.PiMsgMedia
 import org.json.JSONObject
@@ -90,6 +93,8 @@ import com.isabgroup.pimsg.ui.PiColors
 import com.isabgroup.pimsg.ui.PiIcons
 import com.isabgroup.pimsg.ui.playClick
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
@@ -116,6 +121,7 @@ fun ChatScreen(
     val view = LocalView.current
     var text by remember { mutableStateOf("") }
     var pendingAttachments by remember { mutableStateOf<List<android.net.Uri>>(emptyList()) }
+    var attachmentCaption by remember { mutableStateOf("") }
     var attachmentConfirmOpen by remember { mutableStateOf(false) }
     LaunchedEffect(pendingShare) {
         val share = pendingShare ?: return@LaunchedEffect
@@ -124,6 +130,7 @@ fun ChatScreen(
         }
         if (share.uris.isNotEmpty()) {
             pendingAttachments = share.uris
+            attachmentCaption = text
             attachmentConfirmOpen = true
         }
     }
@@ -640,11 +647,19 @@ fun ChatScreen(
 
     if (attachmentConfirmOpen && pendingAttachments.isNotEmpty()) {
         AlertDialog(
-            onDismissRequest = { attachmentConfirmOpen = false; pendingAttachments = emptyList(); onShareConsumed() },
+            onDismissRequest = {
+                attachmentConfirmOpen = false
+                pendingAttachments = emptyList()
+                attachmentCaption = ""
+                onShareConsumed()
+            },
             containerColor = PiColors.Surface,
-            title = { Text("Confirmar envio", color = PiColors.White) },
+            title = { Text("Pré-visualizar envio", color = PiColors.White) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(
+                    Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     Text("${pendingAttachments.size} ficheiro(s) seleccionado(s).", color = PiColors.TextSecondary)
                     pendingAttachments.take(5).forEach { uri ->
                         val name = runCatching {
@@ -652,24 +667,41 @@ fun ChatScreen(
                                 if (cursor.moveToFirst()) cursor.getString(0) else null
                             }
                         }.getOrNull() ?: uri.lastPathSegment ?: "Ficheiro"
-                        Text(name, color = PiColors.White, fontSize = 13.sp, maxLines = 1)
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            AttachmentPreview(context, uri)
+                            Text(name, color = PiColors.White, fontSize = 12.sp, maxLines = 1)
+                        }
                     }
                     if (pendingAttachments.size > 5) Text("E mais ${pendingAttachments.size - 5} ficheiro(s)…", color = PiColors.Gray, fontSize = 12.sp)
+                    OutlinedTextField(
+                        value = attachmentCaption,
+                        onValueChange = { attachmentCaption = it.take(500) },
+                        label = { Text("Descrição (opcional)") },
+                        placeholder = { Text("Escreva uma descrição para a fotografia ou vídeo") },
+                        minLines = 2,
+                        colors = com.isabgroup.pimsg.ui.piFieldColors(),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
                     val selected = pendingAttachments
+                    val caption = attachmentCaption
                     attachmentConfirmOpen = false
                     pendingAttachments = emptyList()
+                    attachmentCaption = ""
                     onShareConsumed()
-                    vm.sendMediaBatch(cr, selected)
+                    vm.sendMediaBatch(cr, selected, caption)
                 }) { Text("Enviar", color = PiColors.White) }
             },
             dismissButton = {
-                TextButton(onClick = { attachmentConfirmOpen = false; pendingAttachments = emptyList(); onShareConsumed() }) {
-                    Text("Cancelar", color = PiColors.TextSecondary)
-                }
+                TextButton(onClick = {
+                    attachmentConfirmOpen = false
+                    pendingAttachments = emptyList()
+                    attachmentCaption = ""
+                    onShareConsumed()
+                }) { Text("Cancelar", color = PiColors.TextSecondary) }
             },
         )
     }
@@ -689,6 +721,43 @@ fun ChatScreen(
 private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
 @Composable
+private fun AttachmentPreview(context: Context, uri: android.net.Uri) {
+    var preview by remember(uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    val mime = remember(uri) { context.contentResolver.getType(uri).orEmpty() }
+    LaunchedEffect(uri) {
+        preview = withContext(Dispatchers.IO) {
+            runCatching {
+                if (mime.startsWith("image/")) {
+                    context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                } else if (mime.startsWith("video/")) {
+                    val retriever = MediaMetadataRetriever()
+                    try {
+                        retriever.setDataSource(context, uri)
+                        retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    } finally {
+                        runCatching { retriever.release() }
+                    }
+                } else null
+            }.getOrNull()
+        }
+    }
+    if (preview != null) {
+        Image(
+            preview!!.asImageBitmap(),
+            contentDescription = "Pré-visualização do anexo",
+            modifier = Modifier.fillMaxWidth().heightIn(max = 170.dp).clip(RoundedCornerShape(12.dp)),
+            contentScale = ContentScale.Crop,
+        )
+    } else if (mime.startsWith("image/") || mime.startsWith("video/")) {
+        Box(
+            Modifier.fillMaxWidth().height(92.dp).clip(RoundedCornerShape(12.dp)).background(PiColors.SurfaceHigh),
+            contentAlignment = Alignment.Center,
+        ) { Text(if (mime.startsWith("video/")) "A preparar pré-visualização do vídeo…" else "A carregar fotografia…", color = PiColors.TextSecondary, fontSize = 12.sp) }
+    }
+}
+
+
+@Composable
 private fun Bubble(m: Message, mine: Boolean, vm: ChatViewModel, onForward: (Message) -> Unit) {
     val shape = RoundedCornerShape(18.dp)
     val context = LocalContext.current
@@ -696,10 +765,12 @@ private fun Bubble(m: Message, mine: Boolean, vm: ChatViewModel, onForward: (Mes
     var actionsOpen by remember(m.id) { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
         Column(
-            Modifier.widthIn(max = 300.dp).clip(shape).background(if (mine) PiColors.White else PiColors.Surface).padding(horizontal = 12.dp, vertical = 8.dp),
+            Modifier.widthIn(max = 300.dp).clip(shape)
+                .background(if (mine) Color(0xFFD9FDD3) else Color(0xFF1877F2))
+                .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
-            val fg = if (mine) Color.Black else PiColors.White
-            val sub = if (mine) Color(0xFF55555B) else PiColors.Gray
+            val fg = if (mine) Color(0xFF142016) else Color.White
+            val sub = if (mine) Color(0xFF536455) else Color(0xFFDCE9FF)
             when (m.kind) {
                 "text", "system" -> {
                     Text(m.body.orEmpty(), color = fg, fontSize = 16.sp)
@@ -709,6 +780,7 @@ private fun Bubble(m: Message, mine: Boolean, vm: ChatViewModel, onForward: (Mes
                     }
                 }
                 "image" -> ImageBody(m, vm, fg)
+                "video" -> VideoBody(m, vm, fg)
                 else -> FileBody(m, vm, fg, sub)
             }
             Row(Modifier.align(Alignment.End), verticalAlignment = Alignment.CenterVertically) {
@@ -775,6 +847,7 @@ private fun ImageBody(m: Message, vm: ChatViewModel, fg: Color) {
     if (bmp != null) {
         Column {
             Image(bmp.asImageBitmap(), null, Modifier.widthIn(max = 260.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.FillWidth)
+            if (!m.body.isNullOrBlank()) Text(m.body, color = fg, fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp))
             if (PiMsgMedia.saveToGallery(LocalContext.current)) {
                 Text("Guardar na galeria", color = fg, fontSize = 12.sp,
                     modifier = Modifier.clickable {
@@ -794,6 +867,36 @@ private fun ImageBody(m: Message, vm: ChatViewModel, fg: Color) {
         ) {
             Text("Foto", color = PiColors.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
             Text(if (id == null) "Indisponível" else "Toque para ver", color = PiColors.Gray, fontSize = 13.sp)
+        }
+    }
+}
+
+@Composable
+private fun VideoBody(m: Message, vm: ChatViewModel, fg: Color) {
+    val scope = rememberCoroutineScope()
+    val state by vm.state.collectAsStateWithLifecycle()
+    val id = m.mediaId
+    LaunchedEffect(id, state.mediaRevision) {
+        if (id != null && vm.isMediaCached(id)) vm.loadVideoThumbnail(m)
+    }
+    val thumbnail = id?.let { vm.videoThumbnails[it] }
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Box(
+            Modifier.fillMaxWidth().height(164.dp).clip(RoundedCornerShape(12.dp))
+                .background(PiColors.SurfaceHigh)
+                .clickable(enabled = id != null) { scope.launch { openMedia(LocalContext.current, m, vm) } },
+            contentAlignment = Alignment.Center,
+        ) {
+            if (thumbnail != null) {
+                Image(thumbnail.asImageBitmap(), "Pré-visualização do vídeo", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            } else {
+                Text("Vídeo", color = fg, fontSize = 15.sp)
+            }
+            Icon(Icons.Filled.PlayArrow, "Reproduzir vídeo", tint = Color.White, modifier = Modifier.size(42.dp))
+        }
+        if (!m.body.isNullOrBlank()) Text(m.body, color = fg, fontSize = 14.sp)
+        if (thumbnail == null && id != null) {
+            Text("Toque para descarregar e pré-visualizar", color = fg, fontSize = 11.sp)
         }
     }
 }
