@@ -1151,28 +1151,19 @@ private fun formatPiStorage(bytes: Long): String {
 @Composable
 private fun SubscriptionProductButton(
     label: String,
-    productId: String,
     product: ProductDetails?,
     billingReady: Boolean,
     emailVerified: Boolean,
     activity: android.app.Activity?,
     onBuy: (ProductDetails) -> Unit,
-    onUnavailable: () -> Unit,
     onEmailRequired: () -> Unit,
 ) {
-    val price = product?.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice
-    PiButton("$label · ${price ?: if (emailVerified) "Aderir" else "E-mail necessário"}", {
-        if (!emailVerified) onEmailRequired()
-        else if (product != null && billingReady && activity != null) onBuy(product) else onUnavailable()
+    if (!billingReady || product == null || activity == null) return
+    val price = product.subscriptionOfferDetails?.firstOrNull()
+        ?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice ?: return
+    PiButton("$label · $price", {
+        if (!emailVerified) onEmailRequired() else onBuy(product)
     }, primary = true)
-    if (product == null || !billingReady) {
-        Text(
-            if (!billingReady) "Validação de compras ainda não configurada"
-            else "Criar na Google Play: $productId",
-            color = PiColors.TextSecondary, fontSize = 11.sp, lineHeight = 16.sp,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        )
-    }
 }
 
 @Composable
@@ -1290,10 +1281,8 @@ fun PlansScreen(onBack: () -> Unit) {
             listOf("Mensagens sem limite diário", "Respostas ilimitadas através dos links personalizados", "Pi AI e Pi Reminder (até 20 lembretes activos)", "5 pedidos de IA por dia", "25 traduções por dia", "2 GB para ficheiros e multimédia", "Sem bots personalizados nem Pi Business").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
             if (currentTier == "free") {
-            SubscriptionProductButton("Mensal", PlayBilling.PLUS_MONTHLY, products[PlayBilling.PLUS_MONTHLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onUnavailable = { purchaseMessage = if (!billingReady) "As compras ainda aguardam a configuração segura da Google Play." else "Este produto ainda não está activo na Google Play." }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
-            SubscriptionProductButton("Anual", PlayBilling.PLUS_YEARLY, products[PlayBilling.PLUS_YEARLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onUnavailable = { purchaseMessage = if (!billingReady) "As compras ainda aguardam a configuração segura da Google Play." else "Este produto ainda não está activo na Google Play." }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
-            } else {
-            Text("Já tens uma subscrição activa. Para mudar de plano ou período, utiliza a gestão de subscrições da Google Play.", color = PiColors.TextSecondary, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 8.dp))
+            SubscriptionProductButton("Mensal", products[PlayBilling.PLUS_MONTHLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
+            SubscriptionProductButton("Anual", products[PlayBilling.PLUS_YEARLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
             }
             if (currentTier == "plus") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         }
@@ -1305,9 +1294,9 @@ fun PlansScreen(onBack: () -> Unit) {
             listOf("Mensagens e respostas de links sem limite mensal", "Todos os bots, excepto ferramentas exclusivas Business", "20 pedidos de IA por dia", "75 traduções por dia", "Até 5 bots personalizados", "Até 100 lembretes activos", "5 GB para ficheiros e multimédia", "Vídeo de apresentação no perfil").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
             if (currentTier == "free") {
-            SubscriptionProductButton("Semanal", PlayBilling.WEEKLY, products[PlayBilling.WEEKLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onUnavailable = { purchaseMessage = if (!billingReady) "As compras ainda aguardam a configuração segura da Google Play." else "Este produto ainda não está activo na Google Play." }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
-            SubscriptionProductButton("Mensal", PlayBilling.MONTHLY, products[PlayBilling.MONTHLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onUnavailable = { purchaseMessage = if (!billingReady) "As compras ainda aguardam a configuração segura da Google Play." else "Este produto ainda não está activo na Google Play." }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
-            SubscriptionProductButton("Anual", PlayBilling.PRO_YEARLY, products[PlayBilling.PRO_YEARLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onUnavailable = { purchaseMessage = if (!billingReady) "As compras ainda aguardam a configuração segura da Google Play." else "Este produto ainda não está activo na Google Play." }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
+            SubscriptionProductButton("Semanal", products[PlayBilling.WEEKLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
+            SubscriptionProductButton("Mensal", products[PlayBilling.MONTHLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
+            SubscriptionProductButton("Anual", products[PlayBilling.PRO_YEARLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
             } else {
             Text("Já tens uma subscrição activa. Para mudar de plano ou período, utiliza a gestão de subscrições da Google Play.", color = PiColors.TextSecondary, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 8.dp))
             }
@@ -1321,17 +1310,14 @@ fun PlansScreen(onBack: () -> Unit) {
             listOf("Tudo do Pro", "Pi Business para preparar respostas comerciais", "50 pedidos de IA por dia", "150 traduções por dia", "Até 20 bots personalizados", "Até 500 lembretes activos", "20 GB para ficheiros e multimédia", "Ferramentas para organizar informações, produtos, preços e contactos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
             if (currentTier == "free") {
-            SubscriptionProductButton("Mensal", PlayBilling.BUSINESS_MONTHLY, products[PlayBilling.BUSINESS_MONTHLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onUnavailable = { purchaseMessage = if (!billingReady) "As compras ainda aguardam a configuração segura da Google Play." else "Este produto ainda não está activo na Google Play." }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
-            SubscriptionProductButton("Anual", PlayBilling.BUSINESS_YEARLY, products[PlayBilling.BUSINESS_YEARLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onUnavailable = { purchaseMessage = if (!billingReady) "As compras ainda aguardam a configuração segura da Google Play." else "Este produto ainda não está activo na Google Play." }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
+            SubscriptionProductButton("Mensal", products[PlayBilling.BUSINESS_MONTHLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
+            SubscriptionProductButton("Anual", products[PlayBilling.BUSINESS_YEARLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
             } else {
             Text("Já tens uma subscrição activa. Para mudar de plano ou período, utiliza a gestão de subscrições da Google Play.", color = PiColors.TextSecondary, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 8.dp))
             }
             if (currentTier == "business") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         }
 
-        if (!billingReady) {
-            Text("As compras ainda não podem ser activadas: falta configurar a credencial de serviço da Google Play na Cloudflare e publicar os produtos na Play Console.", color = PiColors.Danger, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 14.dp))
-        }
         purchaseMessage?.let { Text(it, color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp)) }
         Text("Podes gerir ou cancelar uma subscrição na Google Play a qualquer momento.", color = PiColors.Gray, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 12.dp, bottom = 20.dp))
         PiButton("Gerir subscrições na Google Play", { openUrl(context, "https://play.google.com/store/account/subscriptions") }, primary = false)
