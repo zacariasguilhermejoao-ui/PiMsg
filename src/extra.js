@@ -23,6 +23,7 @@ async function isPro(env, userId, now) {
 
 export async function handleExtra(request, env, me, path, method) {
   const now = Date.now();
+  const url = new URL(request.url);
 
   if (path === "/v1/devices" && method === "POST") {
     const b = await request.json().catch(() => ({}));
