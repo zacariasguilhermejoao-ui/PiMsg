@@ -73,7 +73,24 @@ export async function handleExtra(request, env, me, path, method) {
     if (target.protocol !== "https:" || !target.hostname || target.username || target.password) return fail(400, "Ligação inválida.");
     const host = target.hostname.toLowerCase();
     if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(":")) return fail(400, "Domínio inválido.");
-    const upstream = await fetch(new URL("/favicon.ico", target.origin).toString(), { redirect: "manual", signal: AbortSignal.timeout(5000) }).catch(() => null);
+    const timeout = AbortSignal.timeout(5000);
+    let iconUrl = new URL("/favicon.ico", target.origin);
+    const page = await fetch(target.toString(), { redirect: "follow", headers: { accept: "text/html" }, signal: timeout }).catch(() => null);
+    if (page && page.ok && (page.headers.get("content-type") || "").includes("text/html")) {
+      const html = (await page.text()).slice(0, 200000);
+      const tags = html.match(/<link\\b[^>]*>/gi) || [];
+      for (const tag of tags) {
+        const rel = tag.match(/\\brel\\s*=\\s*["']([^"']+)["']/i)?.[1] || "";
+        const href = tag.match(/\\bhref\\s*=\\s*["']([^"']+)["']/i)?.[1];
+        if (/icon/i.test(rel) && href) {
+          try {
+            const candidate = new URL(href, page.url || target.toString());
+            if (candidate.protocol === "https:" && candidate.hostname && !candidate.hostname.includes(":")) { iconUrl = candidate; break; }
+          } catch { }
+        }
+      }
+    }
+    const upstream = await fetch(iconUrl.toString(), { redirect: "follow", signal: timeout }).catch(() => null);
     if (!upstream || !upstream.ok || !(upstream.headers.get("content-type") || "").startsWith("image/")) return new Response(null, { status: 404 });
     const bytes = await upstream.arrayBuffer();
     if (bytes.byteLength > 131072) return new Response(null, { status: 413 });
