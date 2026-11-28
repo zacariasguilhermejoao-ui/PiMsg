@@ -36,6 +36,8 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Link
@@ -1262,10 +1264,12 @@ fun LinksScreen(onBack: () -> Unit) {
     LaunchedEffect(Unit) { load() }
 
     ScreenFrame("Meus links", onBack) {
-        Text(
-            "Crie um link para cada produto ou assunto. Quando alguém o abre e gera o código, o PiMsg avisa-o e já fica a saber do que se trata.",
-            color = PiColors.TextSecondary, fontSize = 15.sp,
-        )
+        Row(Modifier.fillMaxWidth().background(PiColors.Surface, RoundedCornerShape(14.dp)).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(42.dp).background(PiColors.SurfaceHigh, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.Link, contentDescription = "Links personalizados", tint = PiColors.Gray, modifier = Modifier.size(22.dp))
+            }
+            Text("Cria um link para cada produto ou assunto. Quando alguém o abre e gera o código, o PiMsg avisa-te e já ficas a saber do que se trata.", color = PiColors.TextSecondary, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.weight(1f).padding(start = 12.dp))
+        }
         if (linkReplyRemaining != null) {
             Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).padding(14.dp)) {
                 Text("Respostas através dos seus links", color = PiColors.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
@@ -1303,23 +1307,51 @@ fun LinksScreen(onBack: () -> Unit) {
         }, enabled = subject.isNotBlank())
         msg?.let { Text(it, color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp)) }
 
-        Section("Os meus links")
-        if (links.isEmpty()) Text("Ainda não criou nenhum link.", color = PiColors.TextSecondary, fontSize = 15.sp)
+        Section("OS MEUS LINKS")
+        if (links.isEmpty()) {
+            Column(Modifier.fillMaxWidth().background(PiColors.Surface, RoundedCornerShape(14.dp)).padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Filled.Link, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(28.dp))
+                Text("Ainda não criaste nenhum link.", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+            }
+        }
         links.forEach { l ->
-            Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-                Text(l.subject, color = PiColors.White, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                if (l.imageMediaId != null) Text("Tem fotografia personalizada", color = PiColors.TextSecondary, fontSize = 12.sp)
-                Text("${l.url}  ·  ${l.opens} aberturas", color = PiColors.TextSecondary, fontSize = 13.sp)
-                Row {
-                    TextButton(onClick = { copy(context, "link", l.url); msg = "Link copiado." }) { Text("Copiar", color = PiColors.White) }
+            Column(Modifier.fillMaxWidth().background(PiColors.Surface, RoundedCornerShape(16.dp)).padding(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(38.dp).background(PiColors.SurfaceHigh, RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Filled.Link, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(20.dp))
+                    }
+                    Column(Modifier.weight(1f).padding(start = 11.dp)) {
+                        Text(l.subject, color = PiColors.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        Text("${l.opens} aberturas", color = PiColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
+                    }
+                }
+                Text(l.url, color = PiColors.TextSecondary, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 11.dp))
+                if (l.imageMediaId != null) {
+                    Text("Fotografia personalizada", color = PiColors.Gray, fontSize = 11.sp, modifier = Modifier.padding(top = 5.dp))
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = { copy(context, "link", l.url); msg = "Link copiado." }) {
+                        Icon(Icons.Filled.ContentCopy, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text("Copiar", color = PiColors.White, fontSize = 12.sp)
+                    }
                     TextButton(onClick = {
                         val send = Intent(Intent.ACTION_SEND).setType("text/plain")
                             .putExtra(Intent.EXTRA_TEXT, "Fale comigo sobre ${l.subject} no PiMsg: ${l.url}")
                         context.startActivity(Intent.createChooser(send, "Partilhar link"))
-                    }) { Text("Partilhar", color = PiColors.White) }
-                    TextButton(onClick = { scope.launch { runCatching { Api.delete("/v1/links/${l.id}") }; load() } }) { Text("Apagar", color = PiColors.Danger) }
+                    }) {
+                        Icon(Icons.Filled.Share, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text("Partilhar", color = PiColors.White, fontSize = 12.sp)
+                    }
+                    TextButton(onClick = { scope.launch { runCatching { Api.delete("/v1/links/${l.id}") }; load() } }) {
+                        Icon(Icons.Filled.Delete, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text("Apagar", color = PiColors.Gray, fontSize = 12.sp)
+                    }
                 }
             }
+            Spacer(Modifier.height(9.dp))
         }
         Spacer(Modifier.height(24.dp))
     }
