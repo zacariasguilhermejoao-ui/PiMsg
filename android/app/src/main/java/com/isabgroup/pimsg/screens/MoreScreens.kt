@@ -72,7 +72,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -290,7 +289,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 .put("email_verified", emailVerified).put("intro_video_key", introVideoKey)
                 .put("code", code).put("show_phone", showPhone).put("show_online_status", showOnlineStatus).put("phone_verified", phoneVerified)
                 .put("phone_contact", phoneContact)
-                 .put("avatar_key", avatarKey).put("profile_cover_key", profileCoverKey)
+                .put("avatar_key", avatarKey).put("profile_cover_key", profileCoverKey)
             avatarBitmap?.let { bitmap ->
                 val scaled = Bitmap.createScaledBitmap(bitmap, 256, 256, true)
                 val bytes = ByteArrayOutputStream().use { out ->
@@ -1034,7 +1033,6 @@ fun AccessibilityScreen(onBack: () -> Unit, onLargeTextChanged: (Boolean) -> Uni
 @Composable
 fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> Unit, onStorageData: () -> Unit) {
     val context = LocalContext.current
-    val view = LocalView.current
     val scope = rememberCoroutineScope()
     var blocked by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var confirmDelete by remember { mutableStateOf(false) }
