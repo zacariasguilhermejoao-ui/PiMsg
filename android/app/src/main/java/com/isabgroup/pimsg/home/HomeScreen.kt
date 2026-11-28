@@ -13,6 +13,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,6 +54,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -473,7 +475,33 @@ fun HomeScreen(
             }
         }
 
-        Box(Modifier.weight(1f).fillMaxWidth()) {
+        Box(
+            Modifier.weight(1f).fillMaxWidth().pointerInput(state.tab, searching, showResults) {
+                if (searching || showResults) return@pointerInput
+                var horizontalDrag = 0f
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { change, dragAmount ->
+                        horizontalDrag += dragAmount
+                        change.consume()
+                    },
+                    onDragEnd = {
+                        val tabs = Tab.values()
+                        val currentIndex = tabs.indexOf(state.tab)
+                        val nextIndex = when {
+                            horizontalDrag <= -72f -> (currentIndex + 1).coerceAtMost(tabs.lastIndex)
+                            horizontalDrag >= 72f -> (currentIndex - 1).coerceAtLeast(0)
+                            else -> currentIndex
+                        }
+                        if (nextIndex != currentIndex) {
+                            val nextTab = tabs[nextIndex]
+                            vm.selectTab(nextTab, readCachedChats(context, nextTab), Api.hasInternet(context))
+                        }
+                        horizontalDrag = 0f
+                    },
+                    onDragCancel = { horizontalDrag = 0f },
+                )
+            }
+        ) {
             when {
                 showResults -> LazyColumn(Modifier.fillMaxSize()) {
                     if (state.results.isEmpty() && state.groupResults.isEmpty()) item { Hint("Nenhum resultado. Confira o nome ou o código.") }
