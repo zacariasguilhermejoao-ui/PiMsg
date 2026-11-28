@@ -7,6 +7,8 @@ import android.content.Intent
 import android.provider.Settings
 import android.net.Uri
 import android.os.Build
+import android.net.TrafficStats
+import android.os.Process
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
@@ -26,6 +28,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.Person
@@ -36,6 +39,9 @@ import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.DataUsage
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.AlertDialog
@@ -81,6 +87,8 @@ import com.isabgroup.pimsg.ui.openUrl
 import com.isabgroup.pimsg.ui.playClick
 import com.isabgroup.pimsg.ui.piFieldColors
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.google.zxing.BarcodeFormat
@@ -824,7 +832,7 @@ fun AccessibilityScreen(onBack: () -> Unit, onLargeTextChanged: (Boolean) -> Uni
 
 // ---------------------------------------------------------------- Definições
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> Unit, onStorageData: () -> Unit) {
     val context = LocalContext.current
     val view = LocalView.current
     val scope = rememberCoroutineScope()
@@ -836,8 +844,6 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
     var showLanguagePicker by remember { mutableStateOf(false) }
     var pushEnabled by remember { mutableStateOf(true) }
     var popupEnabled by remember { mutableStateOf(true) }
-    var autoDownload by remember { mutableStateOf(PiMsgMedia.downloadMode(context)) }
-    var allowGallerySave by remember { mutableStateOf(PiMsgMedia.saveToGallery(context)) }
 
     suspend fun loadNotificationPreferences() {
         try {
@@ -901,33 +907,16 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
             )
         }
         Section("Armazenamento e dados")
-        Text("Descarregar ficheiros automaticamente", color = PiColors.White, fontSize = 16.sp)
-        Text("As mensagens e os anexos já guardados continuam disponíveis offline.", color = PiColors.TextSecondary, fontSize = 12.sp)
-        listOf(
-            PiMsgMedia.DOWNLOAD_NEVER to "Nunca",
-            PiMsgMedia.DOWNLOAD_WIFI to "Apenas por Wi-Fi",
-            PiMsgMedia.DOWNLOAD_ALWAYS to "Wi-Fi e dados móveis",
-        ).forEach { (value, label) ->
-            Row(Modifier.fillMaxWidth().clickable {
-                autoDownload = value
-                PiMsgMedia.setDownloadMode(context, value)
-            }.padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(selected = autoDownload == value, onClick = {
-                    autoDownload = value
-                    PiMsgMedia.setDownloadMode(context, value)
-                })
-                Text(label, color = PiColors.White, fontSize = 14.sp)
-            }
-        }
-        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth().clickable { onStorageData() }.padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Icon(Icons.Filled.FolderOpen, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(24.dp))
             Column(Modifier.weight(1f)) {
-                Text("Permitir guardar na galeria", color = PiColors.White, fontSize = 16.sp)
-                Text(if (allowGallerySave) "Podes usar Guardar para copiar fotos, vídeos e áudio para as pastas PiMsg do telemóvel." else "Os ficheiros ficam apenas na pasta privada de multimédia do PiMsg.", color = PiColors.TextSecondary, fontSize = 12.sp)
+                Text("Armazenamento e dados", color = PiColors.White, fontSize = 16.sp)
+                Text("Gira os ficheiros guardados e o consumo de dados", color = PiColors.TextSecondary, fontSize = 12.sp)
             }
-            Switch(checked = allowGallerySave, onCheckedChange = {
-                allowGallerySave = it
-                PiMsgMedia.setSaveToGallery(context, it)
-            }, colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = PiColors.White))
         }
 
         Section("Notificações")
@@ -1057,6 +1046,144 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
                 }) { Text("Enviar pedido", color = PiColors.Danger) }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancelar", color = PiColors.White) } },
+        )
+    }
+}
+
+
+private fun formatDataSize(bytes: Long): String {
+    if (bytes < 0L) return "Indisponível"
+    val mb = bytes / 1024.0 / 1024.0
+    return if (mb >= 1024.0) String.format(java.util.Locale.getDefault(), "%.2f GB", mb / 1024.0)
+    else String.format(java.util.Locale.getDefault(), "%.1f MB", mb)
+}
+
+private fun directoryBytes(file: File): Long {
+    if (!file.exists()) return 0L
+    if (file.isFile) return file.length()
+    return file.listFiles()?.sumOf { directoryBytes(it) } ?: 0L
+}
+
+@Composable
+fun StorageDataScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var downloadMode by remember { mutableStateOf(PiMsgMedia.downloadMode(context)) }
+    var saveGallery by remember { mutableStateOf(PiMsgMedia.saveToGallery(context)) }
+    var storageBytes by remember { mutableStateOf(0L) }
+    var sentBytes by remember { mutableStateOf(TrafficStats.getUidTxBytes(Process.myUid())) }
+    var receivedBytes by remember { mutableStateOf(TrafficStats.getUidRxBytes(Process.myUid())) }
+    var confirmClear by remember { mutableStateOf(false) }
+    var clearing by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+
+    suspend fun refreshUsage() {
+        storageBytes = withContext(Dispatchers.IO) {
+            directoryBytes(PiMsgMedia.root(context))
+        }
+        sentBytes = TrafficStats.getUidTxBytes(Process.myUid())
+        receivedBytes = TrafficStats.getUidRxBytes(Process.myUid())
+    }
+    LaunchedEffect(Unit) { refreshUsage() }
+
+    ScreenFrame("Armazenamento e dados", onBack) {
+        Section("ARMAZENAMENTO")
+        Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.FolderOpen, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(26.dp))
+            Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                Text("Ficheiros guardados no PiMsg", color = PiColors.White, fontSize = 16.sp)
+                Text(formatDataSize(storageBytes), color = PiColors.TextSecondary, fontSize = 14.sp)
+            }
+        }
+        Text("Inclui fotografias, vídeos, áudio e documentos descarregados para consulta offline.", color = PiColors.TextSecondary, fontSize = 12.sp)
+        PiButton(
+            text = if (clearing) "A limpar..." else "Gerir armazenamento",
+            onClick = { confirmClear = true },
+            enabled = !clearing && storageBytes > 0L,
+            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+        )
+
+        Section("UTILIZAÇÃO DA REDE")
+        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.DataUsage, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(26.dp))
+            Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                Text("Dados enviados", color = PiColors.White, fontSize = 15.sp)
+                Text(formatDataSize(sentBytes), color = PiColors.TextSecondary, fontSize = 13.sp)
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f).padding(start = 40.dp)) {
+                Text("Dados recebidos", color = PiColors.White, fontSize = 15.sp)
+                Text(formatDataSize(receivedBytes), color = PiColors.TextSecondary, fontSize = 13.sp)
+            }
+        }
+        Text("Contagem do PiMsg desde o último reinício do telemóvel. O Android repõe estes valores quando o dispositivo reinicia.", color = PiColors.TextSecondary, fontSize = 12.sp)
+        TextButton(onClick = { scope.launch { refreshUsage() } }, modifier = Modifier.fillMaxWidth()) {
+            Text("Actualizar utilização", color = Color(0xFF8AB4F8))
+        }
+
+        Section("DESCARREGAMENTO AUTOMÁTICO")
+        Text("Escolhe quando os ficheiros recebidos podem ser descarregados automaticamente. As mensagens de voz continuam disponíveis conforme o funcionamento actual do PiMsg.", color = PiColors.TextSecondary, fontSize = 12.sp)
+        listOf(
+            PiMsgMedia.DOWNLOAD_NEVER to "Nunca",
+            PiMsgMedia.DOWNLOAD_WIFI to "Apenas por Wi-Fi",
+            PiMsgMedia.DOWNLOAD_ALWAYS to "Wi-Fi e dados móveis",
+        ).forEach { (value, label) ->
+            Row(Modifier.fillMaxWidth().clickable {
+                downloadMode = value
+                PiMsgMedia.setDownloadMode(context, value)
+            }.padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(selected = downloadMode == value, onClick = {
+                    downloadMode = value
+                    PiMsgMedia.setDownloadMode(context, value)
+                })
+                Text(label, color = PiColors.White, fontSize = 14.sp)
+            }
+        }
+
+        Section("GUARDAR NA GALERIA")
+        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Permitir guardar na galeria", color = PiColors.White, fontSize = 16.sp)
+                Text(if (saveGallery) "Podes guardar fotografias, vídeos e áudio na galeria do telemóvel." else "Os ficheiros permanecem na área de armazenamento do PiMsg até escolheres guardá-los.", color = PiColors.TextSecondary, fontSize = 12.sp)
+            }
+            Switch(checked = saveGallery, onCheckedChange = {
+                saveGallery = it
+                PiMsgMedia.setSaveToGallery(context, it)
+            }, colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = PiColors.White))
+        }
+        message?.let { Text(it, color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
+        Spacer(Modifier.height(24.dp))
+    }
+
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { if (!clearing) confirmClear = false },
+            containerColor = PiColors.Surface,
+            title = { Text("Limpar ficheiros descarregados", color = PiColors.White) },
+            text = { Text("Isto remove as cópias locais de fotografias, vídeos, áudio e documentos guardados pelo PiMsg. As mensagens e os ficheiros originais da conta não são apagados; poderás descarregá-los novamente quando tiveres Internet.", color = PiColors.TextSecondary) },
+            confirmButton = {
+                TextButton(enabled = !clearing, onClick = {
+                    confirmClear = false
+                    clearing = true
+                    scope.launch {
+                        val deleted = withContext(Dispatchers.IO) {
+                            var count = 0
+                            listOf("Media", "Images", "Videos", "Audio", "Documents").forEach { folderName ->
+                                val folder = File(PiMsgMedia.root(context), folderName)
+                                folder.listFiles()?.forEach { file ->
+                                    if (file.isFile && file.name != ".nomedia" && file.delete()) count++
+                                }
+                            }
+                            count
+                        }
+                        refreshUsage()
+                        clearing = false
+                        message = if (deleted > 0) "$deleted ficheiro(s) local(is) removido(s)." else "Não havia ficheiros descarregados para remover."
+                    }
+                }) { Text("Limpar", color = PiColors.Danger) }
+            },
+            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancelar", color = PiColors.White) } },
         )
     }
 }
