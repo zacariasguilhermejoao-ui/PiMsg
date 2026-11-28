@@ -1,7 +1,6 @@
 package com.isabgroup.pimsg.auth
 
 import android.content.Context
-import android.app.Activity
 import android.telephony.TelephonyManager
 import java.util.Locale
 import androidx.compose.foundation.Image
@@ -111,33 +110,6 @@ fun AuthScreen(onSignedIn: () -> Unit) {
     var loginEmail by remember { mutableStateOf("") }
     var loginPassword by remember { mutableStateOf("") }
 
-    DisposableEffect(hostActivity) {
-        val manager = hostActivity?.facebookCallbackManager
-        if (manager != null) {
-            LoginManager.getInstance().registerCallback(manager, object : FacebookCallback<LoginResult> {
-                override fun onSuccess(result: LoginResult) {
-                    scope.launch {
-                        try {
-                            signIn(FacebookAuthProvider.getCredential(result.accessToken.token))
-                        } catch (e: Exception) {
-                            error = "Não foi possível entrar com Facebook. Verifique a configuração e tente novamente."
-                        } finally {
-                            busy = false
-                        }
-                    }
-                }
-                override fun onCancel() { busy = false }
-                override fun onError(exception: FacebookException) {
-                    busy = false
-                    error = "Falha no Facebook Login. Verifique a ligação e tente novamente."
-                }
-            })
-        }
-        onDispose {
-            if (manager != null) LoginManager.getInstance().unregisterCallback(manager)
-        }
-    }
-
     fun facebookSignIn() {
         if (!legalAccepted) {
             error = "Leia e aceite os Termos de Utilização e a Política de Privacidade."
@@ -163,6 +135,33 @@ fun AuthScreen(onSignedIn: () -> Unit) {
             mfaResolver = e.resolver
             mfaCode = ""
             error = null
+        }
+    }
+
+    DisposableEffect(hostActivity) {
+        val manager = hostActivity?.facebookCallbackManager
+        if (manager != null) {
+            LoginManager.getInstance().registerCallback(manager, object : FacebookCallback<LoginResult> {
+                override fun onSuccess(result: LoginResult) {
+                    scope.launch {
+                        try {
+                            signIn(FacebookAuthProvider.getCredential(result.accessToken.token))
+                        } catch (e: Exception) {
+                            error = "Não foi possível entrar com Facebook. Verifique a configuração e tente novamente."
+                        } finally {
+                            busy = false
+                        }
+                    }
+                }
+                override fun onCancel() { busy = false }
+                override fun onError(exception: FacebookException) {
+                    busy = false
+                    error = "Falha no Facebook Login. Verifique a ligação e tente novamente."
+                }
+            })
+        }
+        onDispose {
+            if (manager != null) LoginManager.getInstance().unregisterCallback(manager)
         }
     }
 
