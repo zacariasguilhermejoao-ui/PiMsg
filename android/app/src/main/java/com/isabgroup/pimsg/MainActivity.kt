@@ -337,7 +337,7 @@ private fun AppRoot(activity: MainActivity) {
                         onOpenChat = { navigateTo(Screen.Chat(it)) },
                     )
                     is Screen.Settings -> SettingsScreen(onBack = { goBack() }, onSignOut = ::signOut, onSecurity = { navigateTo(Screen.Security) })
-                    is Screen.Security -> SecurityScreen(onBack = { navigateTo(Screen.Settings) })
+                    is Screen.Security -> SecurityScreen(onBack = { goBack() })
                     is Screen.Links -> LinksScreen(onBack = { goBack() })
                     is Screen.PiBot -> PiBotScreen(onBack = { goBack() }, onPlans = { navigateTo(Screen.Plans) })
                     is Screen.Plans -> PlansScreen(onBack = { goBack() })
