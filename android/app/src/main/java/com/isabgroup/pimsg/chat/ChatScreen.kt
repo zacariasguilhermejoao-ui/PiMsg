@@ -389,6 +389,9 @@ fun ChatScreen(
                 Text("A receber ficheiros...", color = PiColors.TextSecondary, fontSize = 11.sp)
             }
         }
+        val online by com.isabgroup.pimsg.data.rememberIsOnline()
+        LaunchedEffect(online, convId) { if (online) vm.refresh() }
+        if (!online) com.isabgroup.pimsg.ui.OfflineBanner()
         info?.let {
             Text(it, color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.fillMaxWidth().clickable { info = null }.padding(horizontal = 20.dp, vertical = 6.dp))
         }

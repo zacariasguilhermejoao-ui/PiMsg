@@ -94,12 +94,17 @@ class ChatViewModel(context: Context, private val convId: String) : ViewModel() 
         try {
             val activeFirebaseUid = FirebaseAuth.getInstance().currentUser?.uid
             if (!identityVerified || activeFirebaseUid != verifiedFirebaseUid) {
-                val me = Api.get("/v1/me")
-                val currentUserId = me.getString("id")
-                appContext.getSharedPreferences("pimsg_local", Context.MODE_PRIVATE).edit().putString("my_id", currentUserId).apply()
-                _state.update { it.copy(myId = currentUserId) }
-                verifiedFirebaseUid = activeFirebaseUid
-                identityVerified = true
+                val me = runCatching { Api.get("/v1/me") }.getOrNull()
+                if (me != null) {
+                    val currentUserId = me.getString("id")
+                    appContext.getSharedPreferences("pimsg_local", Context.MODE_PRIVATE).edit().putString("my_id", currentUserId).apply()
+                    _state.update { it.copy(myId = currentUserId) }
+                    verifiedFirebaseUid = activeFirebaseUid
+                    identityVerified = true
+                } else if (_state.value.myId == null || activeFirebaseUid != verifiedFirebaseUid) {
+                    // Sem identidade guardada não dá para sincronizar; com ela, segue offline-first.
+                    throw ApiException(0, "identidade indisponivel")
+                }
             }
             syncPending()
             val arr = Api.get("/v1/chats/$convId/messages?limit=100").getJSONArray("messages")
