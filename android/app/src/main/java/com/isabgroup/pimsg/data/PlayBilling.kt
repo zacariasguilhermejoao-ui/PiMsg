@@ -238,7 +238,13 @@ class PlayBilling(
                 onVerified()
                 onMessage("Subscrição confirmada.")
             } catch (e: Exception) {
-                onMessage("A Google Play confirmou a compra, mas o servidor ainda não conseguiu validá-la. Não repitas o pagamento; tenta restaurar a compra mais tarde.")
+                val detail = (e as? ApiException)?.let { apiError ->
+                    runCatching { JSONObject(apiError.message ?: "{}").optString("error").takeIf { it.isNotBlank() } }.getOrNull()
+                }
+                onMessage(
+                    if (detail != null) "A Google Play confirmou a compra, mas a validação falhou: $detail. Não repitas o pagamento; tenta restaurar a compra mais tarde."
+                    else "A Google Play confirmou a compra, mas o servidor ainda não conseguiu validá-la. Não repitas o pagamento; tenta restaurar a compra mais tarde."
+                )
             }
         }
     }
