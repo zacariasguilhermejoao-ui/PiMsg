@@ -83,6 +83,8 @@ import com.isabgroup.pimsg.ui.openUrl
 import com.isabgroup.pimsg.ui.playClick
 import com.isabgroup.pimsg.ui.components.PresenteAnimado
 import com.isabgroup.pimsg.ui.components.ImageCropDialog
+import com.isabgroup.pimsg.data.rememberIsOnline
+import com.isabgroup.pimsg.ui.OfflineBanner
 import com.isabgroup.pimsg.ui.components.RoboMascoteAnimado
 import com.isabgroup.pimsg.ui.piFieldColors
 import kotlinx.coroutines.delay
@@ -482,6 +484,10 @@ fun HomeScreen(
         }
 
         val showResults = searching && query.trim().length >= 2
+
+        val online by rememberIsOnline()
+        LaunchedEffect(online) { if (online) vm.load(silent = true) }
+        if (!online) OfflineBanner()
 
         state.notice?.let {
             Text(
