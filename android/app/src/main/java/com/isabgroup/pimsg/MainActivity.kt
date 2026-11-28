@@ -29,6 +29,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.android.installreferrer.api.InstallReferrerClient
 import com.android.installreferrer.api.InstallReferrerStateListener
+import com.facebook.CallbackManager
 import com.google.firebase.auth.FirebaseAuth
 import com.isabgroup.pimsg.auth.AuthScreen
 import com.isabgroup.pimsg.data.PiMsgMedia
@@ -62,6 +63,8 @@ import java.net.URL
 data class PendingPiLink(val type: String, val value: String)
 
 class MainActivity : ComponentActivity() {
+
+    val facebookCallbackManager: CallbackManager by lazy { CallbackManager.Factory.create() }
 
     var pendingPiLink by mutableStateOf<PendingPiLink?>(null)
         private set
@@ -183,6 +186,12 @@ class MainActivity : ComponentActivity() {
         val dark = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
         enableEdgeToEdge(statusBarStyle = dark, navigationBarStyle = dark)
         setContent { PiMsgTheme { AppRoot(activity = this) } }
+    }
+
+    @Deprecated("Facebook SDK callback bridge")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        facebookCallbackManager.onActivityResult(requestCode, resultCode, data)
     }
 
     override fun onNewIntent(intent: Intent) {
