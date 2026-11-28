@@ -91,6 +91,7 @@ import com.isabgroup.pimsg.ui.PiButton
 import com.isabgroup.pimsg.ui.PiFeedback
 import com.isabgroup.pimsg.ui.PiI18n
 import com.isabgroup.pimsg.ui.PiColors
+import com.isabgroup.pimsg.ui.VerifiedBadge
 import com.isabgroup.pimsg.ui.ScreenFrame
 import com.isabgroup.pimsg.ui.openUrl
 import com.isabgroup.pimsg.ui.playClick
@@ -147,9 +148,14 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
     var avatarKey by remember { mutableStateOf<String?>(null) }
     var avatarBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var avatarCropSource by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var profileCoverKey by remember { mutableStateOf<String?>(null) }
+    var profileCoverBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var coverCropSource by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var email by remember { mutableStateOf("") }
     var emailVerified by remember { mutableStateOf(false) }
     var emailPassword by remember { mutableStateOf("") }
+    var emailSending by remember { mutableStateOf(false) }
+    var emailChecking by remember { mutableStateOf(false) }
     var introVideoKey by remember { mutableStateOf<String?>(null) }
     var socialLinks by remember { mutableStateOf<List<SocialLinkUi>>(emptyList()) }
     var addSocialOpen by remember { mutableStateOf(false) }
@@ -175,12 +181,21 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
         }
     }
     val imagePicker = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) scope.launch {
             val selected = runCatching { decodeBitmapUri(context.contentResolver, uri) }.getOrNull()
             if (selected == null) msg = "Não foi possível abrir esta fotografia."
             else avatarCropSource = selected
+        }
+    }
+    val coverPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) scope.launch {
+            val selected = runCatching { decodeBitmapUri(context.contentResolver, uri) }.getOrNull()
+            if (selected == null) msg = "Não foi possível abrir esta fotografia de capa."
+            else coverCropSource = selected
         }
     }
 
@@ -200,6 +215,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 phoneVerified = c.optBoolean("phone_verified")
                 phoneContact = c.optString("phone_contact").takeIf { it.isNotBlank() && it != "null" }
                 avatarKey = c.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
+                profileCoverKey = c.optString("profile_cover_key").takeIf { it.isNotBlank() && it != "null" }
                 val encoded = c.optString("avatar_jpeg")
                 if (encoded.isNotBlank()) {
                     val bytes = Base64.decode(encoded, Base64.DEFAULT)
@@ -208,6 +224,9 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                     avatarKey?.let { key ->
                         PiMsgMedia.findCached(context, key)?.let { avatarBitmap = BitmapFactory.decodeFile(it.absolutePath) }
                     }
+                }
+                profileCoverKey?.let { key ->
+                    PiMsgMedia.findCached(context, key)?.let { profileCoverBitmap = BitmapFactory.decodeFile(it.absolutePath) }
                 }
                 val links = c.optJSONArray("social_links") ?: org.json.JSONArray()
                 socialLinks = (0 until links.length()).map { i ->
@@ -234,6 +253,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             phoneVerified = j.optBoolean("phone_verified")
             phoneContact = j.strOrNull("phone_contact")
             avatarKey = j.strOrNull("avatar_key")
+            profileCoverKey = j.strOrNull("profile_cover_key")
             // Mostra já os dados básicos; os elementos secundários são sincronizados depois.
             loading = false
             avatarKey?.let { key ->
@@ -244,6 +264,14 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                     val d = Api.download("/v1/media/$key")
                     val file = PiMsgMedia.store(context, key, d.mime, "avatar", d.bytes)
                     avatarBitmap = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                } catch (_: Exception) { }
+            }
+            profileCoverKey?.let { key ->
+                PiMsgMedia.findCached(context, key)?.let { profileCoverBitmap = BitmapFactory.decodeFile(it.absolutePath) }
+                try {
+                    val d = Api.download("/v1/media/$key")
+                    val file = PiMsgMedia.store(context, key, d.mime, "profile-cover", d.bytes)
+                    profileCoverBitmap = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
                 } catch (_: Exception) { }
             }
             val linksResponse = Api.get("/v1/me/social-links")
@@ -262,7 +290,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 .put("email_verified", emailVerified).put("intro_video_key", introVideoKey)
                 .put("code", code).put("show_phone", showPhone).put("show_online_status", showOnlineStatus).put("phone_verified", phoneVerified)
                 .put("phone_contact", phoneContact)
-                .put("avatar_key", avatarKey)
+                 .put("avatar_key", avatarKey).put("profile_cover_key", profileCoverKey)
             avatarBitmap?.let { bitmap ->
                 val scaled = Bitmap.createScaledBitmap(bitmap, 256, 256, true)
                 val bytes = ByteArrayOutputStream().use { out ->
