@@ -148,9 +148,9 @@ fun MenuSheet(
             Box(Modifier.fillMaxWidth().height(190.dp)) {
                 if (profileCover != null) {
                     Image(profileCover.asImageBitmap(), contentDescription = "Capa do perfil",
-                        modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        modifier = Modifier.fillMaxSize().clickable { view.playClick(); onPickCover() }, contentScale = ContentScale.Crop)
                 } else {
-                    Box(Modifier.fillMaxSize().background(PiColors.SurfaceHigh))
+                    Box(Modifier.fillMaxSize().background(PiColors.SurfaceHigh).clickable { view.playClick(); onPickCover() })
                 }
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.48f)))
                 IconButton(onClick = { view.playClick(); onPickCover() }, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Color.Black.copy(alpha = 0.55f), CircleShape)) {
