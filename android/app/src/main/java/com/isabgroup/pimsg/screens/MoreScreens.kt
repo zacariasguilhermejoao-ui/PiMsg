@@ -719,6 +719,12 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             title = { Text("Pré-visualização do perfil", color = PiColors.White) },
             text = {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (profileCoverBitmap != null) Image(
+                        bitmap = profileCoverBitmap!!.asImageBitmap(),
+                        contentDescription = "Fotografia de capa pública",
+                        modifier = Modifier.fillMaxWidth().height(105.dp).clip(RoundedCornerShape(12.dp)),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    )
                     if (avatarBitmap != null) {
                         androidx.compose.foundation.Image(
                             bitmap = avatarBitmap!!.asImageBitmap(), contentDescription = "Fotografia pública",
@@ -728,7 +734,10 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                     } else {
                         androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Person, contentDescription = "Avatar padrão", tint = PiColors.Gray, modifier = Modifier.size(72.dp))
                     }
-                    Text(name.ifBlank { "O teu nome" }, color = PiColors.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text(name.ifBlank { "O teu nome" }, color = PiColors.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        if (emailVerified) VerifiedBadge()
+                    }
                     if (bio.isNotBlank()) Text(bio, color = PiColors.TextSecondary)
                     if (emailVerified) Text("Perfil profissional", color = Color(0xFF8AB4F8), fontSize = 12.sp)
                     socialLinks.forEach { Text(it.label, color = PiColors.White) }
