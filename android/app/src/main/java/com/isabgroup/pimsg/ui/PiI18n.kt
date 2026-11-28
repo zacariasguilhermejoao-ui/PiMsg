@@ -119,7 +119,6 @@ object PiI18n {
         "Efeitos sonoros discretos nos controlos principais" to mapOf("en" to "Subtle sound effects for main controls", "es" to "Efectos de sonido discretos en los controles principales", "fr" to "Effets sonores discrets pour les commandes principales"),
         "Vibração ao tocar" to mapOf("en" to "Touch vibration", "es" to "Vibración táctil", "fr" to "Vibration tactile"),
         "Resposta tátil nos botões e ações principais" to mapOf("en" to "Haptic feedback on buttons and main actions", "es" to "Respuesta háptica en botones y acciones principales", "fr" to "Retour haptique sur les boutons et actions principales"),
-        "Testar som e vibração" to mapOf("en" to "Test sound and vibration", "es" to "Probar sonido y vibración", "fr" to "Tester le son et la vibration"),
         "Segurança" to mapOf("en" to "Security", "es" to "Seguridad", "fr" to "Sécurité"),
         "Segurança da conta" to mapOf("en" to "Account security", "es" to "Seguridad de la cuenta", "fr" to "Sécurité du compte"),
         "Contas bloqueadas" to mapOf("en" to "Blocked accounts", "es" to "Cuentas bloqueadas", "fr" to "Comptes bloqués"),
