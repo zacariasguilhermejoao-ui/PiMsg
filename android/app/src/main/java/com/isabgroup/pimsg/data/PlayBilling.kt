@@ -60,7 +60,10 @@ class PlayBilling(
                     onMessage("A Google Play não está disponível neste momento (código ${result.responseCode}).")
                 }
             }
-            override fun onBillingServiceDisconnected() = Unit
+            override fun onBillingServiceDisconnected() {
+                onProducts(emptyMap())
+                onMessage("A ligação à Google Play foi interrompida. Tenta carregar os planos novamente.")
+            }
         })
     }
 
