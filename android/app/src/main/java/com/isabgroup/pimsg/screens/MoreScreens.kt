@@ -1774,7 +1774,7 @@ fun PlansScreen(onBack: () -> Unit) {
                     }
                     if (!productsLoading && products.isEmpty()) {
                         TextButton(
-                            onClick = { productsLoading = true; billingManager?.refreshProducts() },
+                            onClick = { purchaseMessage = null; productsLoading = true; billingManager?.refreshProducts() },
                             modifier = Modifier.fillMaxWidth(),
                         ) { Text("Tentar carregar os planos novamente", color = PiModelLink) }
                     }
