@@ -3,6 +3,7 @@ package com.isabgroup.pimsg.screens
 import android.content.ClipData
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -199,6 +200,17 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
         }
     }
 
+    fun openAvatarPicker() {
+        if (mediaUploading) return
+        if (!Api.hasInternet(context)) { msg = "Precisas de Internet para alterar a fotografia."; return }
+        imagePicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+    fun openCoverPicker() {
+        if (mediaUploading) return
+        if (!Api.hasInternet(context)) { msg = "Precisas de Internet para alterar a fotografia de capa."; return }
+        coverPicker.launch("image/*")
+    }
+
     LaunchedEffect(Unit) {
         val cached = profileCache.getString("profile", null)
         if (!cached.isNullOrBlank()) {
@@ -335,7 +347,8 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                             contentDescription = "Fotografia do perfil",
                             modifier = Modifier
                                 .size(104.dp)
-                                .clip(androidx.compose.foundation.shape.CircleShape),
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .clickable { openAvatarPicker() },
                             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                         )
                     } else {
@@ -343,7 +356,8 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                             modifier = Modifier
                                 .size(104.dp)
                                 .clip(androidx.compose.foundation.shape.CircleShape)
-                                .background(PiColors.SurfaceHigh),
+                                .background(PiColors.SurfaceHigh)
+                                .clickable { openAvatarPicker() },
                             contentAlignment = Alignment.Center,
                         ) {
                             androidx.compose.material3.Icon(
@@ -360,7 +374,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 Text(name.ifBlank { "Conta verificada" }, color = PiColors.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 VerifiedBadge()
             }
-            PiButton(if (mediaUploading) "A carregar fotografia..." else "Alterar fotografia", { imagePicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, primary = false, enabled = !mediaUploading)
+            PiButton(if (mediaUploading) "A carregar fotografia..." else "Alterar fotografia", { openAvatarPicker() }, primary = false, enabled = !mediaUploading)
             if (mediaUploading) androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth(0.72f), color = PiColors.White, trackColor = PiColors.SurfaceHigh)
             if (avatarKey != null) {
                 TextButton(onClick = {
@@ -381,20 +395,20 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             Image(
                 bitmap = profileCoverBitmap!!.asImageBitmap(),
                 contentDescription = "Fotografia de capa",
-                modifier = Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(14.dp))
-                    .clickable { coverPicker.launch("image/*") },
+                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp))
+                    .clickable { openCoverPicker() },
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop,
             )
         } else {
             Box(
-                Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(14.dp)).background(PiColors.SurfaceHigh)
-                    .clickable { coverPicker.launch("image/*") },
+                Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp)).background(PiColors.SurfaceHigh)
+                    .clickable { openCoverPicker() },
                 contentAlignment = Alignment.Center,
             ) { Text("Ainda não adicionaste uma fotografia de capa.", color = PiColors.TextSecondary, fontSize = 13.sp) }
         }
         PiButton(
             if (mediaUploading) "A guardar fotografia..." else if (profileCoverKey == null) "Adicionar foto de capa" else "Alterar foto de capa",
-            { coverPicker.launch("image/*") },
+            { openCoverPicker() },
             primary = false,
             enabled = !mediaUploading,
         )
@@ -612,6 +626,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
         ImageCropDialog(
             bitmap = source,
             aspectRatio = 1f,
+            circleGuide = true,
             title = "Ajustar fotografia de perfil",
             onDismiss = { avatarCropSource = null },
             onConfirm = { cropped ->
@@ -1053,8 +1068,8 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
     var soundEnabled by remember { mutableStateOf(PiFeedback.soundEnabled(context)) }
     var hapticEnabled by remember { mutableStateOf(PiFeedback.hapticEnabled(context)) }
     var showLanguagePicker by remember { mutableStateOf(false) }
-    var pushEnabled by remember { mutableStateOf(true) }
-    var popupEnabled by remember { mutableStateOf(true) }
+    var pushEnabled by remember { mutableStateOf(context.getSharedPreferences("pimsg_notifications", Context.MODE_PRIVATE).getBoolean("push_enabled", true)) }
+    var popupEnabled by remember { mutableStateOf(context.getSharedPreferences("pimsg_notifications", Context.MODE_PRIVATE).getBoolean("popup_enabled", true)) }
 
     suspend fun loadNotificationPreferences() {
         try {
@@ -1083,10 +1098,18 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
     }
 
     suspend fun loadBlocked() {
+        val offlinePrefs = context.getSharedPreferences("pimsg_offline", Context.MODE_PRIVATE)
+        runCatching {
+            val saved = org.json.JSONArray(offlinePrefs.getString("blocked_users", "[]"))
+            blocked = (0 until saved.length()).map { saved.getJSONObject(it).let { o -> o.getString("id") to o.getString("name") } }
+        }
         try {
             val arr = Api.get("/v1/blocks").getJSONArray("users")
             blocked = (0 until arr.length()).map { arr.getJSONObject(it).let { o -> o.getString("id") to o.getString("name") } }
-        } catch (e: Exception) { /* lista vazia */ }
+            val toSave = org.json.JSONArray()
+            blocked.forEach { (id, name) -> toSave.put(JSONObject().put("id", id).put("name", name)) }
+            offlinePrefs.edit().putString("blocked_users", toSave.toString()).apply()
+        } catch (e: Exception) { /* mantém a última lista guardada */ }
     }
     LaunchedEffect(Unit) { loadBlocked(); loadNotificationPreferences() }
 
@@ -1698,14 +1721,16 @@ private val PiMsgPlanCatalog = listOf(
 @Composable
 fun PlansScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val activity = context as? android.app.Activity
+    // O Google Play Billing precisa da Activity real, mesmo que o contexto venha embrulhado.
+    val activity = generateSequence(context) { (it as? android.content.ContextWrapper)?.baseContext }
+        .filterIsInstance<android.app.Activity>().firstOrNull()
     val scope = rememberCoroutineScope()
     var billingManager by remember { mutableStateOf<PlayBilling?>(null) }
     var products by remember { mutableStateOf<Map<String, ProductDetails>>(emptyMap()) }
     var purchaseMessage by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var productsLoading by remember { mutableStateOf(true) }
-    var currentTier by remember { mutableStateOf("free") }
+    var currentTier by remember { mutableStateOf(context.getSharedPreferences("pimsg_offline", Context.MODE_PRIVATE).getString("plan_tier", "free") ?: "free") }
     var billingReady by remember { mutableStateOf(false) }
     var emailVerified by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -1719,10 +1744,12 @@ fun PlansScreen(onBack: () -> Unit) {
             billingReady = data.optBoolean("billing_ready", false)
             emailVerified = data.optBoolean("email_verified", false)
             currentTier = data.optString("current_tier", "free")
+            context.getSharedPreferences("pimsg_offline", Context.MODE_PRIVATE).edit().putString("plan_tier", currentTier).apply()
             if (currentTier != "free") context.getSharedPreferences("pimsg_translation", Context.MODE_PRIVATE).edit().remove("blocked_day").apply()
             error = null
         } catch (_: Exception) {
-            error = "Não foi possível consultar o plano da conta."
+            error = if (!Api.hasInternet(context)) "Sem ligação à Internet. Mostramos o último plano guardado; para subscrever precisas de Internet."
+            else "Não foi possível consultar o plano da conta."
         }
     }
 
