@@ -102,6 +102,7 @@ fun PiButton(
     primary: Boolean = true,
     enabled: Boolean = true,
     sound: Boolean = true,
+    blue: Boolean = false,
 ) {
     val view = LocalView.current
     Button(
@@ -110,10 +111,10 @@ fun PiButton(
             onClick()
         },
         enabled = enabled,
-        modifier = modifier.fillMaxWidth().height(50.dp),
+        modifier = modifier.padding(bottom = 8.dp).fillMaxWidth().height(50.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (primary) PiColors.White else PiColors.SurfaceHigh,
-            contentColor = if (primary) Color.Black else PiColors.White,
+            containerColor = if (blue) Color(0xFF1877F2) else if (primary) PiColors.White else PiColors.SurfaceHigh,
+            contentColor = if (blue || !primary) PiColors.White else Color.Black,
             disabledContainerColor = PiColors.GrayDark, disabledContentColor = PiColors.Gray,
         ),
     ) { Text(text, fontSize = 16.sp) }
