@@ -30,7 +30,8 @@ import androidx.compose.ui.unit.dp
 fun PresenteAnimado(
     modifier: Modifier = Modifier,
     tamanho: Dp = 150.dp,
-    aoTocar: ((Boolean) -> Unit)? = null
+    aoTocar: ((Boolean) -> Unit)? = null,
+    idleTrigger: Int = 0
 ) {
     var aberto by remember { mutableStateOf(false) }
 
@@ -48,6 +49,14 @@ fun PresenteAnimado(
             delay(1400)
             aberto = false
             aoTocar?.invoke(false)
+        }
+    }
+
+    LaunchedEffect(idleTrigger) {
+        if (idleTrigger > 0 && !aberto) {
+            aberto = true
+            delay(1400)
+            aberto = false
         }
     }
 
