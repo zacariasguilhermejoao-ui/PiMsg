@@ -136,11 +136,10 @@ export async function handleExtra(request, env, me, path, method) {
     const blocked = await env.DB.prepare("SELECT 1 AS ok FROM blocks WHERE blocker_id = ? AND blocked_id = ?").bind(u.id, me.id).first();
     if (blocked) return fail(404, "utilizador nao encontrado");
     const socialRows = await env.DB.prepare("SELECT id, label, url FROM user_social_links WHERE user_id = ? ORDER BY created_at DESC").bind(u.id).all();
-    const verifiedPro = await isPro(env, u.id, now);
     return json({
       id: u.id, name: u.display_name, bio: u.bio, avatar_key: u.avatar_key,
       email_verified: !!u.email_verified, professional_profile: !!u.email_verified,
-      verified_badge: verifiedPro, social_links: socialRows.results || [],
+      verified_badge: !!u.email_verified, social_links: socialRows.results || [],
       instagram_url: u.instagram_url, facebook_url: u.facebook_url,
       tiktok_url: u.tiktok_url, youtube_url: u.youtube_url, website_url: u.website_url,
       intro_video_key: u.intro_video_key, profile_cover_key: u.profile_cover_key, ring_color: u.ring_color, phone: u.show_phone ? u.phone_e164 : null,
