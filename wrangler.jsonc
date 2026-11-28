@@ -1,9 +1,10 @@
 {
   "name": "pimsg-api",
   "main": "src/index.js",
-  "vars": { "FIREBASE_PROJECT_ID": "SUBSTITUIR_PELO_ID_DO_PROJETO_FIREBASE" },
+  "vars": { "FIREBASE_PROJECT_ID": "pimsg-c29f1" },
   "compatibility_date": "2026-11-25",
   "compatibility_flags": ["nodejs_compat"],
+  "triggers": { "crons": ["*/5 * * * *"] },
   "routes": [
     { "pattern": "pimsg.tchilopop.com", "custom_domain": true }
   ],
