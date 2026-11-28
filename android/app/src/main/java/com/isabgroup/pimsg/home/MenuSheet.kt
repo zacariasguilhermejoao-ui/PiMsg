@@ -145,7 +145,7 @@ fun MenuSheet(
         dragHandle = { BottomSheetDefaults.DragHandle(color = PiColors.GrayDark) },
     ) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState())) {
-            Box(Modifier.fillMaxWidth().height(190.dp).clickable { close { onItem("profile") } }) {
+            Box(Modifier.fillMaxWidth().height(190.dp)) {
                 if (profileCover != null) {
                     Image(profileCover.asImageBitmap(), contentDescription = "Capa do perfil",
                         modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -153,10 +153,10 @@ fun MenuSheet(
                     Box(Modifier.fillMaxSize().background(PiColors.SurfaceHigh))
                 }
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.48f)))
-                IconButton(onClick = { view.playClick(); onPickCover() }, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Color.Black.copy(alpha = 0.55f), CircleShape)) {
+                IconButton(onClick = { view.playClick(); close { onPickCover() } }, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Color.Black.copy(alpha = 0.55f), CircleShape)) {
                     Icon(Icons.Filled.PhotoCamera, contentDescription = "Alterar capa", tint = PiColors.White)
                 }
-                Column(Modifier.align(Alignment.Center).padding(top = 10.dp, bottom = 8.dp),
+                Column(Modifier.align(Alignment.Center).clickable { view.playClick(); close { onItem("profile") } }.padding(top = 10.dp, bottom = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Box(Modifier.size(78.dp).clip(CircleShape).background(PiColors.SurfaceHigh), contentAlignment = Alignment.Center) {
