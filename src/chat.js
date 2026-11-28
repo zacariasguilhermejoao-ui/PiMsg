@@ -247,7 +247,7 @@ export async function handleChat(request, env, me, path, method) {
     return json({ id: g.id });
   }
 
-  const scheduledItem = path.match(/^\\/v1\\/chats\\/([\\w-]+)\\/scheduled\\/([\\w-]+)$/);
+  const scheduledItem = path.match(/^\/v1\/chats\/([\\w-]+)\/scheduled\/([\\w-]+)$/);
   if (scheduledItem && method === "DELETE") {
     const convId = scheduledItem[1], itemId = scheduledItem[2];
     if (!(await membership(env, convId, me.id))) return fail(404, "grupo nao encontrado");
@@ -273,7 +273,7 @@ export async function handleChat(request, env, me, path, method) {
     return json({ ok: true });
   }
 
-  const scheduledCollection = path.match(/^\\/v1\\/chats\\/([\\w-]+)\\/scheduled$/);
+  const scheduledCollection = path.match(/^\/v1\/chats\/([\\w-]+)\/scheduled$/);
   if (scheduledCollection) {
     const convId = scheduledCollection[1];
     if (!(await membership(env, convId, me.id))) return fail(404, "grupo nao encontrado");
