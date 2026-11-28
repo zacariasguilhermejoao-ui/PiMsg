@@ -1466,6 +1466,12 @@ fun LinksScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(12.dp))
         }
         Spacer(Modifier.height(16.dp))
+        Column(
+            Modifier.fillMaxWidth().background(PiColors.Surface, RoundedCornerShape(16.dp))
+                .border(1.dp, PiColors.GrayDark, RoundedCornerShape(16.dp))
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
         OutlinedTextField(
             shape = RoundedCornerShape(22.dp),value = subject, onValueChange = { subject = it.take(80) }, label = { Text("Assunto ou produto") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
@@ -1490,8 +1496,9 @@ fun LinksScreen(onBack: () -> Unit) {
                     subject = ""; intro = ""; imageMediaId = null; imagePreview = null; msg = "Link criado com sucesso."; load()
                 } catch (e: Exception) { msg = "Não foi possível criar o link." }
             }
-        }, enabled = subject.isNotBlank())
+        }, enabled = subject.isNotBlank(), blue = true)
         msg?.let { Text(it, color = PiColors.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp)) }
+        }
 
         Section("OS MEUS LINKS")
         if (links.isEmpty()) {
@@ -1624,7 +1631,7 @@ private fun SubscriptionProductButton(
     PiButton(buttonText, {
         if (!emailVerified) onEmailRequired()
         else if (canPurchase && product != null) onBuy(product)
-    }, primary = true, enabled = canPurchase)
+    }, primary = true, enabled = canPurchase, blue = true)
 }
 
 
