@@ -1,6 +1,7 @@
 package com.isabgroup.pimsg.auth
 
 import android.content.Context
+import android.app.Activity
 import android.telephony.TelephonyManager
 import java.util.Locale
 import androidx.compose.foundation.Image
@@ -28,6 +29,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import com.isabgroup.pimsg.ui.PiText as Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +44,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
@@ -56,6 +59,12 @@ import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.ApiException
 import org.json.JSONObject
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.FacebookAuthProvider
+import com.facebook.FacebookCallback
+import com.facebook.FacebookException
+import com.facebook.login.LoginManager
+import com.facebook.login.LoginResult
+import com.isabgroup.pimsg.MainActivity
 import com.isabgroup.pimsg.R
 import com.isabgroup.pimsg.ui.PiColors
 import kotlinx.coroutines.launch
@@ -87,6 +96,7 @@ private fun GoogleMark() {
 @Composable
 fun AuthScreen(onSignedIn: () -> Unit) {
     val context = LocalContext.current
+    val hostActivity = context as? MainActivity
     val scope = rememberCoroutineScope()
     val auth = remember { FirebaseAuth.getInstance() }
 
@@ -100,6 +110,48 @@ fun AuthScreen(onSignedIn: () -> Unit) {
     var showEmailLogin by remember { mutableStateOf(false) }
     var loginEmail by remember { mutableStateOf("") }
     var loginPassword by remember { mutableStateOf("") }
+
+    DisposableEffect(hostActivity) {
+        val manager = hostActivity?.facebookCallbackManager
+        if (manager != null) {
+            LoginManager.getInstance().registerCallback(manager, object : FacebookCallback<LoginResult> {
+                override fun onSuccess(result: LoginResult) {
+                    scope.launch {
+                        try {
+                            signIn(FacebookAuthProvider.getCredential(result.accessToken.token))
+                        } catch (e: Exception) {
+                            error = "Não foi possível entrar com Facebook. Verifique a configuração e tente novamente."
+                        } finally {
+                            busy = false
+                        }
+                    }
+                }
+                override fun onCancel() { busy = false }
+                override fun onError(exception: FacebookException) {
+                    busy = false
+                    error = "Falha no Facebook Login. Verifique a ligação e tente novamente."
+                }
+            })
+        }
+        onDispose {
+            if (manager != null) LoginManager.getInstance().unregisterCallback(manager)
+        }
+    }
+
+    fun facebookSignIn() {
+        if (!legalAccepted) {
+            error = "Leia e aceite os Termos de Utilização e a Política de Privacidade."
+            return
+        }
+        val activity = hostActivity
+        if (activity == null) {
+            error = "Não foi possível iniciar o Facebook neste ecrã."
+            return
+        }
+        busy = true
+        error = null
+        LoginManager.getInstance().logInWithReadPermissions(activity, listOf("email", "public_profile"))
+    }
 
     suspend fun signIn(credential: AuthCredential) {
         try {
@@ -273,6 +325,19 @@ fun AuthScreen(onSignedIn: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 GoogleMark()
                 Text("Continuar com Google", fontSize = 16.sp)
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+        Button(
+            onClick = ::facebookSignIn,
+            enabled = !busy && mfaResolver == null && legalAccepted,
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1877F2), contentColor = Color.White),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("f", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("Continuar com Facebook", fontSize = 16.sp)
             }
         }
 
