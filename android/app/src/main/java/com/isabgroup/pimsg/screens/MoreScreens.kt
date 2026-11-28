@@ -478,11 +478,12 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                                 msg = "Enviámos a ligação de confirmação para $address. Verifica também a pasta de spam."
                                 android.widget.Toast.makeText(context, "E-mail de confirmação enviado.", android.widget.Toast.LENGTH_LONG).show()
                             } catch (e: Exception) {
-                                msg = when (e) {
+                                val feedback = when (e) {
                                     is com.google.firebase.auth.FirebaseAuthUserCollisionException -> "Este e-mail já pertence a outra conta. Use um e-mail diferente para não perder os dados desta conta."
                                     else -> e.localizedMessage ?: "Não foi possível enviar a confirmação. Verifique o e-mail e tente novamente."
                                 }
-                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                                msg = feedback
+                                android.widget.Toast.makeText(context, feedback, android.widget.Toast.LENGTH_LONG).show()
                             } finally {
                                 emailSending = false
                             }
