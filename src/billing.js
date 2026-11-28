@@ -118,16 +118,9 @@ export async function handleBilling(request, env, me, path, method) {
     }
     return json({ ok: true, plan, status, expires_at: expiresAt, auto_renewing: autoRenewing });
   } catch (error) {
-    const reason = String(error?.message || "unknown");
-    console.error("PiMsg Google Play verification failed", { reason, product_id: productId });
+    const reason = String(error?.message || "");
     if (reason === "google_play_service_account_missing") return fail(503, "validação de compras ainda não configurada no servidor");
-    if (reason === "google_play_service_account_invalid" || reason === "google_play_oauth_failed") {
-      return fail(503, "a credencial de serviço da Google Play é inválida ou não conseguiu autenticar");
-    }
-    if (reason === "google_play_api_401" || reason === "google_play_api_403") {
-      return fail(503, "a conta de serviço não tem acesso à Google Play Developer API ou a esta aplicação");
-    }
-    return fail(502, "a Google Play não conseguiu confirmar esta compra. Tenta restaurar a compra mais tarde");
+    return fail(502, "não foi possível validar a compra com a Google Play");
   }
 }
 
