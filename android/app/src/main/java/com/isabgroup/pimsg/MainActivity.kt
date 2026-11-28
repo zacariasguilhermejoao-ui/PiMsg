@@ -45,6 +45,7 @@ import com.isabgroup.pimsg.screens.ProfileScreen
 import com.isabgroup.pimsg.screens.QrScreen
 import com.isabgroup.pimsg.screens.SecurityScreen
 import com.isabgroup.pimsg.screens.SettingsScreen
+import com.isabgroup.pimsg.screens.StorageDataScreen
 import com.isabgroup.pimsg.screens.ToolsScreen
 import com.isabgroup.pimsg.screens.AccessibilityScreen
 import com.isabgroup.pimsg.ui.PiI18n
@@ -202,6 +203,7 @@ private sealed interface Screen {
     data object Profile : Screen
     data object QR : Screen
     data object Settings : Screen
+    data object StorageData : Screen
     data object Security : Screen
     data object Links : Screen
     data object PiBot : Screen
@@ -336,7 +338,8 @@ private fun AppRoot(activity: MainActivity) {
                         onBack = { goBack() },
                         onOpenChat = { navigateTo(Screen.Chat(it)) },
                     )
-                    is Screen.Settings -> SettingsScreen(onBack = { goBack() }, onSignOut = ::signOut, onSecurity = { navigateTo(Screen.Security) })
+                    is Screen.Settings -> SettingsScreen(onBack = { goBack() }, onSignOut = ::signOut, onSecurity = { navigateTo(Screen.Security) }, onStorageData = { navigateTo(Screen.StorageData) })
+                    is Screen.StorageData -> StorageDataScreen(onBack = { goBack() })
                     is Screen.Security -> SecurityScreen(onBack = { goBack() })
                     is Screen.Links -> LinksScreen(onBack = { goBack() })
                     is Screen.PiBot -> PiBotScreen(onBack = { goBack() }, onPlans = { navigateTo(Screen.Plans) })
