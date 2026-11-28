@@ -146,9 +146,9 @@ class PlayBilling(
         if (oldPurchase != null) {
             val replacementMode =
                 if (tierRank(product.productId) > tierRank(oldProductId.orEmpty())) {
-                    BillingFlowParams.ReplacementMode.CHARGE_PRORATED_PRICE
+                    BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_PRORATED_PRICE
                 } else {
-                    BillingFlowParams.ReplacementMode.DEFERRED
+                    BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.DEFERRED
                 }
             flowBuilder.setSubscriptionUpdateParams(
                 BillingFlowParams.SubscriptionUpdateParams.newBuilder()
