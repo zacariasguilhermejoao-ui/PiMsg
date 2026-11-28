@@ -12,7 +12,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -25,14 +29,30 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 
 @Composable
 fun RoboMascoteAnimado(
     estaEscrevendo: Boolean,
     modifier: Modifier = Modifier,
     progressoTexto: Float = 0.5f,
-    tamanho: Dp = 150.dp
+    tamanho: Dp = 150.dp,
+    idleTrigger: Int = 0
 ) {
+    var idleMovement by remember { mutableStateOf(false) }
+    LaunchedEffect(idleTrigger) {
+        if (idleTrigger > 0) {
+            idleMovement = true
+            delay(1400)
+            idleMovement = false
+        }
+    }
+    val idleProgress by animateFloatAsState(
+        targetValue = if (idleMovement) 1f else 0f,
+        animationSpec = tween(durationMillis = 650),
+        label = "movimentoParado"
+    )
+
     // 1. Transição suave ao começar ou parar de escrever
     val estadoEscrevendo by animateFloatAsState(
         targetValue = if (estaEscrevendo) 1f else 0f,
@@ -90,8 +110,8 @@ fun RoboMascoteAnimado(
         )
 
         // Movimento da cabeça: olha para baixo e vibra rindo ao escrever
-        val deslocamentoCabecaY = (4.5f * estadoEscrevendo - 2.2f * risadaAtiva) * escala
-        val inclinacaoCabeca = 3f * estadoEscrevendo * ((progressoTexto.coerceIn(0f, 1f) - 0.5f) * 2f)
+        val deslocamentoCabecaY = (4.5f * estadoEscrevendo - 2.2f * risadaAtiva - 4.5f * idleProgress) * escala
+        val inclinacaoCabeca = 3f * estadoEscrevendo * ((progressoTexto.coerceIn(0f, 1f) - 0.5f) * 2f) + 3.5f * idleProgress
 
         translate(top = deslocamentoCabecaY) {
             rotate(degrees = inclinacaoCabeca, pivot = Offset(100f * escala, 108f * escala)) {
