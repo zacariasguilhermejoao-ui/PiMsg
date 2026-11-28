@@ -58,6 +58,8 @@ import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.ApiException
 import org.json.JSONObject
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FacebookAuthProvider
 import com.facebook.FacebookCallback
 import com.facebook.FacebookException
@@ -92,6 +94,18 @@ private fun GoogleMark() {
     )
 }
 
+private fun describeAuthError(e: Exception, provider: String): String = when {
+    e is FirebaseAuthUserCollisionException ->
+        "Já existe uma conta com este e-mail criada por outro método (por exemplo Google ou e-mail). Entra com esse método."
+    e is FirebaseNetworkException -> "Sem ligação à Internet. Liga-te e tenta novamente."
+    e is ApiException && e.code == 401 -> "O servidor não reconheceu a sessão. Tenta novamente dentro de instantes."
+    e is ApiException && e.code == 403 -> runCatching { org.json.JSONObject(e.message ?: "{}").optString("error") }.getOrNull()
+        ?.takeIf { it.isNotBlank() } ?: "Esta conta não pode entrar neste momento."
+    e is ApiException && e.code == 429 -> "Demasiadas contas criadas a partir desta rede. Tenta mais tarde."
+    e is ApiException -> "O servidor respondeu com erro ${e.code}. Tenta novamente."
+    else -> "Falha no $provider (" + e.javaClass.simpleName + "): " + (e.message?.lineSequence()?.firstOrNull()?.take(160) ?: "sem detalhes")
+}
+
 @Composable
 fun AuthScreen(onSignedIn: () -> Unit) {
     val context = LocalContext.current
@@ -122,6 +136,8 @@ fun AuthScreen(onSignedIn: () -> Unit) {
         }
         busy = true
         error = null
+        // Limpa qualquer sessão Facebook antiga/inválida antes de iniciar o login.
+        runCatching { LoginManager.getInstance().logOut() }
         LoginManager.getInstance().logInWithReadPermissions(activity, listOf("email", "public_profile"))
     }
 
@@ -129,7 +145,12 @@ fun AuthScreen(onSignedIn: () -> Unit) {
         try {
             if (!legalAccepted) throw IllegalStateException("Leia e aceite os Termos de Utilização e a Política de Privacidade.")
             auth.signInWithCredential(credential).await()
-            Api.post("/v1/legal/accept", JSONObject().put("terms_version", "1.3").put("privacy_version", "1.3"))
+            try {
+                Api.post("/v1/legal/accept", JSONObject().put("terms_version", "1.3").put("privacy_version", "1.3"))
+            } catch (apiError: Exception) {
+                auth.signOut()
+                throw apiError
+            }
             onSignedIn()
         } catch (e: FirebaseAuthMultiFactorException) {
             mfaResolver = e.resolver
@@ -147,7 +168,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
                         try {
                             signIn(FacebookAuthProvider.getCredential(result.accessToken.token))
                         } catch (e: Exception) {
-                            error = "Não foi possível entrar com Facebook. Verifique a configuração e tente novamente."
+                            error = describeAuthError(e, "Facebook")
                         } finally {
                             busy = false
                         }
@@ -156,7 +177,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
                 override fun onCancel() { busy = false }
                 override fun onError(exception: FacebookException) {
                     busy = false
-                    error = "Falha no Facebook Login. Verifique a ligação e tente novamente."
+                    error = "Falha no Facebook Login: " + (exception.message?.lineSequence()?.firstOrNull()?.take(160) ?: "tenta novamente") + "."
                 }
             })
         }
@@ -224,6 +245,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
                 val detail = e.message?.lineSequence()?.firstOrNull()?.take(180)
                 error = when (e) {
                     is IllegalStateException -> detail ?: "Configuração do Google incompleta no Firebase."
+                    is ApiException, is FirebaseAuthUserCollisionException, is FirebaseNetworkException -> describeAuthError(e, "Google")
                     else -> "Falha no Google (" + e.javaClass.simpleName + "): " + (detail ?: "sem detalhes do erro")
                 }
             } finally {
