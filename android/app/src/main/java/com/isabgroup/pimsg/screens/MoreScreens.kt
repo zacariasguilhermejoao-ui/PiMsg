@@ -72,7 +72,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -91,6 +90,7 @@ import com.isabgroup.pimsg.ui.PiButton
 import com.isabgroup.pimsg.ui.PiFeedback
 import com.isabgroup.pimsg.ui.PiI18n
 import com.isabgroup.pimsg.ui.PiColors
+import com.isabgroup.pimsg.ui.VerifiedBadge
 import com.isabgroup.pimsg.ui.ScreenFrame
 import com.isabgroup.pimsg.ui.openUrl
 import com.isabgroup.pimsg.ui.playClick
@@ -147,9 +147,14 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
     var avatarKey by remember { mutableStateOf<String?>(null) }
     var avatarBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var avatarCropSource by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var profileCoverKey by remember { mutableStateOf<String?>(null) }
+    var profileCoverBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var coverCropSource by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var email by remember { mutableStateOf("") }
     var emailVerified by remember { mutableStateOf(false) }
     var emailPassword by remember { mutableStateOf("") }
+    var emailSending by remember { mutableStateOf(false) }
+    var emailChecking by remember { mutableStateOf(false) }
     var introVideoKey by remember { mutableStateOf<String?>(null) }
     var socialLinks by remember { mutableStateOf<List<SocialLinkUi>>(emptyList()) }
     var addSocialOpen by remember { mutableStateOf(false) }
@@ -175,12 +180,21 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
         }
     }
     val imagePicker = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) scope.launch {
             val selected = runCatching { decodeBitmapUri(context.contentResolver, uri) }.getOrNull()
             if (selected == null) msg = "Não foi possível abrir esta fotografia."
             else avatarCropSource = selected
+        }
+    }
+    val coverPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) scope.launch {
+            val selected = runCatching { decodeBitmapUri(context.contentResolver, uri) }.getOrNull()
+            if (selected == null) msg = "Não foi possível abrir esta fotografia de capa."
+            else coverCropSource = selected
         }
     }
 
@@ -200,6 +214,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 phoneVerified = c.optBoolean("phone_verified")
                 phoneContact = c.optString("phone_contact").takeIf { it.isNotBlank() && it != "null" }
                 avatarKey = c.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
+                profileCoverKey = c.optString("profile_cover_key").takeIf { it.isNotBlank() && it != "null" }
                 val encoded = c.optString("avatar_jpeg")
                 if (encoded.isNotBlank()) {
                     val bytes = Base64.decode(encoded, Base64.DEFAULT)
@@ -208,6 +223,9 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                     avatarKey?.let { key ->
                         PiMsgMedia.findCached(context, key)?.let { avatarBitmap = BitmapFactory.decodeFile(it.absolutePath) }
                     }
+                }
+                profileCoverKey?.let { key ->
+                    PiMsgMedia.findCached(context, key)?.let { profileCoverBitmap = BitmapFactory.decodeFile(it.absolutePath) }
                 }
                 val links = c.optJSONArray("social_links") ?: org.json.JSONArray()
                 socialLinks = (0 until links.length()).map { i ->
@@ -234,6 +252,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             phoneVerified = j.optBoolean("phone_verified")
             phoneContact = j.strOrNull("phone_contact")
             avatarKey = j.strOrNull("avatar_key")
+            profileCoverKey = j.strOrNull("profile_cover_key")
             // Mostra já os dados básicos; os elementos secundários são sincronizados depois.
             loading = false
             avatarKey?.let { key ->
@@ -244,6 +263,14 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                     val d = Api.download("/v1/media/$key")
                     val file = PiMsgMedia.store(context, key, d.mime, "avatar", d.bytes)
                     avatarBitmap = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                } catch (_: Exception) { }
+            }
+            profileCoverKey?.let { key ->
+                PiMsgMedia.findCached(context, key)?.let { profileCoverBitmap = BitmapFactory.decodeFile(it.absolutePath) }
+                try {
+                    val d = Api.download("/v1/media/$key")
+                    val file = PiMsgMedia.store(context, key, d.mime, "profile-cover", d.bytes)
+                    profileCoverBitmap = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
                 } catch (_: Exception) { }
             }
             val linksResponse = Api.get("/v1/me/social-links")
@@ -262,7 +289,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 .put("email_verified", emailVerified).put("intro_video_key", introVideoKey)
                 .put("code", code).put("show_phone", showPhone).put("show_online_status", showOnlineStatus).put("phone_verified", phoneVerified)
                 .put("phone_contact", phoneContact)
-                .put("avatar_key", avatarKey)
+                .put("avatar_key", avatarKey).put("profile_cover_key", profileCoverKey)
             avatarBitmap?.let { bitmap ->
                 val scaled = Bitmap.createScaledBitmap(bitmap, 256, 256, true)
                 val bytes = ByteArrayOutputStream().use { out ->
@@ -328,7 +355,11 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                     }
                 }
             }
-            PiButton(if (mediaUploading) "A carregar fotografia..." else "Alterar fotografia", { imagePicker.launch("image/*") }, primary = false, enabled = !mediaUploading)
+            if (emailVerified) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text(name.ifBlank { "Conta verificada" }, color = PiColors.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                VerifiedBadge()
+            }
+            PiButton(if (mediaUploading) "A carregar fotografia..." else "Alterar fotografia", { imagePicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, primary = false, enabled = !mediaUploading)
             if (mediaUploading) androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth(0.72f), color = PiColors.White, trackColor = PiColors.SurfaceHigh)
             if (avatarKey != null) {
                 TextButton(onClick = {
@@ -342,6 +373,43 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                     }
                 }) { Text("Remover fotografia", color = PiColors.Danger) }
             }
+        }
+
+        Section("Fotografia de capa")
+        if (profileCoverBitmap != null) {
+            Image(
+                bitmap = profileCoverBitmap!!.asImageBitmap(),
+                contentDescription = "Fotografia de capa",
+                modifier = Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(14.dp)),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            )
+        } else {
+            Box(
+                Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(14.dp)).background(PiColors.SurfaceHigh),
+                contentAlignment = Alignment.Center,
+            ) { Text("Ainda não adicionaste uma fotografia de capa.", color = PiColors.TextSecondary, fontSize = 13.sp) }
+        }
+        PiButton(
+            if (mediaUploading) "A guardar fotografia..." else if (profileCoverKey == null) "Adicionar foto de capa" else "Alterar foto de capa",
+            { coverPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            primary = false,
+            enabled = !mediaUploading,
+        )
+        if (profileCoverKey != null) {
+            TextButton(onClick = {
+                scope.launch {
+                    try {
+                        Api.patch("/v1/me/media", JSONObject().put("profile_cover_media_id", JSONObject.NULL))
+                        profileCoverKey = null
+                        profileCoverBitmap = null
+                        context.getSharedPreferences("pimsg_home_profile", Context.MODE_PRIVATE).edit().remove("profile_cover_key").apply()
+                        val cachedProfile = profileCache.getString("profile", null)?.let { JSONObject(it) } ?: JSONObject()
+                        cachedProfile.put("profile_cover_key", JSONObject.NULL)
+                        profileCache.edit().putString("profile", cachedProfile.toString()).apply()
+                        msg = "Fotografia de capa removida."
+                    } catch (_: Exception) { msg = "Não foi possível remover a fotografia de capa." }
+                }
+            }) { Text("Remover fotografia de capa", color = PiColors.Danger) }
         }
 
         Section("Informações pessoais")
@@ -386,43 +454,68 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             fontSize = 12.sp
         )
         if (!emailVerified) {
-            PiButton(if (needsEmailPassword) "Associar e enviar confirmação" else "Enviar confirmação", {
-                scope.launch {
-                    try {
-                        val user = FirebaseAuth.getInstance().currentUser ?: throw IllegalStateException("Sessão indisponível")
-                        val address = email.trim()
-                        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(address).matches()) throw IllegalArgumentException("Introduza um e-mail válido.")
-                        if (user.isAnonymous) {
-                            if (emailPassword.length < 6) throw IllegalArgumentException("A palavra-passe deve ter pelo menos 6 caracteres.")
-                            val credential = EmailAuthProvider.getCredential(address, emailPassword)
-                            val linked = user.linkWithCredential(credential).await().user
-                                ?: throw IllegalStateException("Não foi possível associar o e-mail à conta.")
-                            linked.sendEmailVerification().await()
-                            email = linked.email.orEmpty()
-                        } else {
-                            if (user.email != address) user.updateEmail(address).await()
-                            user.sendEmailVerification().await()
-                        }
-                        msg = "E-mail associado à mesma conta. Enviámos uma ligação de confirmação. Não termine a sessão antes de confirmar."
-                    } catch (e: Exception) {
-                        msg = when (e) {
-                            is com.google.firebase.auth.FirebaseAuthUserCollisionException -> "Este e-mail já pertence a outra conta. Use um e-mail diferente para não perder os dados desta conta."
-                            else -> e.localizedMessage ?: "Não foi possível associar o e-mail. Tente novamente."
+            PiButton(
+                if (emailSending) "A enviar confirmação..." else if (needsEmailPassword) "Associar e enviar confirmação" else "Enviar confirmação",
+                {
+                    if (!emailSending) {
+                        emailSending = true
+                        scope.launch {
+                            try {
+                                val user = FirebaseAuth.getInstance().currentUser ?: throw IllegalStateException("Sessão indisponível")
+                                val address = email.trim()
+                                if (!android.util.Patterns.EMAIL_ADDRESS.matcher(address).matches()) throw IllegalArgumentException("Introduza um e-mail válido.")
+                                if (user.isAnonymous) {
+                                    if (emailPassword.length < 6) throw IllegalArgumentException("A palavra-passe deve ter pelo menos 6 caracteres.")
+                                    val credential = EmailAuthProvider.getCredential(address, emailPassword)
+                                    val linked = user.linkWithCredential(credential).await().user
+                                        ?: throw IllegalStateException("Não foi possível associar o e-mail à conta.")
+                                    linked.sendEmailVerification().await()
+                                    email = linked.email.orEmpty()
+                                } else {
+                                    if (user.email != address) user.updateEmail(address).await()
+                                    user.sendEmailVerification().await()
+                                }
+                                msg = "Enviámos a ligação de confirmação para $address. Verifica também a pasta de spam."
+                                android.widget.Toast.makeText(context, "E-mail de confirmação enviado.", android.widget.Toast.LENGTH_LONG).show()
+                            } catch (e: Exception) {
+                                msg = when (e) {
+                                    is com.google.firebase.auth.FirebaseAuthUserCollisionException -> "Este e-mail já pertence a outra conta. Use um e-mail diferente para não perder os dados desta conta."
+                                    else -> e.localizedMessage ?: "Não foi possível enviar a confirmação. Verifique o e-mail e tente novamente."
+                                }
+                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                            } finally {
+                                emailSending = false
+                            }
                         }
                     }
-                }
-            }, primary = false, enabled = email.isNotBlank() && (!needsEmailPassword || emailPassword.length >= 6))
-            TextButton(onClick = {
-                scope.launch {
-                    try {
-                        val user = FirebaseAuth.getInstance().currentUser ?: throw IllegalStateException("Sessão indisponível")
-                        user.reload().await()
-                        user.getIdToken(true).await()
-                        emailVerified = Api.get("/v1/me").optBoolean("email_verified")
-                        msg = if (emailVerified) "E-mail confirmado. O perfil profissional está activo." else "Ainda não recebemos a confirmação. Abra a ligação enviada por e-mail e tente novamente."
-                    } catch (_: Exception) { msg = "Não foi possível verificar o estado do e-mail." }
-                }
-            }) { Text("Já confirmei o e-mail", color = PiColors.White) }
+                },
+                primary = false,
+                enabled = email.isNotBlank() && !emailSending && (!needsEmailPassword || emailPassword.length >= 6),
+            )
+            TextButton(
+                enabled = !emailChecking,
+                onClick = {
+                    if (!emailChecking) {
+                        emailChecking = true
+                        scope.launch {
+                            try {
+                                val user = FirebaseAuth.getInstance().currentUser ?: throw IllegalStateException("Sessão indisponível")
+                                user.reload().await()
+                                user.getIdToken(true).await()
+                                val serverVerified = Api.get("/v1/me").optBoolean("email_verified")
+                                emailVerified = (FirebaseAuth.getInstance().currentUser?.isEmailVerified == true) || serverVerified
+                                msg = if (emailVerified) "E-mail confirmado. O selo da conta já está activo." else "Ainda não recebemos a confirmação. Abre a ligação enviada por e-mail e tenta novamente."
+                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                            } catch (_: Exception) {
+                                msg = "Não foi possível consultar a confirmação. Verifique a ligação e tente novamente."
+                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                            } finally {
+                                emailChecking = false
+                            }
+                        }
+                    }
+                },
+            ) { Text(if (emailChecking) "A verificar..." else "Já confirmei o e-mail", color = PiColors.White) }
         }
 
         Section("Vídeo de apresentação")
@@ -542,6 +635,39 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                         msg = "Fotografia atualizada."
                     } catch (_: Exception) {
                         msg = "Não foi possível atualizar a fotografia. Verifique a ligação e tente novamente."
+                    } finally {
+                        mediaUploading = false
+                    }
+                }
+            },
+        )
+    }
+    coverCropSource?.let { source ->
+        ImageCropDialog(
+            bitmap = source,
+            aspectRatio = 16f / 9f,
+            title = "Ajustar fotografia de capa",
+            onDismiss = { coverCropSource = null },
+            onConfirm = { cropped ->
+                coverCropSource = null
+                scope.launch {
+                    mediaUploading = true
+                    msg = "A guardar fotografia de capa..."
+                    try {
+                        val uploaded = uploadBitmap(context, cropped, "profile-cover.jpg")
+                        Api.patch("/v1/me/media", JSONObject().put("profile_cover_media_id", uploaded.id))
+                        val downloaded = Api.download("/v1/media/${uploaded.id}")
+                        val cached = PiMsgMedia.store(context, uploaded.id, downloaded.mime, "profile-cover", downloaded.bytes)
+                        profileCoverKey = uploaded.id
+                        profileCoverBitmap = BitmapFactory.decodeFile(cached.absolutePath)
+                        context.getSharedPreferences("pimsg_home_profile", Context.MODE_PRIVATE)
+                            .edit().putString("profile_cover_key", uploaded.id).apply()
+                        val cachedProfile = profileCache.getString("profile", null)?.let { JSONObject(it) } ?: JSONObject()
+                        cachedProfile.put("profile_cover_key", uploaded.id)
+                        profileCache.edit().putString("profile", cachedProfile.toString()).apply()
+                        msg = "Fotografia de capa actualizada."
+                    } catch (_: Exception) {
+                        msg = "Não foi possível guardar a fotografia de capa. Verifique a ligação e tente novamente."
                     } finally {
                         mediaUploading = false
                     }
@@ -907,7 +1033,6 @@ fun AccessibilityScreen(onBack: () -> Unit, onLargeTextChanged: (Boolean) -> Uni
 @Composable
 fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> Unit, onStorageData: () -> Unit) {
     val context = LocalContext.current
-    val view = LocalView.current
     val scope = rememberCoroutineScope()
     var blocked by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -1035,10 +1160,6 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
                 hapticEnabled = it
                 PiFeedback.setHapticEnabled(context, it)
             }, colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = PiColors.White))
-        }
-
-        TextButton(onClick = { view.playClick() }, modifier = Modifier.fillMaxWidth()) {
-            Text("Testar som e vibração", color = Color(0xFF8AB4F8))
         }
 
         Section("Segurança")
@@ -1563,6 +1684,7 @@ fun PlansScreen(onBack: () -> Unit) {
     var products by remember { mutableStateOf<Map<String, ProductDetails>>(emptyMap()) }
     var purchaseMessage by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
+    var productsLoading by remember { mutableStateOf(true) }
     var currentTier by remember { mutableStateOf("free") }
     var billingReady by remember { mutableStateOf(false) }
     var emailVerified by remember { mutableStateOf(false) }
@@ -1585,7 +1707,12 @@ fun PlansScreen(onBack: () -> Unit) {
     }
 
     LaunchedEffect(Unit) {
-        val manager = PlayBilling(context, onProducts = { products = it }, onMessage = { purchaseMessage = it }, onVerified = { scope.launch { refreshPlan() } })
+        val manager = PlayBilling(
+            context,
+            onProducts = { products = it; productsLoading = false },
+            onMessage = { purchaseMessage = it; productsLoading = false },
+            onVerified = { scope.launch { refreshPlan() } },
+        )
         billingManager = manager
         manager.connect()
         refreshPlan()
@@ -1624,6 +1751,15 @@ fun PlansScreen(onBack: () -> Unit) {
                             modifier = Modifier.padding(bottom = 24.dp)
                         )
                     }
+                    purchaseMessage?.let {
+                        androidx.compose.material3.Text(it, color = Color(0xFFFFD88A), fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(bottom = 12.dp))
+                    }
+                    if (!productsLoading && products.isEmpty()) {
+                        TextButton(
+                            onClick = { productsLoading = true; billingManager?.refreshProducts() },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("Tentar carregar os planos novamente", color = PiModelLink) }
+                    }
                     Row(Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalArrangement = Arrangement.Center) {
                         Row(Modifier.clip(androidx.compose.foundation.shape.CircleShape).background(PiModelElevated).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                             listOf("pessoal" to "Pessoal", "criador" to "Criador/a", "negocios" to "Negócios").forEach { (id, label) ->
@@ -1654,7 +1790,7 @@ fun PlansScreen(onBack: () -> Unit) {
                                 }
                                 androidx.compose.material3.Text(plan.tagline, color = PiModelSecondary, fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp))
                                 androidx.compose.material3.Text(
-                                    if (plan.id == "free") "Gratuito" else if (cardPrice != null && plan.id == "pro") "$cardPrice / semana" else if (cardPrice != null) "$cardPrice / mês" else "Preço apresentado pela Google Play",
+                                    if (plan.id == "free") "Gratuito" else if (cardPrice != null && plan.id == "pro") "$cardPrice / semana" else if (cardPrice != null) "$cardPrice / mês" else if (productsLoading) "A carregar preço..." else "Preço não disponibilizado pela Google Play",
                                     color = PiModelMuted, fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
                                 )
                                 plan.preview.forEach { feature ->
@@ -1678,8 +1814,9 @@ fun PlansScreen(onBack: () -> Unit) {
                                     val cardCanPurchase = billingReady && cardProduct != null && activity != null
                                     val cardButtonLabel = when {
                                         cardPrice != null -> "Subscrever · $cardPrice"
-                                        !billingReady -> "A preparar subscrição…"
-                                        else -> "Subscrição indisponível"
+                                        productsLoading -> "A carregar planos..."
+                                        !billingReady -> "Pagamentos não configurados no servidor"
+                                        else -> "Produto indisponível na Google Play"
                                     }
                                     androidx.compose.material3.Button(
                                         onClick = {
@@ -1756,7 +1893,14 @@ fun PlansScreen(onBack: () -> Unit) {
                                 ) {
                                     Column(Modifier.weight(1f)) {
                                         androidx.compose.material3.Text(option.first, color = PiModelText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                                        androidx.compose.material3.Text(price ?: if (billingReady) "Indisponível na Google Play" else "A carregar preço…", color = PiModelMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 3.dp))
+                                        androidx.compose.material3.Text(
+                                            price ?: when {
+                                                productsLoading -> "A carregar preço..."
+                                                !billingReady -> "Pagamentos não configurados no servidor"
+                                                else -> "Produto ou oferta não encontrada na Google Play"
+                                            },
+                                            color = PiModelMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 3.dp)
+                                        )
                                     }
                                     if (selectedBillingProduct == option.second) Icon(Icons.Filled.CheckCircle, contentDescription = "Seleccionado", tint = PiModelLink, modifier = Modifier.size(22.dp))
                                     else androidx.compose.material3.Text("›", color = PiModelSubtle, fontSize = 22.sp)
@@ -1785,7 +1929,12 @@ fun PlansScreen(onBack: () -> Unit) {
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(bottom = 12.dp)
                     )
                     val canPurchase = billingReady && selectedProduct != null && activity != null
-                    val buttonLabel = if (selectedPrice != null) "Subscrever · $selectedPrice" else if (!billingReady) "A preparar subscrição…" else "Opção indisponível"
+                    val buttonLabel = when {
+                        selectedPrice != null -> "Subscrever · $selectedPrice"
+                        productsLoading -> "A carregar planos..."
+                        !billingReady -> "Pagamentos não configurados no servidor"
+                        else -> "Produto indisponível na Google Play"
+                    }
                     androidx.compose.material3.Button(
                         onClick = {
                             if (!emailVerified) purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir."

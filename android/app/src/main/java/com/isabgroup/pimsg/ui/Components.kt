@@ -5,6 +5,8 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,6 +37,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.isabgroup.pimsg.R
 import com.isabgroup.pimsg.ui.playClick
+
+/** Selo discreto para contas com e-mail confirmado. */
+@Composable
+fun VerifiedBadge(modifier: Modifier = Modifier) {
+    androidx.compose.foundation.layout.Box(
+        modifier = modifier.size(18.dp).clip(CircleShape).background(Color(0xFFFFE8A3)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("✓", color = Color(0xFF735600), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+    }
+}
 
 /** Ícone estático reutilizável do assistente PiBot. */
 @Composable
