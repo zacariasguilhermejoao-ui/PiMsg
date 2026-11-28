@@ -1539,8 +1539,10 @@ fun PlansScreen(onBack: () -> Unit) {
                 else -> listOf("Até 30 contactos", "30 mensagens por dia", "500 respostas de links personalizados por mês", "4 traduções por dia", "Conversas, grupos e partilha de ficheiros", "250 MB para ficheiros e multimédia")
             }
             Spacer(Modifier.height(18.dp))
-            Text(planTitle, color = PiColors.White, fontSize = 29.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            Text(planSubtitle, color = PiColors.TextSecondary, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 30.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Column(Modifier.fillMaxWidth().padding(bottom = 30.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(planTitle, color = PiColors.White, fontSize = 29.sp, fontWeight = FontWeight.Bold)
+                Text(planSubtitle, color = PiColors.TextSecondary, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(top = 8.dp))
+            }
             Text("Explorar todos os benefícios", color = PiColors.White, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 14.dp))
             Column(Modifier.fillMaxWidth().background(PiColors.Surface, RoundedCornerShape(16.dp)).border(1.dp, PiColors.GrayDark, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).padding(horizontal = 15.dp, vertical = 8.dp)) {
                 planFeatures.forEachIndexed { index, feature ->
