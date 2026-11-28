@@ -119,7 +119,7 @@ export async function handleBilling(request, env, me, path, method) {
     return json({ ok: true, plan, status, expires_at: expiresAt, auto_renewing: autoRenewing });
   } catch (error) {
     const reason = String(error?.message || "unknown");
-    console.error("PiMsg Google Play verification failed", { reason, user_id: me.id, product_id: productId });
+    console.error("PiMsg Google Play verification failed", { reason, product_id: productId });
     if (reason === "google_play_service_account_missing") return fail(503, "validação de compras ainda não configurada no servidor");
     if (reason === "google_play_service_account_invalid" || reason === "google_play_oauth_failed") {
       return fail(503, "a credencial de serviço da Google Play é inválida ou não conseguiu autenticar");
