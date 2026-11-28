@@ -643,6 +643,39 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             },
         )
     }
+    coverCropSource?.let { source ->
+        ImageCropDialog(
+            bitmap = source,
+            aspectRatio = 16f / 9f,
+            title = "Ajustar fotografia de capa",
+            onDismiss = { coverCropSource = null },
+            onConfirm = { cropped ->
+                coverCropSource = null
+                scope.launch {
+                    mediaUploading = true
+                    msg = "A guardar fotografia de capa..."
+                    try {
+                        val uploaded = uploadBitmap(context, cropped, "profile-cover.jpg")
+                        Api.patch("/v1/me/media", JSONObject().put("profile_cover_media_id", uploaded.id))
+                        val downloaded = Api.download("/v1/media/${uploaded.id}")
+                        val cached = PiMsgMedia.store(context, uploaded.id, downloaded.mime, "profile-cover", downloaded.bytes)
+                        profileCoverKey = uploaded.id
+                        profileCoverBitmap = BitmapFactory.decodeFile(cached.absolutePath)
+                        context.getSharedPreferences("pimsg_home_profile", Context.MODE_PRIVATE)
+                            .edit().putString("profile_cover_key", uploaded.id).apply()
+                        val cachedProfile = profileCache.getString("profile", null)?.let { JSONObject(it) } ?: JSONObject()
+                        cachedProfile.put("profile_cover_key", uploaded.id)
+                        profileCache.edit().putString("profile", cachedProfile.toString()).apply()
+                        msg = "Fotografia de capa actualizada."
+                    } catch (_: Exception) {
+                        msg = "Não foi possível guardar a fotografia de capa. Verifique a ligação e tente novamente."
+                    } finally {
+                        mediaUploading = false
+                    }
+                }
+            },
+        )
+    }
     if (addSocialOpen) {
         AlertDialog(
             onDismissRequest = { addSocialOpen = false },
@@ -1129,10 +1162,6 @@ fun SettingsScreen(onBack: () -> Unit, onSignOut: () -> Unit, onSecurity: () -> 
                 hapticEnabled = it
                 PiFeedback.setHapticEnabled(context, it)
             }, colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = PiColors.White))
-        }
-
-        TextButton(onClick = { view.playClick() }, modifier = Modifier.fillMaxWidth()) {
-            Text("Testar som e vibração", color = Color(0xFF8AB4F8))
         }
 
         Section("Segurança")
