@@ -9,6 +9,7 @@ import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
+import com.android.billingclient.api.UnfetchedProduct
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
 import kotlinx.coroutines.CoroutineScope
@@ -55,7 +56,8 @@ class PlayBilling(
                     loadProducts()
                     syncPurchases()
                 } else {
-                    onMessage("A Google Play não está disponível neste momento.")
+                    onProducts(emptyMap())
+                    onMessage("A Google Play não está disponível neste momento (código ${result.responseCode}).")
                 }
             }
             override fun onBillingServiceDisconnected() = Unit
@@ -72,9 +74,29 @@ class PlayBilling(
         val params = QueryProductDetailsParams.newBuilder().setProductList(products).build()
         client.queryProductDetailsAsync(params) { result, detailsResult ->
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                onProducts(detailsResult.productDetailsList.associateBy { it.productId })
+                val fetched = detailsResult.productDetailsList
+                onProducts(fetched.associateBy { it.productId })
+                val missing = detailsResult.unfetchedProductList
+                if (fetched.isEmpty()) {
+                    val reasons = missing.groupBy { it.statusCode }.entries.joinToString("; ") { (code, items) ->
+                        val reason = when (code) {
+                            UnfetchedProduct.StatusCode.INVALID_PRODUCT_ID_FORMAT -> "ID inválido"
+                            UnfetchedProduct.StatusCode.PRODUCT_NOT_FOUND -> "produto não encontrado ou ainda não activo"
+                            UnfetchedProduct.StatusCode.NO_ELIGIBLE_OFFER -> "produto sem plano-base/oferta activa"
+                            else -> "motivo não identificado"
+                        }
+                        "$reason: ${items.joinToString { it.productId }}"
+                    }
+                    onMessage(
+                        if (reasons.isNotBlank()) "A Google Play não devolveu os planos do PiMsg ($reasons). Confirma os IDs e activa os planos-base na Play Console; instala a app por uma faixa de teste da Google Play."
+                        else "A Google Play não devolveu nenhum plano. Confirma que os produtos estão activos e que esta instalação veio de uma faixa de teste da Google Play."
+                    )
+                } else if (missing.isNotEmpty()) {
+                    onMessage("${missing.size} opção(ões) de subscrição não foram encontradas na Google Play. Os planos disponíveis continuam visíveis.")
+                }
             } else {
-                onMessage("Não foi possível carregar os preços da Google Play. Confirma se os produtos estão publicados.")
+                onProducts(emptyMap())
+                onMessage("Não foi possível carregar os preços da Google Play (código ${result.responseCode}: ${result.debugMessage}).")
             }
         }
     }
@@ -163,6 +185,10 @@ class PlayBilling(
             result.responseCode != BillingClient.BillingResponseCode.USER_CANCELED) {
             onMessage(result.debugMessage.ifBlank { "Não foi possível iniciar a compra." })
         }
+    }
+
+    fun refreshProducts() {
+        if (client.isReady) loadProducts() else connect()
     }
 
     fun restorePurchases() {
