@@ -571,6 +571,28 @@ fun HomeScreen(
         )
     }
 
+    if (menuOpen) {
+        MenuSheet(
+            hasMyStory = myStories.isNotEmpty(),
+            profileName = ownProfileName,
+            profileAvatar = ownProfileAvatar,
+            profileCover = ownProfileCover,
+            profilePlan = ownPlan,
+            onPickCover = { pickProfileCover.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            onDismiss = { menuOpen = false },
+            onItem = { key ->
+                when (key) {
+                    "terms", "privacy", "refund", "support" -> openUrl(context, "$SITE/$key")
+                    "newstory" -> pickStory.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+                    "mystory" -> onOpenStories(myStories)
+                    "newgroup" -> { newGroupName = ""; newGroupOpen = true }
+                    "signout" -> onSignOut()
+                    else -> onNavigate(key)
+                }
+            },
+        )
+    }
+
     coverCropSource?.let { source ->
         ImageCropDialog(
             bitmap = source,
@@ -591,27 +613,6 @@ fun HomeScreen(
                     } catch (_: Exception) {
                         android.widget.Toast.makeText(context, "Não foi possível guardar a fotografia de capa.", android.widget.Toast.LENGTH_LONG).show()
                     }
-                }
-            },
-        )
-    }
-    if (menuOpen) {
-        MenuSheet(
-            hasMyStory = myStories.isNotEmpty(),
-            profileName = ownProfileName,
-            profileAvatar = ownProfileAvatar,
-            profileCover = ownProfileCover,
-            profilePlan = ownPlan,
-            onPickCover = { pickProfileCover.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-            onDismiss = { menuOpen = false },
-            onItem = { key ->
-                when (key) {
-                    "terms", "privacy", "refund", "support" -> openUrl(context, "$SITE/$key")
-                    "newstory" -> pickStory.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
-                    "mystory" -> onOpenStories(myStories)
-                    "newgroup" -> { newGroupName = ""; newGroupOpen = true }
-                    "signout" -> onSignOut()
-                    else -> onNavigate(key)
                 }
             },
         )
