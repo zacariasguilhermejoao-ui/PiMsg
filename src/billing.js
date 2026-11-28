@@ -67,6 +67,10 @@ async function googleApi(env, path, options = {}) {
 }
 
 export async function handleBilling(request, env, me, path, method) {
+  if (path === "/v1/billing/orders" && method === "GET") {
+    const rows = await env.DB.prepare("SELECT id, plan, status, auto_renewing, started_at, expires_at, updated_at FROM subscriptions WHERE user_id = ? ORDER BY started_at DESC LIMIT 100").bind(me.id).all();
+    return json({ orders: rows.results || [] });
+  }
   if (path !== "/v1/billing/verify" || method !== "POST") return null;
   const body = await request.json().catch(() => ({}));
   const purchaseToken = typeof body.purchase_token === "string" ? body.purchase_token.trim() : "";
