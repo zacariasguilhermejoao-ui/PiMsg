@@ -18,6 +18,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.sp
 
 object PiI18n {
     var language by mutableStateOf("pt")
@@ -436,11 +437,16 @@ fun PiText(
     onTextLayout: (TextLayoutResult) -> Unit = {},
     style: TextStyle = LocalTextStyle.current,
 ) {
+    // Identidade tipográfica consistente do PiMsg: sans-serif nativa,
+    // com espaçamento subtil para melhorar a leitura sem alterar cores ou layouts.
+    val resolvedStyle = style.copy(
+        fontFamily = fontFamily ?: FontFamily.SansSerif,
+        letterSpacing = if (letterSpacing == TextUnit.Unspecified) 0.1.sp else letterSpacing,
+    )
     MaterialText(
         text = PiI18n.translate(text), modifier = modifier, color = color, fontSize = fontSize,
-        fontStyle = fontStyle, fontWeight = fontWeight, fontFamily = fontFamily,
-        letterSpacing = letterSpacing, textDecoration = textDecoration, textAlign = textAlign,
+        fontStyle = fontStyle, fontWeight = fontWeight, textDecoration = textDecoration, textAlign = textAlign,
         lineHeight = lineHeight, overflow = overflow, softWrap = softWrap, maxLines = maxLines,
-        minLines = minLines, onTextLayout = onTextLayout, style = style
+        minLines = minLines, onTextLayout = onTextLayout, style = resolvedStyle
     )
 }
