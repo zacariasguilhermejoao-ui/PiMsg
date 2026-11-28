@@ -8,6 +8,7 @@ import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
+import com.android.billingclient.api.SubscriptionProductReplacementParams
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
@@ -80,19 +81,95 @@ class PlayBilling(
     }
 
     fun buy(activity: Activity, product: ProductDetails) {
+        if (!client.isReady) {
+            onMessage("A ligação à Google Play ainda não está pronta. Tenta novamente.")
+            connect()
+            return
+        }
+        val query = QueryPurchasesParams.newBuilder()
+            .setProductType(BillingClient.ProductType.SUBS)
+            .build()
+        client.queryPurchasesAsync(query) { queryResult, purchases ->
+            if (queryResult.responseCode != BillingClient.BillingResponseCode.OK) {
+                onMessage("Não foi possível confirmar a subscrição actual na Google Play.")
+                return@queryPurchasesAsync
+            }
+            val active = purchases.filter { purchase ->
+                purchase.purchaseState == Purchase.PurchaseState.PURCHASED &&
+                    purchase.products.any { it in PRODUCT_IDS }
+            }
+            when {
+                active.size > 1 -> onMessage("Encontrámos mais de uma subscrição activa. Gere-as na Google Play antes de iniciar outra.")
+                active.size == 1 -> {
+                    val oldPurchase = active.first()
+                    val oldProductId = oldPurchase.products.firstOrNull { it in PRODUCT_IDS }
+                    if (oldProductId == null) {
+                        onMessage("Não foi possível identificar o plano actual. Gere a subscrição na Google Play.")
+                        return@queryPurchasesAsync
+                    }
+                    if (oldProductId == product.productId) {
+                        onMessage("Este plano já está activo na tua conta.")
+                        return@queryPurchasesAsync
+                    }
+                    launchPurchase(activity, product, oldPurchase, oldProductId)
+                }
+                else -> launchPurchase(activity, product, null, null)
+            }
+        }
+    }
+
+    private fun tierRank(productId: String): Int = when {
+        productId.startsWith("pimsg_business_") -> 3
+        productId.startsWith("pimsg_pro_") -> 2
+        productId.startsWith("pimsg_plus_") -> 1
+        else -> 0
+    }
+
+    private fun launchPurchase(
+        activity: Activity,
+        product: ProductDetails,
+        oldPurchase: Purchase?,
+        oldProductId: String?,
+    ) {
         val offer = product.subscriptionOfferDetails?.firstOrNull()
         if (offer == null) {
             onMessage("Não foi possível abrir esta opção de compra. Tenta novamente mais tarde.")
             return
         }
-        val productParams = BillingFlowParams.ProductDetailsParams.newBuilder()
+        val productParamsBuilder = BillingFlowParams.ProductDetailsParams.newBuilder()
             .setProductDetails(product)
             .setOfferToken(offer.offerToken)
-            .build()
-        val params = BillingFlowParams.newBuilder()
+
+        val productParams = if (oldPurchase != null && oldProductId != null) {
+            val replacementMode =
+                if (tierRank(product.productId) > tierRank(oldProductId)) {
+                    SubscriptionProductReplacementParams.ReplacementMode.CHARGE_PRORATED_PRICE
+                } else {
+                    SubscriptionProductReplacementParams.ReplacementMode.DEFERRED
+                }
+            productParamsBuilder
+                .setSubscriptionProductReplacementParams(
+                    SubscriptionProductReplacementParams.newBuilder()
+                        .setOldProductId(oldProductId)
+                        .setReplacementMode(replacementMode)
+                        .build()
+                )
+                .build()
+        } else {
+            productParamsBuilder.build()
+        }
+
+        val flowBuilder = BillingFlowParams.newBuilder()
             .setProductDetailsParamsList(listOf(productParams))
-            .build()
-        val result = client.launchBillingFlow(activity, params)
+        if (oldPurchase != null) {
+            flowBuilder.setSubscriptionUpdateParams(
+                BillingFlowParams.SubscriptionUpdateParams.newBuilder()
+                    .setOldPurchaseToken(oldPurchase.purchaseToken)
+                    .build()
+            )
+        }
+
+        val result = client.launchBillingFlow(activity, flowBuilder.build())
         if (result.responseCode != BillingClient.BillingResponseCode.OK &&
             result.responseCode != BillingClient.BillingResponseCode.USER_CANCELED) {
             onMessage(result.debugMessage.ifBlank { "Não foi possível iniciar a compra." })
