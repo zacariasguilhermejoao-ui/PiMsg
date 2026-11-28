@@ -1,5 +1,5 @@
 
-import { handleChat } from "./chat.js";
+import { handleChat, processScheduledMessages } from "./chat.js";
 import { handleBots } from "./bots.js";
 import { handleExtra } from "./extra.js";
 import { handlePublic } from "./pages.js";
@@ -482,6 +482,8 @@ export default {
   },
   async scheduled(controller, env) {
     const now = Date.now();
+    try { await processScheduledMessages(env, now); }
+    catch (error) { console.error("PiMsg scheduled messages processing failed:", String(error)); }
     try { await refreshExpiringSubscriptions(env, now); }
     catch (error) { console.error("PiMsg scheduled subscription refresh failed:", String(error)); }
     const due = await env.DB.prepare(
