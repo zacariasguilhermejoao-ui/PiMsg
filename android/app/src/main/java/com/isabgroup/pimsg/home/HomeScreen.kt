@@ -55,7 +55,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.awaitPointerEventScope
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -188,7 +187,22 @@ fun HomeScreen(
     var initialSkeleton by remember { mutableStateOf(false) }
     var newGroupOpen by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
+    var lastUserInteractionAt by remember { mutableStateOf(System.currentTimeMillis()) }
+    var robotIdleTrigger by remember { mutableStateOf(0) }
+    var giftIdleTrigger by remember { mutableStateOf(0) }
     val focus = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        var triggerRobot = true
+        while (true) {
+            delay(15_000)
+            val idleFor = System.currentTimeMillis() - lastUserInteractionAt
+            if (idleFor >= 15_000) {
+                if (triggerRobot) robotIdleTrigger++ else giftIdleTrigger++
+                triggerRobot = !triggerRobot
+            }
+        }
+    }
 
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     val pickStory = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
