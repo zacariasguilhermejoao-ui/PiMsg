@@ -1568,8 +1568,8 @@ fun PlansScreen(onBack: () -> Unit) {
             ) {
                 if (selected == null) {
                     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("PiMsg", color = PiModelText, fontSize = 32.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp, modifier = Modifier.padding(bottom = 8.dp))
-                        Text(
+                        androidx.compose.material3.Text("PiMsg", color = PiModelText, fontSize = 32.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp, modifier = Modifier.padding(bottom = 8.dp))
+                        androidx.compose.material3.Text(
                             "Mais funcionalidades para estares em contacto, criares e destacares o teu perfil ou negócio.",
                             color = PiModelMuted, fontSize = 15.sp, lineHeight = 21.sp,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -1585,7 +1585,7 @@ fun PlansScreen(onBack: () -> Unit) {
                                         .clickable { selectedCategory = id }.padding(horizontal = 18.dp, vertical = 8.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(label, color = if (selectedCategory == id) PiModelText else PiModelMuted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                    androidx.compose.material3.Text(label, color = if (selectedCategory == id) PiModelText else PiModelMuted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
@@ -1601,18 +1601,18 @@ fun PlansScreen(onBack: () -> Unit) {
                                     .padding(20.dp)
                             ) {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                    Text(plan.name, color = PiModelText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                    if (isCurrent) Text("Plano actual", color = PiModelLink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                    androidx.compose.material3.Text(plan.name, color = PiModelText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                    if (isCurrent) androidx.compose.material3.Text("Plano actual", color = PiModelLink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                 }
-                                Text(plan.tagline, color = PiModelSecondary, fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp))
-                                Text(
+                                androidx.compose.material3.Text(plan.tagline, color = PiModelSecondary, fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp))
+                                androidx.compose.material3.Text(
                                     if (plan.id == "free") "Gratuito" else if (cardPrice != null) "$cardPrice / subscrição" else "Preço apresentado pela Google Play",
                                     color = PiModelMuted, fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
                                 )
                                 plan.preview.forEach { feature ->
                                     Row(Modifier.fillMaxWidth().padding(bottom = 15.dp), verticalAlignment = Alignment.Top) {
                                         Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = PiModelSecondary, modifier = Modifier.size(22.dp).padding(top = 1.dp))
-                                        Text(feature, color = PiModelSecondary, fontSize = 15.sp, lineHeight = 20.sp, modifier = Modifier.weight(1f).padding(start = 14.dp))
+                                        androidx.compose.material3.Text(feature, color = PiModelSecondary, fontSize = 15.sp, lineHeight = 20.sp, modifier = Modifier.weight(1f).padding(start = 14.dp))
                                     }
                                 }
                                 Box(
@@ -1623,7 +1623,7 @@ fun PlansScreen(onBack: () -> Unit) {
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("Ver todos os benefícios", color = PiModelLink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                                    androidx.compose.material3.Text("Ver todos os benefícios", color = PiModelLink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
@@ -1631,10 +1631,10 @@ fun PlansScreen(onBack: () -> Unit) {
                 } else {
                     Box(Modifier.fillMaxWidth().height(130.dp).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0x55456E95), Color.Transparent))))
                     Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Conhece o", color = PiModelText, fontSize = 28.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                        Text(selected.name, color = PiModelLink, fontSize = 28.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 2.dp))
-                        Text(selected.tagline, color = PiModelSecondary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 12.dp))
-                        Text(
+                        androidx.compose.material3.Text("Conhece o", color = PiModelText, fontSize = 28.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        androidx.compose.material3.Text(selected.name, color = PiModelLink, fontSize = 28.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 2.dp))
+                        androidx.compose.material3.Text(selected.tagline, color = PiModelSecondary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 12.dp))
+                        androidx.compose.material3.Text(
                             if (selected.id == "free") "Sem subscrição paga" else selectedPrice?.let { "$it · O preço pode incluir impostos" } ?: "O preço é apresentado pela Google Play",
                             color = PiModelMuted, fontSize = 13.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 6.dp)
                         )
@@ -1645,26 +1645,26 @@ fun PlansScreen(onBack: () -> Unit) {
                                 Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = PiModelText, modifier = Modifier.size(25.dp))
                             }
                             Column(Modifier.weight(1f).padding(start = 16.dp)) {
-                                Text(title, color = PiModelText, fontSize = 16.sp, fontWeight = FontWeight.Bold, lineHeight = 21.sp)
-                                Text(description, color = PiModelMuted, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(top = 4.dp))
+                                androidx.compose.material3.Text(title, color = PiModelText, fontSize = 16.sp, fontWeight = FontWeight.Bold, lineHeight = 21.sp)
+                                androidx.compose.material3.Text(description, color = PiModelMuted, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(top = 4.dp))
                             }
                         }
                     }
-                    Text("Explorar todos os benefícios", color = PiModelText, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp, bottom = 14.dp))
+                    androidx.compose.material3.Text("Explorar todos os benefícios", color = PiModelText, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp, bottom = 14.dp))
                     selected.groups.forEach { group ->
-                        Text(group.title, color = PiModelMuted, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 18.dp, bottom = 10.dp))
+                        androidx.compose.material3.Text(group.title, color = PiModelMuted, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 18.dp, bottom = 10.dp))
                         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(PiModelCard).border(1.dp, PiModelBorder, RoundedCornerShape(16.dp))) {
                             group.features.forEachIndexed { index, feature ->
                                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = PiModelText, modifier = Modifier.size(22.dp))
-                                    Text(feature, color = PiModelText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, lineHeight = 20.sp, modifier = Modifier.weight(1f).padding(start = 14.dp))
+                                    androidx.compose.material3.Text(feature, color = PiModelText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, lineHeight = 20.sp, modifier = Modifier.weight(1f).padding(start = 14.dp))
                                 }
                                 if (index < group.features.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(PiModelDivider))
                             }
                         }
                     }
                     if (selected.billingOptions.isNotEmpty()) {
-                        Text("Escolher período de subscrição", color = PiModelMuted, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 24.dp, bottom = 10.dp))
+                        androidx.compose.material3.Text("Escolher período de subscrição", color = PiModelMuted, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 24.dp, bottom = 10.dp))
                         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(PiModelCard).border(1.dp, PiModelBorder, RoundedCornerShape(16.dp))) {
                             selected.billingOptions.forEachIndexed { index, option ->
                                 val price = products[option.second]?.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice
@@ -1673,21 +1673,21 @@ fun PlansScreen(onBack: () -> Unit) {
                                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Column(Modifier.weight(1f)) {
-                                        Text(option.first, color = PiModelText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                                        Text(price ?: if (billingReady) "Indisponível na Google Play" else "A carregar preço…", color = PiModelMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 3.dp))
+                                        androidx.compose.material3.Text(option.first, color = PiModelText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                                        androidx.compose.material3.Text(price ?: if (billingReady) "Indisponível na Google Play" else "A carregar preço…", color = PiModelMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 3.dp))
                                     }
                                     if (selectedBillingProduct == option.second) Icon(Icons.Filled.CheckCircle, contentDescription = "Seleccionado", tint = PiModelLink, modifier = Modifier.size(22.dp))
-                                    else Text("›", color = PiModelSubtle, fontSize = 22.sp)
+                                    else androidx.compose.material3.Text("›", color = PiModelSubtle, fontSize = 22.sp)
                                 }
                                 if (index < selected.billingOptions.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(PiModelDivider))
                             }
                         }
                     }
-                    if (currentTier == selected.id) Text("Este é o teu plano actual.", color = PiModelMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 18.dp, bottom = 20.dp))
-                    purchaseMessage?.let { Text(it, color = PiModelMuted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 12.dp)) }
-                    error?.let { Text(it, color = Color(0xFFE5484D), fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 10.dp)) }
+                    if (currentTier == selected.id) androidx.compose.material3.Text("Este é o teu plano actual.", color = PiModelMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 18.dp, bottom = 20.dp))
+                    purchaseMessage?.let { androidx.compose.material3.Text(it, color = PiModelMuted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 12.dp)) }
+                    error?.let { androidx.compose.material3.Text(it, color = Color(0xFFE5484D), fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 10.dp)) }
                 }
-                if (loading) Text("A consultar a tua conta…", color = PiModelMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
+                if (loading) androidx.compose.material3.Text("A consultar a tua conta…", color = PiModelMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
             }
 
             if (selected != null && selected.id != "free" && currentTier != selected.id) {
@@ -1697,7 +1697,7 @@ fun PlansScreen(onBack: () -> Unit) {
                         .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 18.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
+                    androidx.compose.material3.Text(
                         "Ao continuar, aceitas os Termos de Serviço e a Política de Privacidade do PiMsg. A subscrição renova-se até ser cancelada.",
                         color = PiModelMuted, fontSize = 11.sp, lineHeight = 15.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(bottom = 12.dp)
@@ -1716,8 +1716,8 @@ fun PlansScreen(onBack: () -> Unit) {
                             containerColor = PiModelBlue, contentColor = Color.White,
                             disabledContainerColor = PiModelButton, disabledContentColor = PiModelSubtle
                         )
-                    ) { Text(buttonLabel, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
-                    Text("A subscrição pode ser cancelada em qualquer altura.", color = PiModelMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                    ) { androidx.compose.material3.Text(buttonLabel, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
+                    androidx.compose.material3.Text("A subscrição pode ser cancelada em qualquer altura.", color = PiModelMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
                 }
             }
         }
