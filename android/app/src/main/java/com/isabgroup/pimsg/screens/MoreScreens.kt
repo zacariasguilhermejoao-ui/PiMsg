@@ -190,7 +190,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
         }
     }
     val coverPicker = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
+        contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) scope.launch {
             val selected = runCatching { decodeBitmapUri(context.contentResolver, uri) }.getOrNull()
@@ -382,19 +382,19 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                 bitmap = profileCoverBitmap!!.asImageBitmap(),
                 contentDescription = "Fotografia de capa",
                 modifier = Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(14.dp))
-                    .clickable { coverPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    .clickable { coverPicker.launch("image/*") },
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop,
             )
         } else {
             Box(
                 Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(14.dp)).background(PiColors.SurfaceHigh)
-                    .clickable { coverPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    .clickable { coverPicker.launch("image/*") },
                 contentAlignment = Alignment.Center,
             ) { Text("Ainda não adicionaste uma fotografia de capa.", color = PiColors.TextSecondary, fontSize = 13.sp) }
         }
         PiButton(
             if (mediaUploading) "A guardar fotografia..." else if (profileCoverKey == null) "Adicionar foto de capa" else "Alterar foto de capa",
-            { coverPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            { coverPicker.launch("image/*") },
             primary = false,
             enabled = !mediaUploading,
         )
