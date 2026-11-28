@@ -22,7 +22,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ClipOp
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntOffset
@@ -43,6 +48,7 @@ fun ImageCropDialog(
     title: String,
     onDismiss: () -> Unit,
     onConfirm: (Bitmap) -> Unit,
+    circleGuide: Boolean = false,
 ) {
     var zoom by remember(bitmap) { mutableStateOf(1f) }
     var offset by remember(bitmap) { mutableStateOf(Offset.Zero) }
@@ -66,7 +72,8 @@ fun ImageCropDialog(
                     .pointerInput(bitmap) {
                         detectTransformGestures { _, pan, zoomChange, _ ->
                             zoom = (zoom * zoomChange).coerceIn(1f, 4f)
-                            offset += pan
+                            // Mantém a imagem sempre a cobrir a área: sem "zona morta" ao arrastar além da borda.
+                            offset = clampOffset(bitmap, viewport, zoom, offset + pan)
                         }
                     },
             ) {
@@ -78,9 +85,15 @@ fun ImageCropDialog(
                     dstOffset = IntOffset.Zero,
                     dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
                 )
+                if (circleGuide) {
+                    val radius = minOf(size.width, size.height) / 2f
+                    val circle = Path().apply { addOval(androidx.compose.ui.geometry.Rect(center, radius)) }
+                    clipPath(circle, clipOp = ClipOp.Difference) { drawRect(Color.Black.copy(alpha = 0.55f)) }
+                    drawCircle(Color.White.copy(alpha = 0.85f), radius = radius - 1f, style = Stroke(width = 2f))
+                }
             }
             Text("Arraste a imagem para ajustar a posição. Use dois dedos ou a barra para ampliar.", color = PiColors.TextSecondary, fontSize = 12.sp)
-            Slider(value = zoom, onValueChange = { zoom = it }, valueRange = 1f..4f)
+            Slider(value = zoom, onValueChange = { zoom = it; offset = clampOffset(bitmap, viewport, it, offset) }, valueRange = 1f..4f)
             Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
                 TextButton(onClick = onDismiss) { Text("Cancelar", color = PiColors.TextSecondary) }
                 TextButton(onClick = {
@@ -114,4 +127,14 @@ private fun cropRect(
     val right = (centerX + cropWidth / 2f).roundToInt().coerceIn(left + 1, bitmap.width)
     val bottom = (centerY + cropHeight / 2f).roundToInt().coerceIn(top + 1, bitmap.height)
     return Rect(left, top, right, bottom)
+}
+
+private fun clampOffset(bitmap: Bitmap, viewport: IntSize, zoom: Float, offset: Offset): Offset {
+    if (viewport.width <= 0 || viewport.height <= 0) return offset
+    val vw = viewport.width.toFloat()
+    val vh = viewport.height.toFloat()
+    val scale = max(vw / bitmap.width, vh / bitmap.height) * zoom.coerceIn(1f, 4f)
+    val maxX = max(0f, (bitmap.width * scale - vw) / 2f)
+    val maxY = max(0f, (bitmap.height * scale - vh) / 2f)
+    return Offset(offset.x.coerceIn(-maxX, maxX), offset.y.coerceIn(-maxY, maxY))
 }
