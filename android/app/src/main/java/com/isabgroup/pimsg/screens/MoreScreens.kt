@@ -356,7 +356,11 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                     }
                 }
             }
-            PiButton(if (mediaUploading) "A carregar fotografia..." else "Alterar fotografia", { imagePicker.launch("image/*") }, primary = false, enabled = !mediaUploading)
+            if (emailVerified) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text(name.ifBlank { "Conta verificada" }, color = PiColors.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                VerifiedBadge()
+            }
+            PiButton(if (mediaUploading) "A carregar fotografia..." else "Alterar fotografia", { imagePicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, primary = false, enabled = !mediaUploading)
             if (mediaUploading) androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth(0.72f), color = PiColors.White, trackColor = PiColors.SurfaceHigh)
             if (avatarKey != null) {
                 TextButton(onClick = {
@@ -370,6 +374,43 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                     }
                 }) { Text("Remover fotografia", color = PiColors.Danger) }
             }
+        }
+
+        Section("Fotografia de capa")
+        if (profileCoverBitmap != null) {
+            Image(
+                bitmap = profileCoverBitmap!!.asImageBitmap(),
+                contentDescription = "Fotografia de capa",
+                modifier = Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(14.dp)),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            )
+        } else {
+            Box(
+                Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(14.dp)).background(PiColors.SurfaceHigh),
+                contentAlignment = Alignment.Center,
+            ) { Text("Ainda não adicionaste uma fotografia de capa.", color = PiColors.TextSecondary, fontSize = 13.sp) }
+        }
+        PiButton(
+            if (mediaUploading) "A guardar fotografia..." else if (profileCoverKey == null) "Adicionar foto de capa" else "Alterar foto de capa",
+            { coverPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            primary = false,
+            enabled = !mediaUploading,
+        )
+        if (profileCoverKey != null) {
+            TextButton(onClick = {
+                scope.launch {
+                    try {
+                        Api.patch("/v1/me/media", JSONObject().put("profile_cover_media_id", JSONObject.NULL))
+                        profileCoverKey = null
+                        profileCoverBitmap = null
+                        context.getSharedPreferences("pimsg_home_profile", Context.MODE_PRIVATE).edit().remove("profile_cover_key").apply()
+                        val cachedProfile = profileCache.getString("profile", null)?.let { JSONObject(it) } ?: JSONObject()
+                        cachedProfile.put("profile_cover_key", JSONObject.NULL)
+                        profileCache.edit().putString("profile", cachedProfile.toString()).apply()
+                        msg = "Fotografia de capa removida."
+                    } catch (_: Exception) { msg = "Não foi possível remover a fotografia de capa." }
+                }
+            }) { Text("Remover fotografia de capa", color = PiColors.Danger) }
         }
 
         Section("Informações pessoais")
@@ -414,43 +455,68 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             fontSize = 12.sp
         )
         if (!emailVerified) {
-            PiButton(if (needsEmailPassword) "Associar e enviar confirmação" else "Enviar confirmação", {
-                scope.launch {
-                    try {
-                        val user = FirebaseAuth.getInstance().currentUser ?: throw IllegalStateException("Sessão indisponível")
-                        val address = email.trim()
-                        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(address).matches()) throw IllegalArgumentException("Introduza um e-mail válido.")
-                        if (user.isAnonymous) {
-                            if (emailPassword.length < 6) throw IllegalArgumentException("A palavra-passe deve ter pelo menos 6 caracteres.")
-                            val credential = EmailAuthProvider.getCredential(address, emailPassword)
-                            val linked = user.linkWithCredential(credential).await().user
-                                ?: throw IllegalStateException("Não foi possível associar o e-mail à conta.")
-                            linked.sendEmailVerification().await()
-                            email = linked.email.orEmpty()
-                        } else {
-                            if (user.email != address) user.updateEmail(address).await()
-                            user.sendEmailVerification().await()
-                        }
-                        msg = "E-mail associado à mesma conta. Enviámos uma ligação de confirmação. Não termine a sessão antes de confirmar."
-                    } catch (e: Exception) {
-                        msg = when (e) {
-                            is com.google.firebase.auth.FirebaseAuthUserCollisionException -> "Este e-mail já pertence a outra conta. Use um e-mail diferente para não perder os dados desta conta."
-                            else -> e.localizedMessage ?: "Não foi possível associar o e-mail. Tente novamente."
+            PiButton(
+                if (emailSending) "A enviar confirmação..." else if (needsEmailPassword) "Associar e enviar confirmação" else "Enviar confirmação",
+                {
+                    if (!emailSending) {
+                        emailSending = true
+                        scope.launch {
+                            try {
+                                val user = FirebaseAuth.getInstance().currentUser ?: throw IllegalStateException("Sessão indisponível")
+                                val address = email.trim()
+                                if (!android.util.Patterns.EMAIL_ADDRESS.matcher(address).matches()) throw IllegalArgumentException("Introduza um e-mail válido.")
+                                if (user.isAnonymous) {
+                                    if (emailPassword.length < 6) throw IllegalArgumentException("A palavra-passe deve ter pelo menos 6 caracteres.")
+                                    val credential = EmailAuthProvider.getCredential(address, emailPassword)
+                                    val linked = user.linkWithCredential(credential).await().user
+                                        ?: throw IllegalStateException("Não foi possível associar o e-mail à conta.")
+                                    linked.sendEmailVerification().await()
+                                    email = linked.email.orEmpty()
+                                } else {
+                                    if (user.email != address) user.updateEmail(address).await()
+                                    user.sendEmailVerification().await()
+                                }
+                                msg = "Enviámos a ligação de confirmação para $address. Verifica também a pasta de spam."
+                                android.widget.Toast.makeText(context, "E-mail de confirmação enviado.", android.widget.Toast.LENGTH_LONG).show()
+                            } catch (e: Exception) {
+                                msg = when (e) {
+                                    is com.google.firebase.auth.FirebaseAuthUserCollisionException -> "Este e-mail já pertence a outra conta. Use um e-mail diferente para não perder os dados desta conta."
+                                    else -> e.localizedMessage ?: "Não foi possível enviar a confirmação. Verifique o e-mail e tente novamente."
+                                }
+                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                            } finally {
+                                emailSending = false
+                            }
                         }
                     }
-                }
-            }, primary = false, enabled = email.isNotBlank() && (!needsEmailPassword || emailPassword.length >= 6))
-            TextButton(onClick = {
-                scope.launch {
-                    try {
-                        val user = FirebaseAuth.getInstance().currentUser ?: throw IllegalStateException("Sessão indisponível")
-                        user.reload().await()
-                        user.getIdToken(true).await()
-                        emailVerified = Api.get("/v1/me").optBoolean("email_verified")
-                        msg = if (emailVerified) "E-mail confirmado. O perfil profissional está activo." else "Ainda não recebemos a confirmação. Abra a ligação enviada por e-mail e tente novamente."
-                    } catch (_: Exception) { msg = "Não foi possível verificar o estado do e-mail." }
-                }
-            }) { Text("Já confirmei o e-mail", color = PiColors.White) }
+                },
+                primary = false,
+                enabled = email.isNotBlank() && !emailSending && (!needsEmailPassword || emailPassword.length >= 6),
+            )
+            TextButton(
+                enabled = !emailChecking,
+                onClick = {
+                    if (!emailChecking) {
+                        emailChecking = true
+                        scope.launch {
+                            try {
+                                val user = FirebaseAuth.getInstance().currentUser ?: throw IllegalStateException("Sessão indisponível")
+                                user.reload().await()
+                                user.getIdToken(true).await()
+                                val serverVerified = Api.get("/v1/me").optBoolean("email_verified")
+                                emailVerified = (FirebaseAuth.getInstance().currentUser?.isEmailVerified == true) || serverVerified
+                                msg = if (emailVerified) "E-mail confirmado. O selo da conta já está activo." else "Ainda não recebemos a confirmação. Abre a ligação enviada por e-mail e tenta novamente."
+                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                            } catch (_: Exception) {
+                                msg = "Não foi possível consultar a confirmação. Verifique a ligação e tente novamente."
+                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                            } finally {
+                                emailChecking = false
+                            }
+                        }
+                    }
+                },
+            ) { Text(if (emailChecking) "A verificar..." else "Já confirmei o e-mail", color = PiColors.White) }
         }
 
         Section("Vídeo de apresentação")
