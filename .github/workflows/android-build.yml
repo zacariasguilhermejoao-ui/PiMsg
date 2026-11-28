@@ -8,6 +8,10 @@ on:
     paths:
       - "android/**"
       - ".github/workflows/android-build.yml"
+      - "icone_grupos_pro.png"
+      - "icone_novas_pro.png"
+      - "icone_sem_conversas.png"
+      - "icone_favoritos_estrela.png"
 
 permissions:
   contents: read
@@ -213,6 +217,38 @@ jobs:
           apksigner verify --verbose --print-certs "$APK"
           jarsigner -verify -verbose "$AAB"
 
+      - name: Audit APK and AAB contents
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          AAB="android/app/build/outputs/bundle/release/app-release.aab"
+          APK_LIST="$RUNNER_TEMP/pimsg-apk-contents.txt"
+          AAB_LIST="$RUNNER_TEMP/pimsg-aab-contents.txt"
+
+          unzip -Z1 "$APK" > "$APK_LIST"
+          unzip -Z1 "$AAB" > "$AAB_LIST"
+
+          # Essential Android package structures must be present.
+          grep -qx "classes.dex" "$APK_LIST"
+          grep -qx "resources.arsc" "$APK_LIST"
+          grep -qx "base/dex/classes.dex" "$AAB_LIST"
+          grep -qx "base/resources.pb" "$AAB_LIST"
+
+          # Confirm the four Gradle-copied illustrations are packaged.
+          for name in icone_grupos_pro icone_novas_pro icone_sem_conversas icone_favoritos_estrela; do
+            if ! grep -Eq "^res/drawable[^/]*/${name}\.png$" "$APK_LIST"; then
+              echo "::error::Missing expected drawable in APK: $name.png"
+              exit 1
+            fi
+            if ! grep -Eq "^base/res/drawable[^/]*/${name}\.png$" "$AAB_LIST"; then
+              echo "::error::Missing expected drawable in AAB: $name.png"
+              exit 1
+            fi
+          done
+
+          # Preserve the R8 mapping for release-only troubleshooting.
+          test -s android/app/build/outputs/mapping/release/mapping.txt
+          echo "APK/AAB structure, illustrations and R8 mapping verified."
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
