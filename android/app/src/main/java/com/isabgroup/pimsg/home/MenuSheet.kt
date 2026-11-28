@@ -19,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.CardGiftcard
@@ -61,6 +62,7 @@ private val account = listOf(
     MenuEntry("qr", "Código QR", "Partilhe o seu perfil de forma simples e rápida."),
     MenuEntry("links", "Meus links", "Crie links e acompanhe as respostas recebidas."),
     MenuEntry("plans", "Planos PiMsg", "Conheça os benefícios e escolha o plano ideal para si."),
+    MenuEntry("payments", "Pedidos e Pagamentos", "Consulte as suas assinaturas e o histórico de compras."),
 )
 private val business = listOf(
     MenuEntry("business", "PiMsg Business", "Organize a comunicação e as ferramentas do seu negócio."),
@@ -111,6 +113,7 @@ fun MenuSheet(
             when (entry.key) {
                 "bot" -> PiBotAvatar(size = 25.dp)
                 "plans" -> Icon(Icons.Filled.CardGiftcard, contentDescription = "Planos PiMsg", tint = PiColors.White, modifier = Modifier.size(24.dp))
+                "payments" -> Icon(Icons.Filled.CreditCard, contentDescription = "Pedidos e Pagamentos", tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "business" -> Icon(Icons.Filled.Storefront, contentDescription = "PiMsg Business", tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "settings" -> Icon(PiIcons.More, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(24.dp))
                 "links" -> Icon(Icons.Filled.Link, contentDescription = "Meus links", tint = PiColors.White, modifier = Modifier.size(24.dp))
