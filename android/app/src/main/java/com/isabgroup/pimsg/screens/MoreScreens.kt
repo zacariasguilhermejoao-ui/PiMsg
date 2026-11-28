@@ -136,6 +136,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var loading by remember { mutableStateOf(true) }
+    var productsLoading by remember { mutableStateOf(true) }
     var saving by remember { mutableStateOf(false) }
     var mediaUploading by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
@@ -1708,7 +1709,12 @@ fun PlansScreen(onBack: () -> Unit) {
     }
 
     LaunchedEffect(Unit) {
-        val manager = PlayBilling(context, onProducts = { products = it }, onMessage = { purchaseMessage = it }, onVerified = { scope.launch { refreshPlan() } })
+        val manager = PlayBilling(
+            context,
+            onProducts = { products = it; productsLoading = false },
+            onMessage = { purchaseMessage = it; productsLoading = false },
+            onVerified = { scope.launch { refreshPlan() } },
+        )
         billingManager = manager
         manager.connect()
         refreshPlan()
@@ -1747,6 +1753,15 @@ fun PlansScreen(onBack: () -> Unit) {
                             modifier = Modifier.padding(bottom = 24.dp)
                         )
                     }
+                    purchaseMessage?.let {
+                        androidx.compose.material3.Text(it, color = Color(0xFFFFD88A), fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(bottom = 12.dp))
+                    }
+                    if (!productsLoading && products.isEmpty()) {
+                        TextButton(
+                            onClick = { productsLoading = true; billingManager?.refreshProducts() },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("Tentar carregar os planos novamente", color = PiModelLink) }
+                    }
                     Row(Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalArrangement = Arrangement.Center) {
                         Row(Modifier.clip(androidx.compose.foundation.shape.CircleShape).background(PiModelElevated).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                             listOf("pessoal" to "Pessoal", "criador" to "Criador/a", "negocios" to "Negócios").forEach { (id, label) ->
@@ -1777,7 +1792,7 @@ fun PlansScreen(onBack: () -> Unit) {
                                 }
                                 androidx.compose.material3.Text(plan.tagline, color = PiModelSecondary, fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp))
                                 androidx.compose.material3.Text(
-                                    if (plan.id == "free") "Gratuito" else if (cardPrice != null && plan.id == "pro") "$cardPrice / semana" else if (cardPrice != null) "$cardPrice / mês" else "Preço apresentado pela Google Play",
+                                    if (plan.id == "free") "Gratuito" else if (cardPrice != null && plan.id == "pro") "$cardPrice / semana" else if (cardPrice != null) "$cardPrice / mês" else if (productsLoading) "A carregar preço..." else "Preço não disponibilizado pela Google Play",
                                     color = PiModelMuted, fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
                                 )
                                 plan.preview.forEach { feature ->
@@ -1801,8 +1816,9 @@ fun PlansScreen(onBack: () -> Unit) {
                                     val cardCanPurchase = billingReady && cardProduct != null && activity != null
                                     val cardButtonLabel = when {
                                         cardPrice != null -> "Subscrever · $cardPrice"
-                                        !billingReady -> "A preparar subscrição…"
-                                        else -> "Subscrição indisponível"
+                                        productsLoading -> "A carregar planos..."
+                                        !billingReady -> "Pagamentos não configurados no servidor"
+                                        else -> "Produto indisponível na Google Play"
                                     }
                                     androidx.compose.material3.Button(
                                         onClick = {
@@ -1879,7 +1895,14 @@ fun PlansScreen(onBack: () -> Unit) {
                                 ) {
                                     Column(Modifier.weight(1f)) {
                                         androidx.compose.material3.Text(option.first, color = PiModelText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                                        androidx.compose.material3.Text(price ?: if (billingReady) "Indisponível na Google Play" else "A carregar preço…", color = PiModelMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 3.dp))
+                                        androidx.compose.material3.Text(
+                                            price ?: when {
+                                                productsLoading -> "A carregar preço..."
+                                                !billingReady -> "Pagamentos não configurados no servidor"
+                                                else -> "Produto ou oferta não encontrada na Google Play"
+                                            },
+                                            color = PiModelMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 3.dp)
+                                        )
                                     }
                                     if (selectedBillingProduct == option.second) Icon(Icons.Filled.CheckCircle, contentDescription = "Seleccionado", tint = PiModelLink, modifier = Modifier.size(22.dp))
                                     else androidx.compose.material3.Text("›", color = PiModelSubtle, fontSize = 22.sp)
@@ -1908,7 +1931,12 @@ fun PlansScreen(onBack: () -> Unit) {
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(bottom = 12.dp)
                     )
                     val canPurchase = billingReady && selectedProduct != null && activity != null
-                    val buttonLabel = if (selectedPrice != null) "Subscrever · $selectedPrice" else if (!billingReady) "A preparar subscrição…" else "Opção indisponível"
+                    val buttonLabel = when {
+                        selectedPrice != null -> "Subscrever · $selectedPrice"
+                        productsLoading -> "A carregar planos..."
+                        !billingReady -> "Pagamentos não configurados no servidor"
+                        else -> "Produto indisponível na Google Play"
+                    }
                     androidx.compose.material3.Button(
                         onClick = {
                             if (!emailVerified) purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir."
