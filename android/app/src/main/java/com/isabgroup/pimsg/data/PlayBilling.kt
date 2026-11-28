@@ -73,7 +73,7 @@ class PlayBilling(
         }
         val params = QueryProductDetailsParams.newBuilder().setProductList(products).build()
         client.queryProductDetailsAsync(params) { result, detailsResult ->
-            if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+            if (result.responseCode == BillingClient.BillingResponseCode.OK || result.responseCode == BillingClient.BillingResponseCode.ITEM_UNAVAILABLE) {
                 val fetched = detailsResult.productDetailsList
                 onProducts(fetched.associateBy { it.productId })
                 val missing = detailsResult.unfetchedProductList
