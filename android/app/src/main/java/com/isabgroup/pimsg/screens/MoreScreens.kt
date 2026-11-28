@@ -1626,6 +1626,40 @@ fun PlansScreen(onBack: () -> Unit) {
                                 ) {
                                     androidx.compose.material3.Text("Ver todos os benefícios", color = PiModelLink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                                 }
+                                if (plan.id != "free" && currentTier != plan.id) {
+                                    val cardProduct = cardPriceId?.let { products[it] }
+                                    val cardCanPurchase = billingReady && cardProduct != null && activity != null
+                                    val cardButtonLabel = when {
+                                        cardPrice != null -> "Subscrever · $cardPrice"
+                                        !billingReady -> "A preparar subscrição…"
+                                        else -> "Subscrição indisponível"
+                                    }
+                                    androidx.compose.material3.Button(
+                                        onClick = {
+                                            if (!emailVerified) {
+                                                purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir."
+                                            } else if (cardCanPurchase && cardProduct != null && activity != null) {
+                                                billingManager?.buy(activity, cardProduct)
+                                            }
+                                        },
+                                        enabled = cardCanPurchase,
+                                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(48.dp),
+                                        shape = androidx.compose.foundation.shape.CircleShape,
+                                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                            containerColor = PiModelBlue,
+                                            contentColor = Color.White,
+                                            disabledContainerColor = PiModelButton,
+                                            disabledContentColor = PiModelSubtle
+                                        )
+                                    ) {
+                                        androidx.compose.material3.Text(
+                                            cardButtonLabel,
+                                            color = Color.White,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
