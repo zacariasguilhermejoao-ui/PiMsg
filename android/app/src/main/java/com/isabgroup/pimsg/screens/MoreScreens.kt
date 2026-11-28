@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.Icons
@@ -1976,6 +1977,66 @@ fun PlansScreen(onBack: () -> Unit) {
                     androidx.compose.material3.Text("A subscrição pode ser cancelada em qualquer altura.", color = PiModelMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun BillingOrdersScreen(onBack: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var orders by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    suspend fun refresh() {
+        loading = true
+        error = null
+        try {
+            val response = Api.get("/v1/billing/orders")
+            val array = response.optJSONArray("orders") ?: org.json.JSONArray()
+            orders = (0 until array.length()).mapNotNull { array.optJSONObject(it) }
+        } catch (_: Exception) {
+            error = "Não foi possível carregar o histórico. Verifica a ligação e tenta novamente."
+        } finally { loading = false }
+    }
+    LaunchedEffect(Unit) { refresh() }
+    fun date(value: Long): String = if (value <= 0L) "—" else java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale("pt", "AO")).apply { timeZone = java.util.TimeZone.getTimeZone("Africa/Luanda") }.format(java.util.Date(value))
+    Column(Modifier.fillMaxSize().background(PiColors.Background).systemBarsPadding()) {
+        Row(Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Filled.Close, contentDescription = "Voltar", tint = PiColors.White) }
+            Text("Pedidos e Pagamentos", color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        }
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(PiColors.Surface).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.CreditCard, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(28.dp))
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text("Histórico de assinaturas", color = PiColors.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Compras confirmadas pela Google Play", color = PiColors.TextSecondary, fontSize = 12.sp)
+                }
+            }
+            if (loading) Text("A carregar o histórico…", color = PiColors.TextSecondary, modifier = Modifier.padding(top = 24.dp))
+            else if (error != null) {
+                Text(error!!, color = PiColors.TextSecondary, modifier = Modifier.padding(top = 24.dp))
+                TextButton(onClick = { scope.launch { refresh() } }) { Text("Tentar novamente", color = PiColors.White) }
+            } else if (orders.isEmpty()) {
+                Column(Modifier.fillMaxWidth().padding(top = 48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Filled.CreditCard, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(40.dp))
+                    Text("Ainda não tens compras registadas", color = PiColors.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 12.dp))
+                    Text("Quando subscreveres um plano PiMsg, os registos aparecerão aqui.", color = PiColors.TextSecondary, fontSize = 13.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
+                }
+            } else orders.forEach { item ->
+                val plan = item.optString("plan", "")
+                val title = when { plan.startsWith("business") -> "PiMsg Business"; plan.startsWith("pro") -> "PiMsg Pro"; plan.startsWith("plus") -> "PiMsg Plus"; else -> "PiMsg" }
+                val state = item.optString("status")
+                val stateLabel = when (state) { "active" -> "Activo"; "grace" -> "Em período de tolerância"; "on_hold" -> "Em pausa"; "expired" -> "Expirado"; else -> state }
+                Column(Modifier.fillMaxWidth().padding(top = 12.dp).clip(RoundedCornerShape(16.dp)).background(PiColors.Surface).padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Filled.CreditCard, contentDescription = null, tint = PiColors.White, modifier = Modifier.size(22.dp)); Text(title, color = PiColors.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 10.dp)) }
+                    Text(stateLabel, color = if (state == "active" || state == "grace") Color(0xFF9BE7A5) else PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 9.dp))
+                    Text("Início: " + date(item.optLong("started_at")), color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 5.dp))
+                    Text("Validade: " + date(item.optLong("expires_at")), color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                    Text(if (item.optBoolean("auto_renewing")) "Renovação automática activa" else "Renovação automática desactivada", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+                }
+            }
+            Text("Os pagamentos são processados pela Google Play. Este histórico apresenta assinaturas confirmadas; não inclui recibos nem valores cobrados.", color = PiColors.TextSecondary, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 18.dp, bottom = 24.dp))
         }
     }
 }
