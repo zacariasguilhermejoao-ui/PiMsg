@@ -1314,40 +1314,53 @@ fun LinksScreen(onBack: () -> Unit) {
                 Text("Ainda não criaste nenhum link.", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
             }
         }
-        links.forEachIndexed { index, l ->
-            Column(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(l.subject, color = PiColors.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                    Text("${l.opens} aberturas", color = PiColors.TextSecondary, fontSize = 11.sp)
-                }
-                Text(l.url, color = PiColors.TextSecondary, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 5.dp))
-                if (l.imageMediaId != null) {
-                    Text("Fotografia personalizada", color = PiColors.Gray, fontSize = 11.sp, modifier = Modifier.padding(top = 5.dp))
-                }
-                Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(onClick = { copy(context, "link", l.url); msg = "Link copiado." }) {
-                        Icon(Icons.Filled.ContentCopy, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text("Copiar", color = PiColors.TextSecondary, fontSize = 12.sp)
+        if (links.isNotEmpty()) {
+            Column(
+                Modifier.fillMaxWidth()
+                    .background(PiColors.Surface, RoundedCornerShape(16.dp))
+                    .border(1.dp, PiColors.GrayDark, RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(16.dp))
+            ) {
+                links.forEachIndexed { index, l ->
+                    Column(Modifier.fillMaxWidth().padding(15.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(l.subject, color = PiColors.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                            Text("${l.opens} aberturas", color = PiColors.TextSecondary, fontSize = 11.sp)
+                        }
+                        Text(l.url, color = PiColors.TextSecondary, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 6.dp))
+                        if (l.imageMediaId != null) {
+                            Text("Fotografia personalizada", color = PiColors.Gray, fontSize = 11.sp, modifier = Modifier.padding(top = 5.dp))
+                        }
+                        Row(
+                            Modifier.fillMaxWidth().padding(top = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            TextButton(onClick = { copy(context, "link", l.url); msg = "Link copiado." }) {
+                                Icon(Icons.Filled.ContentCopy, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(5.dp))
+                                Text("Copiar", color = PiColors.TextSecondary, fontSize = 12.sp)
+                            }
+                            TextButton(onClick = {
+                                val send = Intent(Intent.ACTION_SEND).setType("text/plain")
+                                    .putExtra(Intent.EXTRA_TEXT, "Fale comigo sobre ${l.subject} no PiMsg: ${l.url}")
+                                context.startActivity(Intent.createChooser(send, "Partilhar link"))
+                            }) {
+                                Icon(Icons.Filled.Share, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(5.dp))
+                                Text("Partilhar", color = PiColors.TextSecondary, fontSize = 12.sp)
+                            }
+                            TextButton(onClick = { scope.launch { runCatching { Api.delete("/v1/links/${l.id}") }; load() } }) {
+                                Icon(Icons.Filled.Delete, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(5.dp))
+                                Text("Apagar", color = PiColors.TextSecondary, fontSize = 12.sp)
+                            }
+                        }
                     }
-                    TextButton(onClick = {
-                        val send = Intent(Intent.ACTION_SEND).setType("text/plain")
-                            .putExtra(Intent.EXTRA_TEXT, "Fale comigo sobre ${l.subject} no PiMsg: ${l.url}")
-                        context.startActivity(Intent.createChooser(send, "Partilhar link"))
-                    }) {
-                        Icon(Icons.Filled.Share, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text("Partilhar", color = PiColors.TextSecondary, fontSize = 12.sp)
-                    }
-                    TextButton(onClick = { scope.launch { runCatching { Api.delete("/v1/links/${l.id}") }; load() } }) {
-                        Icon(Icons.Filled.Delete, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text("Apagar", color = PiColors.Gray, fontSize = 12.sp)
+                    if (index < links.lastIndex) {
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(PiColors.GrayDark))
                     }
                 }
-            }
-            if (index < links.lastIndex) {
-                Box(Modifier.fillMaxWidth().height(1.dp).background(PiColors.GrayDark))
             }
         }
         Spacer(Modifier.height(24.dp))
@@ -1356,6 +1369,28 @@ fun LinksScreen(onBack: () -> Unit) {
 
 
 // ---------------------------------------------------------------- Planos
+@Composable
+private fun PlanBenefit(text: String) {
+    Row(
+        Modifier.fillMaxWidth().padding(top = 11.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            Icons.Filled.CheckCircle,
+            contentDescription = null,
+            tint = PiColors.Gray,
+            modifier = Modifier.padding(top = 1.dp).size(18.dp)
+        )
+        Text(
+            text,
+            color = PiColors.TextSecondary,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            modifier = Modifier.weight(1f).padding(start = 11.dp)
+        )
+    }
+}
+
 @Composable
 private fun PlanHeading(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, badge: String? = null) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -1392,12 +1427,18 @@ private fun SubscriptionProductButton(
     onBuy: (ProductDetails) -> Unit,
     onEmailRequired: () -> Unit,
 ) {
-    if (!billingReady || product == null || activity == null) return
-    val price = product.subscriptionOfferDetails?.firstOrNull()
-        ?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice ?: return
-    PiButton("$label · $price", {
-        if (!emailVerified) onEmailRequired() else onBuy(product)
-    }, primary = true)
+    val price = product?.subscriptionOfferDetails?.firstOrNull()
+        ?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice
+    val canPurchase = billingReady && product != null && activity != null
+    val buttonText = when {
+        price != null -> "Subscrever $label · $price"
+        !billingReady -> "$label · a preparar subscrição"
+        else -> "$label · indisponível"
+    }
+    PiButton(buttonText, {
+        if (!emailVerified) onEmailRequired()
+        else if (canPurchase && product != null) onBuy(product)
+    }, primary = true, enabled = canPurchase)
 }
 
 @Composable
@@ -1503,14 +1544,14 @@ fun PlansScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(8.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
             PlanHeading("PiMsg Free", "Essencial para começares e manteres contacto.", Icons.Filled.DataUsage)
-            listOf("Até 30 contactos", "30 mensagens por dia", "500 respostas de links personalizados por mês", "4 traduções por dia", "Conversas, grupos e partilha de ficheiros", "250 MB para ficheiros e multimédia", "Sem bots de IA pagos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
+            listOf("Até 30 contactos", "30 mensagens por dia", "500 respostas de links personalizados por mês", "4 traduções por dia", "Conversas, grupos e partilha de ficheiros", "250 MB para ficheiros e multimédia", "Sem bots de IA pagos").forEach { PlanBenefit(it) }
             if (currentTier == "free") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
         }
 
         Spacer(Modifier.height(10.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
             PlanHeading("PiMsg Plus", "Mais liberdade para conversar todos os dias.", Icons.Filled.FolderOpen, "POPULAR")
-            listOf("Mensagens sem limite diário", "Respostas ilimitadas através dos links personalizados", "Pi AI e Pi Reminder (até 20 lembretes activos)", "5 pedidos de IA por dia", "25 traduções por dia", "2 GB para ficheiros e multimédia", "Sem bots personalizados nem Pi Business").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
+            listOf("Mensagens sem limite diário", "Respostas ilimitadas através dos links personalizados", "Pi AI e Pi Reminder (até 20 lembretes activos)", "5 pedidos de IA por dia", "25 traduções por dia", "2 GB para ficheiros e multimédia", "Sem bots personalizados nem Pi Business").forEach { PlanBenefit(it) }
             Spacer(Modifier.height(10.dp))
             if (currentTier != "plus") {
             SubscriptionProductButton("Mensal", products[PlayBilling.PLUS_MONTHLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
@@ -1522,7 +1563,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(10.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
             PlanHeading("PiMsg Pro", "Para quem cria, produz e precisa de mais.", Icons.Filled.QrCode2)
-            listOf("Mensagens e respostas de links sem limite mensal", "Todos os bots, excepto ferramentas exclusivas Business", "20 pedidos de IA por dia", "75 traduções por dia", "Até 5 bots personalizados", "Até 100 lembretes activos", "5 GB para ficheiros e multimédia", "Vídeo de apresentação no perfil").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
+            listOf("Mensagens e respostas de links sem limite mensal", "Todos os bots, excepto ferramentas exclusivas Business", "20 pedidos de IA por dia", "75 traduções por dia", "Até 5 bots personalizados", "Até 100 lembretes activos", "5 GB para ficheiros e multimédia", "Vídeo de apresentação no perfil").forEach { PlanBenefit(it) }
             Spacer(Modifier.height(10.dp))
             if (currentTier != "pro") {
             SubscriptionProductButton("Semanal", products[PlayBilling.WEEKLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
@@ -1535,7 +1576,7 @@ fun PlansScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(10.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
             PlanHeading("PiMsg Business", "Ferramentas para negócios e equipas.", Icons.Filled.DeleteSweep)
-            listOf("Tudo do Pro", "Pi Business para preparar respostas comerciais", "50 pedidos de IA por dia", "150 traduções por dia", "Até 20 bots personalizados", "Até 500 lembretes activos", "20 GB para ficheiros e multimédia", "Ferramentas para organizar informações, produtos, preços e contactos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
+            listOf("Tudo do Pro", "Pi Business para preparar respostas comerciais", "50 pedidos de IA por dia", "150 traduções por dia", "Até 20 bots personalizados", "Até 500 lembretes activos", "20 GB para ficheiros e multimédia", "Ferramentas para organizar informações, produtos, preços e contactos").forEach { PlanBenefit(it) }
             Spacer(Modifier.height(10.dp))
             if (currentTier != "business") {
             SubscriptionProductButton("Mensal", products[PlayBilling.BUSINESS_MONTHLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
