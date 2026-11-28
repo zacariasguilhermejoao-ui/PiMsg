@@ -2,6 +2,11 @@ name: Android signing certificate fingerprints
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/android-fingerprints.yml"
 
 permissions:
   contents: read
