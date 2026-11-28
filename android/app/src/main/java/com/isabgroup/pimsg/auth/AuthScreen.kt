@@ -56,7 +56,6 @@ import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.ApiException
 import org.json.JSONObject
 import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.auth.EmailAuthProvider
 import com.isabgroup.pimsg.R
 import com.isabgroup.pimsg.ui.PiColors
 import kotlinx.coroutines.launch
@@ -341,6 +340,28 @@ fun AuthScreen(onSignedIn: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PiColors.SurfaceHigh, contentColor = PiColors.White),
             ) { Text("Entrar com e-mail", fontSize = 16.sp) }
+            TextButton(
+                onClick = {
+                    val address = loginEmail.trim()
+                    if (!android.util.Patterns.EMAIL_ADDRESS.matcher(address).matches()) {
+                        error = "Introduza o e-mail da sua conta para recuperar a palavra-passe."
+                    } else {
+                        scope.launch {
+                            busy = true
+                            error = null
+                            try {
+                                auth.sendPasswordResetEmail(address).await()
+                                error = "Enviámos uma ligação para criar uma nova palavra-passe."
+                            } catch (_: Exception) {
+                                error = "Não foi possível enviar a recuperação. Confirme o e-mail e tente novamente."
+                            } finally {
+                                busy = false
+                            }
+                        }
+                    }
+                },
+                enabled = !busy && loginEmail.isNotBlank(),
+            ) { Text("Esqueci-me da palavra-passe", color = PiColors.White) }
         }
 
         if (mfaResolver != null) {
