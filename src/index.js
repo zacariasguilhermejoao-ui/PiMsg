@@ -61,7 +61,9 @@ async function authenticate(request, env) {
   let claims;
   try {
     claims = await verifyFirebaseToken(auth.slice(7), env);
-  } catch {
+  } catch (err) {
+    // Motivo visível nos logs do Cloudflare (nunca regista o token).
+    console.error(JSON.stringify({ msg: "token recusado", reason: String(err?.message || err), expected_project: env.FIREBASE_PROJECT_ID || null }));
     return null;
   }
   const now = Date.now();
@@ -83,20 +85,26 @@ async function authenticate(request, env) {
            updated_at = excluded.updated_at
          RETURNING signup_count`
       ).bind(ipHash, now, now, windowStart, windowStart).first();
-      if ((rate?.signup_count || 0) > 10) return { blocked: "signup_rate_limited" };
+      if ((rate?.signup_count || 0) > 30) return { blocked: "signup_rate_limited" };
     }
     const id = crypto.randomUUID();
     const phone = claims.phone_number || null;
     const name = claims.name || (claims.email ? claims.email.split("@")[0] : "Utilizador");
-    await env.DB.batch([
-      env.DB.prepare(
-        "INSERT INTO users (id, firebase_uid, email, email_verified, phone_e164, phone_verified, display_name, created_at, last_seen_at) VALUES (?,?,?,?,?,?,?,?,?)"
-      ).bind(id, claims.sub, claims.email || null, claims.email_verified ? 1 : 0, phone, phone ? 1 : 0, name, now, now),
-      env.DB.prepare(
-        "INSERT INTO user_codes (id, user_id, code, is_active, created_at) VALUES (?,?,?,1,?)"
-      ).bind(crypto.randomUUID(), id, randomCode(8), now),
-    ]);
-    user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(id).first();
+    try {
+      await env.DB.batch([
+        env.DB.prepare(
+          "INSERT INTO users (id, firebase_uid, email, email_verified, phone_e164, phone_verified, display_name, created_at, last_seen_at) VALUES (?,?,?,?,?,?,?,?,?)"
+        ).bind(id, claims.sub, claims.email || null, claims.email_verified ? 1 : 0, phone, phone ? 1 : 0, name, now, now),
+        env.DB.prepare(
+          "INSERT INTO user_codes (id, user_id, code, is_active, created_at) VALUES (?,?,?,1,?)"
+        ).bind(crypto.randomUUID(), id, randomCode(8), now),
+      ]);
+    } catch (err) {
+      // Dois pedidos em simultâneo no primeiro login: o outro já criou a conta.
+      const existing = await env.DB.prepare("SELECT * FROM users WHERE firebase_uid = ?").bind(claims.sub).first();
+      if (!existing) throw err;
+    }
+    user = await env.DB.prepare("SELECT * FROM users WHERE firebase_uid = ?").bind(claims.sub).first();
   }
   if (user.status !== "active") {
     if ((user.status === "suspended" || user.status === "banned") && user.status_until && user.status_until <= now) {
