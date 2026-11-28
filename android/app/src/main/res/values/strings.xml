@@ -1,1 +1,4 @@
-<resources><string name="app_name">PiMsg</string></resources>
+<resources><string name="app_name">PiMsg</string>    <string name="facebook_app_id">1100195166357092</string>
+    <string name="fb_login_protocol_scheme">fb1100195166357092</string>
+    <string name="facebook_client_token">INSERIR_CLIENT_TOKEN_AQUI</string>
+</resources>
