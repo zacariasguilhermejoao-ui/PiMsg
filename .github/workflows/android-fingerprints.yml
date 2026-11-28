@@ -46,6 +46,10 @@ jobs:
             grep '^Alias name: ' "$RUNNER_TEMP/cert.txt" || true
             exit 1
           fi
+          echo "Meta Facebook Android Key Hash:"
+          keytool -exportcert -alias "$ANDROID_KEY_ALIAS" -keystore "$KEYSTORE" -storepass:env ANDROID_KEYSTORE_PASSWORD \
+            | openssl sha1 -binary | openssl base64
+          echo "Certificate fingerprints:"
           awk -v alias="$ANDROID_KEY_ALIAS" '
             /^Alias name: / { selected = ($0 == "Alias name: " alias) }
             selected && (/^SHA1: / || /^SHA256: /) { print }
