@@ -1,6 +1,7 @@
 package com.isabgroup.pimsg.screens
 
 import android.content.ClipData
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -1381,7 +1382,7 @@ private fun PlanBenefit(text: String) {
         verticalAlignment = Alignment.Top
     ) {
         Icon(
-            Icons.Filled.CheckCircle,
+            Icons.Outlined.CheckCircle,
             contentDescription = null,
             tint = PiColors.Gray,
             modifier = Modifier.padding(top = 1.dp).size(18.dp)
@@ -1606,7 +1607,7 @@ fun PlansScreen(onBack: () -> Unit) {
                                 }
                                 androidx.compose.material3.Text(plan.tagline, color = PiModelSecondary, fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp))
                                 androidx.compose.material3.Text(
-                                    if (plan.id == "free") "Gratuito" else if (cardPrice != null) "$cardPrice / subscrição" else "Preço apresentado pela Google Play",
+                                    if (plan.id == "free") "Gratuito" else if (cardPrice != null && plan.id == "pro") "$cardPrice / semana" else if (cardPrice != null) "$cardPrice / mês" else "Preço apresentado pela Google Play",
                                     color = PiModelMuted, fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
                                 )
                                 plan.preview.forEach { feature ->
