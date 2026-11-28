@@ -266,7 +266,7 @@ async function handle(request, env) {
   if (publicProfileMatch && method === "GET") {
     const targetId = publicProfileMatch[1];
     const target = await env.DB.prepare(
-      "SELECT id, display_name, bio, avatar_key, intro_video_key, profile_cover_key, ring_color, phone_contact, phone_e164, show_phone, show_online_status, last_seen_at, status, instagram_url, facebook_url, tiktok_url, youtube_url, website_url FROM users WHERE id = ? AND status = 'active'"
+      "SELECT id, display_name, bio, avatar_key, intro_video_key, profile_cover_key, email_verified, ring_color, phone_contact, phone_e164, show_phone, show_online_status, last_seen_at, status, instagram_url, facebook_url, tiktok_url, youtube_url, website_url FROM users WHERE id = ? AND status = 'active'"
     ).bind(targetId).first();
     if (!target) return fail(404, "utilizador nao encontrado");
     const blocked = await env.DB.prepare(
@@ -289,6 +289,7 @@ async function handle(request, env) {
     return json({
       id: target.id, name: target.display_name, bio: target.bio,
       avatar_key: target.avatar_key, intro_video_key: target.intro_video_key, profile_cover_key: target.profile_cover_key,
+      email_verified: !!target.email_verified, verified_badge: !!target.email_verified,
       ring_color: target.ring_color,
       phone: target.show_phone ? (target.phone_contact || target.phone_e164 || null) : null,
       online: !!target.show_online_status && !!target.last_seen_at && target.last_seen_at > Date.now() - 90000,
