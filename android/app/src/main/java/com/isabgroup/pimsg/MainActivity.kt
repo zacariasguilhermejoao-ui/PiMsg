@@ -253,6 +253,11 @@ private fun AppRoot(activity: MainActivity) {
     val scope = rememberCoroutineScope()
 
     suspend fun verifyClock() {
+        // Sem Internet não há como comparar a hora: abre logo as conversas guardadas (como o WhatsApp).
+        if (!com.isabgroup.pimsg.data.Api.hasInternet(activity)) {
+            invalidClock = false
+            return
+        }
         checkingClock = true
         invalidClock = withContext(Dispatchers.IO) {
             var connection: HttpURLConnection? = null
