@@ -24,14 +24,15 @@ object Api {
         val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
         val network = manager.activeNetwork ?: return false
         val capabilities = manager.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        // Não exigimos NET_CAPABILITY_VALIDATED: em algumas redes móveis o teste da Google falha
+        // mesmo com ligação utilizável e o app ficava "offline" sem tentar sincronizar.
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     private const val BASE = "https://pimsg.tchilopop.com"
 
-    private suspend fun token(): String =
-        FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token
+    private suspend fun token(forceRefresh: Boolean = false): String =
+        FirebaseAuth.getInstance().currentUser?.getIdToken(forceRefresh)?.await()?.token
             ?: throw ApiException(401, "sem sessao")
 
     suspend fun get(path: String): JSONObject = call("GET", path, null)
@@ -42,8 +43,14 @@ object Api {
     fun encode(s: String): String = URLEncoder.encode(s, "UTF-8")
 
     // Envia um ficheiro para o R2 pela API. Devolve o id do ficheiro.
-    suspend fun upload(open: () -> java.io.InputStream?, size: Long, mime: String): String {
-        val token = token()
+    suspend fun upload(open: () -> java.io.InputStream?, size: Long, mime: String): String =
+        try {
+            uploadOnce(open, size, mime, token())
+        } catch (e: ApiException) {
+            if (e.code == 401) uploadOnce(open, size, mime, token(forceRefresh = true)) else throw e
+        }
+
+    private suspend fun uploadOnce(open: () -> java.io.InputStream?, size: Long, mime: String, token: String): String {
         return withContext(Dispatchers.IO) {
             val c = URL("$BASE/v1/media").openConnection() as HttpURLConnection
             try {
@@ -69,8 +76,14 @@ object Api {
     }
 
     // Descarrega um ficheiro apenas quando o utilizador toca nele.
-    suspend fun download(path: String): Downloaded {
-        val token = token()
+    suspend fun download(path: String): Downloaded =
+        try {
+            downloadOnce(path, token())
+        } catch (e: ApiException) {
+            if (e.code == 401) downloadOnce(path, token(forceRefresh = true)) else throw e
+        }
+
+    private suspend fun downloadOnce(path: String, token: String): Downloaded {
         return withContext(Dispatchers.IO) {
             val c = URL(BASE + path).openConnection() as HttpURLConnection
             try {
@@ -86,8 +99,15 @@ object Api {
         }
     }
 
-    private suspend fun call(method: String, path: String, body: JSONObject?): JSONObject {
-        val token = token()
+    private suspend fun call(method: String, path: String, body: JSONObject?): JSONObject =
+        try {
+            callOnce(method, path, body, token())
+        } catch (e: ApiException) {
+            // Token expirado ou revogado: pede um novo ao Firebase e repete uma vez.
+            if (e.code == 401) callOnce(method, path, body, token(forceRefresh = true)) else throw e
+        }
+
+    private suspend fun callOnce(method: String, path: String, body: JSONObject?, token: String): JSONObject {
         return withContext(Dispatchers.IO) {
             val c = URL(BASE + path).openConnection() as HttpURLConnection
             try {
