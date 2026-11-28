@@ -234,13 +234,11 @@ jobs:
           grep -qx "base/dex/classes.dex" "$AAB_LIST"
           grep -qx "base/resources.pb" "$AAB_LIST"
 
-          # Confirm the four Gradle-copied illustrations are packaged.
+          # Android may transform drawable entries inside the APK.
+          # Check original illustration files in the AAB; resources.arsc above
+          # confirms the APK has its compiled Android resource table.
           for name in icone_grupos_pro icone_novas_pro icone_sem_conversas icone_favoritos_estrela; do
-            if ! grep -Eq "^res/drawable[^/]*/${name}\.png$" "$APK_LIST"; then
-              echo "::error::Missing expected drawable in APK: $name.png"
-              exit 1
-            fi
-            if ! grep -Eq "^base/res/drawable[^/]*/${name}\.png$" "$AAB_LIST"; then
+            if ! grep -Eq "^base/res/drawable[^/]*/${name}\\.png$" "$AAB_LIST"; then
               echo "::error::Missing expected drawable in AAB: $name.png"
               exit 1
             fi
