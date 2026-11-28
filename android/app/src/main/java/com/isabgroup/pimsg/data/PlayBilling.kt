@@ -8,7 +8,6 @@ import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
-import com.android.billingclient.api.SubscriptionProductReplacementParams
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
@@ -140,31 +139,21 @@ class PlayBilling(
             .setProductDetails(product)
             .setOfferToken(offer.offerToken)
 
-        val productParams = if (oldPurchase != null && oldProductId != null) {
-            val replacementMode =
-                if (tierRank(product.productId) > tierRank(oldProductId)) {
-                    SubscriptionProductReplacementParams.ReplacementMode.CHARGE_PRORATED_PRICE
-                } else {
-                    SubscriptionProductReplacementParams.ReplacementMode.DEFERRED
-                }
-            productParamsBuilder
-                .setSubscriptionProductReplacementParams(
-                    SubscriptionProductReplacementParams.newBuilder()
-                        .setOldProductId(oldProductId)
-                        .setReplacementMode(replacementMode)
-                        .build()
-                )
-                .build()
-        } else {
-            productParamsBuilder.build()
-        }
+        val productParams = productParamsBuilder.build()
 
         val flowBuilder = BillingFlowParams.newBuilder()
             .setProductDetailsParamsList(listOf(productParams))
         if (oldPurchase != null) {
+            val replacementMode =
+                if (tierRank(product.productId) > tierRank(oldProductId.orEmpty())) {
+                    BillingFlowParams.ReplacementMode.CHARGE_PRORATED_PRICE
+                } else {
+                    BillingFlowParams.ReplacementMode.DEFERRED
+                }
             flowBuilder.setSubscriptionUpdateParams(
                 BillingFlowParams.SubscriptionUpdateParams.newBuilder()
                     .setOldPurchaseToken(oldPurchase.purchaseToken)
+                    .setSubscriptionReplacementMode(replacementMode)
                     .build()
             )
         }
