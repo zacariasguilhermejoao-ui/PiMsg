@@ -1311,18 +1311,18 @@ fun LinksScreen(onBack: () -> Unit) {
 
 // ---------------------------------------------------------------- Planos
 @Composable
-private fun PlanHeading(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, accent: Color, badge: String? = null) {
+private fun PlanHeading(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, badge: String? = null) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(46.dp).background(accent.copy(alpha = 0.13f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = title, tint = accent, modifier = Modifier.size(24.dp))
+        Box(Modifier.size(46.dp).background(PiColors.SurfaceHigh, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = title, tint = PiColors.Gray, modifier = Modifier.size(24.dp))
         }
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 if (badge != null) {
                     Spacer(Modifier.width(8.dp))
-                    Text(badge, color = accent, fontSize = 9.sp, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.background(accent.copy(alpha = 0.12f), RoundedCornerShape(6.dp)).padding(horizontal = 7.dp, vertical = 4.dp))
+                    Text(badge, color = PiColors.Gray, fontSize = 9.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.background(PiColors.SurfaceHigh, RoundedCornerShape(6.dp)).padding(horizontal = 7.dp, vertical = 4.dp))
                 }
             }
             Text(subtitle, color = PiColors.TextSecondary, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 3.dp))
@@ -1456,14 +1456,14 @@ fun PlansScreen(onBack: () -> Unit) {
         Text("PLANOS DISPONÍVEIS", color = PiColors.Gray, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
-            PlanHeading("PiMsg Free", "Essencial para começares e manteres contacto.", Icons.Filled.Person, Color(0xFF8EAAFF))
+            PlanHeading("PiMsg Free", "Essencial para começares e manteres contacto.", Icons.Filled.DataUsage)
             listOf("Até 30 contactos", "30 mensagens por dia", "500 respostas de links personalizados por mês", "4 traduções por dia", "Conversas, grupos e partilha de ficheiros", "250 MB para ficheiros e multimédia", "Sem bots de IA pagos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             if (currentTier == "free") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
         }
 
         Spacer(Modifier.height(10.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
-            PlanHeading("PiMsg Plus", "Mais liberdade para conversar todos os dias.", Icons.Filled.Link, Color(0xFF65D6B2), "POPULAR")
+            PlanHeading("PiMsg Plus", "Mais liberdade para conversar todos os dias.", Icons.Filled.FolderOpen, "POPULAR")
             listOf("Mensagens sem limite diário", "Respostas ilimitadas através dos links personalizados", "Pi AI e Pi Reminder (até 20 lembretes activos)", "5 pedidos de IA por dia", "25 traduções por dia", "2 GB para ficheiros e multimédia", "Sem bots personalizados nem Pi Business").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
             if (currentTier != "plus") {
@@ -1475,7 +1475,7 @@ fun PlansScreen(onBack: () -> Unit) {
 
         Spacer(Modifier.height(10.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
-            PlanHeading("PiMsg Pro", "Para quem cria, produz e precisa de mais.", Icons.Filled.WorkspacePremium, Color(0xFFB89AFF))
+            PlanHeading("PiMsg Pro", "Para quem cria, produz e precisa de mais.", Icons.Filled.QrCode2)
             listOf("Mensagens e respostas de links sem limite mensal", "Todos os bots, excepto ferramentas exclusivas Business", "20 pedidos de IA por dia", "75 traduções por dia", "Até 5 bots personalizados", "Até 100 lembretes activos", "5 GB para ficheiros e multimédia", "Vídeo de apresentação no perfil").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
             if (currentTier != "pro") {
@@ -1488,7 +1488,7 @@ fun PlansScreen(onBack: () -> Unit) {
 
         Spacer(Modifier.height(10.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
-            PlanHeading("PiMsg Business", "Ferramentas para negócios e equipas.", Icons.Filled.SmartToy, Color(0xFFFFC36A))
+            PlanHeading("PiMsg Business", "Ferramentas para negócios e equipas.", Icons.Filled.DeleteSweep)
             listOf("Tudo do Pro", "Pi Business para preparar respostas comerciais", "50 pedidos de IA por dia", "150 traduções por dia", "Até 20 bots personalizados", "Até 500 lembretes activos", "20 GB para ficheiros e multimédia", "Ferramentas para organizar informações, produtos, preços e contactos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
             if (currentTier != "business") {
