@@ -247,6 +247,16 @@ export async function handleChat(request, env, me, path, method) {
     return json({ id: g.id });
   }
 
+  const scheduledItem = path.match(/^\\/v1\\/chats\\/([\\w-]+)\\/scheduled\\/([\\w-]+)$/);
+  if (scheduledItem && method === "DELETE") {
+    const convId = scheduledItem[1], itemId = scheduledItem[2];
+    if (!(await membership(env, convId, me.id))) return fail(404, "grupo nao encontrado");
+    const result = await env.DB.prepare("UPDATE scheduled_messages SET status = 'cancelled' WHERE id = ? AND conversation_id = ? AND sender_id = ? AND status = 'pending'")
+      .bind(itemId, convId, me.id).run();
+    if (!result.meta?.changes) return fail(409, "esta mensagem ja nao pode ser cancelada");
+    return json({ ok: true });
+  }
+
   const messageItem = path.match(/^\/v1\/chats\/([\w-]+)\/messages\/([\w-]+)$/);
   if (messageItem && method === "DELETE") {
     const convId = messageItem[1];
@@ -261,6 +271,28 @@ export async function handleChat(request, env, me, path, method) {
     await env.DB.prepare("UPDATE messages SET deleted_at = ? WHERE id = ? AND conversation_id = ?")
       .bind(now, messageId, convId).run();
     return json({ ok: true });
+  }
+
+  const scheduledCollection = path.match(/^\\/v1\\/chats\\/([\\w-]+)\\/scheduled$/);
+  if (scheduledCollection) {
+    const convId = scheduledCollection[1];
+    if (!(await membership(env, convId, me.id))) return fail(404, "grupo nao encontrado");
+    const conv = await env.DB.prepare("SELECT type FROM conversations WHERE id = ?").bind(convId).first();
+    if (conv?.type !== "group") return fail(400, "o agendamento esta disponivel apenas em grupos");
+    if (method === "GET") {
+      const rows = await env.DB.prepare("SELECT id, body, scheduled_at, status, created_at FROM scheduled_messages WHERE conversation_id = ? AND sender_id = ? AND status IN ('pending','sent','cancelled','failed') ORDER BY scheduled_at ASC LIMIT 100").bind(convId, me.id).all();
+      return json({ scheduled: rows.results || [] });
+    }
+    if (method === "POST") {
+      const b = await request.json().catch(() => ({}));
+      const body = typeof b.body === "string" ? b.body.trim().slice(0, 4000) : "";
+      const scheduledAt = Number(b.scheduled_at);
+      if (!body) return fail(400, "escreve uma mensagem antes de agendar");
+      if (!Number.isSafeInteger(scheduledAt) || scheduledAt < now + 60000 || scheduledAt > now + 365 * 86400000) return fail(400, "escolhe uma data pelo menos um minuto no futuro e até um ano");
+      const id = crypto.randomUUID();
+      await env.DB.prepare("INSERT INTO scheduled_messages (id, conversation_id, sender_id, body, scheduled_at, status, created_at) VALUES (?,?,?,?,?,'pending',?)").bind(id, convId, me.id, body, scheduledAt, now).run();
+      return json({ id, status: "pending", scheduled_at: scheduledAt }, 201);
+    }
   }
 
   const sub = path.match(/^\/v1\/chats\/([\w-]+)\/(messages|read|favorite|leave|disappearing|typing)$/);
@@ -464,5 +496,45 @@ async function notifyMessage(env, me, convId, kind, body) {
     );
   } catch (err) {
     console.error(JSON.stringify({ msg: "notificacao falhou", error: String(err) }));
+  }
+}
+
+
+export async function processScheduledMessages(env, now = Date.now()) {
+  const due = await env.DB.prepare("SELECT id, conversation_id, sender_id, body FROM scheduled_messages WHERE status = 'pending' AND scheduled_at <= ? ORDER BY scheduled_at ASC LIMIT 100").bind(now).all();
+  for (const item of due.results || []) {
+    try {
+      const claim = await env.DB.prepare("UPDATE scheduled_messages SET status = 'sending' WHERE id = ? AND status = 'pending'").bind(item.id).run();
+      if (!claim.meta?.changes) continue;
+      const member = await membership(env, item.conversation_id, item.sender_id);
+      const conv = await env.DB.prepare("SELECT type, disappearing_seconds FROM conversations WHERE id = ?").bind(item.conversation_id).first();
+      const sender = await env.DB.prepare("SELECT id, display_name, timezone FROM users WHERE id = ? AND status = 'active'").bind(item.sender_id).first();
+      if (!member || conv?.type !== "group") {
+        await env.DB.prepare("UPDATE scheduled_messages SET status = 'cancelled' WHERE id = ? AND status = 'sending'").bind(item.id).run();
+        continue;
+      }
+      if (!sender) {
+        await env.DB.prepare("UPDATE scheduled_messages SET status = 'failed' WHERE id = ? AND status = 'sending'").bind(item.id).run();
+        continue;
+      }
+      const plan = await planSend(env, sender, now);
+      if (!plan.ok) {
+        await env.DB.prepare("UPDATE scheduled_messages SET status = 'failed' WHERE id = ? AND status = 'sending'").bind(item.id).run();
+        continue;
+      }
+      const messageId = crypto.randomUUID();
+      await env.DB.batch([
+        env.DB.prepare("INSERT INTO messages (id, conversation_id, sender_id, kind, body, created_at, expires_at) VALUES (?,?,?,'text',?,?,?)")
+          .bind(messageId, item.conversation_id, item.sender_id, item.body, now, conv.disappearing_seconds > 0 ? now + conv.disappearing_seconds * 1000 : null),
+        env.DB.prepare("UPDATE conversations SET last_message_at = ? WHERE id = ?").bind(now, item.conversation_id),
+        env.DB.prepare("UPDATE conversation_members SET last_read_at = ? WHERE conversation_id = ? AND user_id = ?").bind(now, item.conversation_id, item.sender_id),
+        ...plan.stmts,
+        env.DB.prepare("UPDATE scheduled_messages SET status = 'sent', sent_at = ? WHERE id = ? AND status = 'sending'").bind(now, item.id),
+      ]);
+      await notifyMessage(env, sender, item.conversation_id, "text", item.body);
+    } catch (error) {
+      console.error("PiMsg scheduled message failed:", item.id, String(error));
+      await env.DB.prepare("UPDATE scheduled_messages SET status = 'failed' WHERE id = ? AND status = 'sending'").bind(item.id).run().catch(() => {});
+    }
   }
 }
