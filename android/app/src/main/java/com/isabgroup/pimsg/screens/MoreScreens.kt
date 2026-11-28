@@ -1470,6 +1470,7 @@ fun PlansScreen(onBack: () -> Unit) {
     var billingReady by remember { mutableStateOf(false) }
     var emailVerified by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var selectedPlan by remember { mutableStateOf<String?>(null) }
 
     suspend fun refreshPlan() {
         try {
@@ -1514,7 +1515,59 @@ fun PlansScreen(onBack: () -> Unit) {
         onDispose { billingManager?.close() }
     }
 
-    ScreenFrame("Subscrições", onBack) {
+    ScreenFrame(if (selectedPlan == null) "Subscrições" else "Detalhes do plano", {
+        if (selectedPlan != null) selectedPlan = null else onBack()
+    }) {
+        if (selectedPlan != null) {
+            val tier = selectedPlan!!
+            val planTitle = when (tier) {
+                "plus" -> "PiMsg Plus"
+                "pro" -> "PiMsg Pro"
+                "business" -> "PiMsg Business"
+                else -> "PiMsg Free"
+            }
+            val planSubtitle = when (tier) {
+                "plus" -> "Mais liberdade para conversar todos os dias."
+                "pro" -> "Para quem cria, produz e precisa de mais."
+                "business" -> "Ferramentas para negócios e equipas."
+                else -> "Essencial para começares e manteres contacto."
+            }
+            val planFeatures = when (tier) {
+                "plus" -> listOf("Mensagens sem limite diário", "Respostas ilimitadas através dos links personalizados", "Pi AI e Pi Reminder, até 20 lembretes activos", "5 pedidos de IA por dia", "25 traduções por dia", "2 GB para ficheiros e multimédia")
+                "pro" -> listOf("Mensagens e respostas de links sem limite mensal", "Todos os bots, excepto ferramentas exclusivas Business", "20 pedidos de IA por dia", "75 traduções por dia", "Até 5 bots personalizados e 100 lembretes activos", "5 GB para ficheiros e multimédia", "Vídeo de apresentação no perfil")
+                "business" -> listOf("Tudo o que está incluído no PiMsg Pro", "Pi Business para preparar respostas comerciais assistidas por IA", "50 pedidos de IA por dia", "150 traduções por dia", "Até 20 bots personalizados e 500 lembretes activos", "20 GB para ficheiros e multimédia", "Ferramentas para organizar informações, produtos, preços e contactos")
+                else -> listOf("Até 30 contactos", "30 mensagens por dia", "500 respostas de links personalizados por mês", "4 traduções por dia", "Conversas, grupos e partilha de ficheiros", "250 MB para ficheiros e multimédia")
+            }
+            Spacer(Modifier.height(18.dp))
+            Text(planTitle, color = PiColors.White, fontSize = 29.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Text(planSubtitle, color = PiColors.TextSecondary, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 30.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Text("Explorar todos os benefícios", color = PiColors.White, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 14.dp))
+            Column(Modifier.fillMaxWidth().background(PiColors.Surface, RoundedCornerShape(16.dp)).border(1.dp, PiColors.GrayDark, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).padding(horizontal = 15.dp, vertical = 8.dp)) {
+                planFeatures.forEachIndexed { index, feature ->
+                    PlanBenefit(feature)
+                    if (index < planFeatures.lastIndex) Box(Modifier.fillMaxWidth().padding(top = 10.dp).height(1.dp).background(PiColors.GrayDark))
+                }
+            }
+            Spacer(Modifier.height(22.dp))
+            when (tier) {
+                "plus" -> if (currentTier == "plus") Text("Este é o teu plano actual.", color = PiColors.TextSecondary, fontSize = 13.sp) else {
+                    SubscriptionProductButton("Mensal", products[PlayBilling.PLUS_MONTHLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
+                    SubscriptionProductButton("Anual", products[PlayBilling.PLUS_YEARLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
+                }
+                "pro" -> if (currentTier == "pro") Text("Este é o teu plano actual.", color = PiColors.TextSecondary, fontSize = 13.sp) else {
+                    SubscriptionProductButton("Semanal", products[PlayBilling.WEEKLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
+                    SubscriptionProductButton("Mensal", products[PlayBilling.MONTHLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
+                    SubscriptionProductButton("Anual", products[PlayBilling.PRO_YEARLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
+                }
+                "business" -> if (currentTier == "business") Text("Este é o teu plano actual.", color = PiColors.TextSecondary, fontSize = 13.sp) else {
+                    SubscriptionProductButton("Mensal", products[PlayBilling.BUSINESS_MONTHLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
+                    SubscriptionProductButton("Anual", products[PlayBilling.BUSINESS_YEARLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
+                }
+                else -> Text("Este é o plano gratuito do PiMsg.", color = PiColors.TextSecondary, fontSize = 13.sp)
+            }
+            purchaseMessage?.let { Text(it, color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp)) }
+            Text("A subscrição pode ser gerida ou cancelada nas definições da tua conta Google Play.", color = PiColors.Gray, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 16.dp, bottom = 20.dp))
+        } else {
         Text("Mais espaço, ferramentas e liberdade para comunicar. Escolhe o plano que combina contigo.", color = PiColors.TextSecondary, fontSize = 14.sp, lineHeight = 20.sp)
         Spacer(Modifier.height(14.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
@@ -1547,6 +1600,7 @@ fun PlansScreen(onBack: () -> Unit) {
             PlanHeading("PiMsg Free", "Essencial para começares e manteres contacto.", Icons.Filled.DataUsage)
             listOf("Até 30 contactos", "30 mensagens por dia", "500 respostas de links personalizados por mês", "4 traduções por dia", "Conversas, grupos e partilha de ficheiros", "250 MB para ficheiros e multimédia", "Sem bots de IA pagos").forEach { PlanBenefit(it) }
             if (currentTier == "free") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
+            PiButton("Ver todos os benefícios", { selectedPlan = "free" }, primary = false)
         }
 
         Spacer(Modifier.height(10.dp))
@@ -1559,6 +1613,7 @@ fun PlansScreen(onBack: () -> Unit) {
             SubscriptionProductButton("Anual", products[PlayBilling.PLUS_YEARLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
             }
             if (currentTier == "plus") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+            PiButton("Ver todos os benefícios", { selectedPlan = "plus" }, primary = false)
         }
 
         Spacer(Modifier.height(10.dp))
@@ -1572,6 +1627,7 @@ fun PlansScreen(onBack: () -> Unit) {
             SubscriptionProductButton("Anual", products[PlayBilling.PRO_YEARLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
             }
             if (currentTier == "pro") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+            PiButton("Ver todos os benefícios", { selectedPlan = "pro" }, primary = false)
         }
 
         Spacer(Modifier.height(10.dp))
@@ -1584,6 +1640,7 @@ fun PlansScreen(onBack: () -> Unit) {
             SubscriptionProductButton("Anual", products[PlayBilling.BUSINESS_YEARLY], billingReady, emailVerified, activity, onBuy = { billingManager?.buy(activity!!, it) }, onEmailRequired = { purchaseMessage = "Confirma o teu e-mail em Perfil > E-mail e verificação antes de aderir." })
             }
             if (currentTier == "business") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+            PiButton("Ver todos os benefícios", { selectedPlan = "business" }, primary = false)
         }
 
         purchaseMessage?.let { Text(it, color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp)) }
@@ -1591,5 +1648,6 @@ fun PlansScreen(onBack: () -> Unit) {
         PiButton("Gerir subscrição", { openUrl(context, "https://play.google.com/store/account/subscriptions") }, primary = false)
         error?.let { Text(it, color = PiColors.Danger, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp)) }
         if (loading) Text("A consultar a tua conta…", color = PiColors.TextSecondary, fontSize = 12.sp)
+        }
     }
 }
