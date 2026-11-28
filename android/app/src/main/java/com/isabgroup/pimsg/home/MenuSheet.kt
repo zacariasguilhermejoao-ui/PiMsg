@@ -153,7 +153,7 @@ fun MenuSheet(
                     Box(Modifier.fillMaxSize().background(PiColors.SurfaceHigh))
                 }
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.48f)))
-                IconButton(onClick = { view.playClick(); close { onPickCover() } }, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Color.Black.copy(alpha = 0.55f), CircleShape)) {
+                IconButton(onClick = { view.playClick(); onPickCover() }, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Color.Black.copy(alpha = 0.55f), CircleShape)) {
                     Icon(Icons.Filled.PhotoCamera, contentDescription = "Alterar capa", tint = PiColors.White)
                 }
                 Column(Modifier.align(Alignment.Center).clickable { view.playClick(); close { onItem("profile") } }.padding(top = 10.dp, bottom = 8.dp),
