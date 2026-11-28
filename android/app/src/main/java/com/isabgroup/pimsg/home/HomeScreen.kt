@@ -77,6 +77,7 @@ import com.isabgroup.pimsg.data.PiMsgMedia
 import com.isabgroup.pimsg.data.Push
 import com.isabgroup.pimsg.ui.ChatRowSkeleton
 import com.isabgroup.pimsg.ui.PiColors
+import com.isabgroup.pimsg.ui.VerifiedBadge
 import com.isabgroup.pimsg.ui.PiIcons
 import com.isabgroup.pimsg.ui.openUrl
 import com.isabgroup.pimsg.ui.playClick
@@ -175,6 +176,7 @@ fun HomeScreen(
     var profileTarget by remember { mutableStateOf<UserItem?>(null) }
     var publicProfile by remember { mutableStateOf<JSONObject?>(null) }
     var publicAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var publicCover by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var publicSocialIcons by remember { mutableStateOf<Map<String, android.graphics.Bitmap>>(emptyMap()) }
     var ownProfileName by remember { mutableStateOf("O meu perfil") }
     var ownPlan by remember { mutableStateOf("free") }
@@ -356,10 +358,11 @@ fun HomeScreen(
         }
     }
     LaunchedEffect(profileTarget?.id) {
-        val target = profileTarget ?: run { publicProfile = null; publicAvatar = null; return@LaunchedEffect }
+        val target = profileTarget ?: run { publicProfile = null; publicAvatar = null; publicCover = null; return@LaunchedEffect }
         profileLoading = true
         publicProfile = null
         publicAvatar = null
+        publicCover = null
         publicSocialIcons = emptyMap()
         val publicCache = context.getSharedPreferences("pimsg_public_profiles", android.content.Context.MODE_PRIVATE)
         runCatching {
@@ -368,6 +371,8 @@ fun HomeScreen(
                 publicProfile = cached
                 val key = cached.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
                 if (key != null) PiMsgMedia.findCached(context, key)?.let { publicAvatar = android.graphics.BitmapFactory.decodeFile(it.absolutePath) }
+                val coverKey = cached.optString("profile_cover_key").takeIf { it.isNotBlank() && it != "null" }
+                if (coverKey != null) PiMsgMedia.findCached(context, coverKey)?.let { publicCover = android.graphics.BitmapFactory.decodeFile(it.absolutePath) }
             }
         }
         if (!Api.hasInternet(context)) {
@@ -394,6 +399,12 @@ fun HomeScreen(
                 val downloaded = Api.download("/v1/media/$key")
                 val file = PiMsgMedia.store(context, key, downloaded.mime, "avatar", downloaded.bytes)
                 publicAvatar = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+            }
+            val coverKey = profile.optString("profile_cover_key").takeIf { it.isNotBlank() && it != "null" }
+            if (coverKey != null) runCatching {
+                val downloaded = Api.download("/v1/media/$coverKey")
+                val file = PiMsgMedia.store(context, coverKey, downloaded.mime, "profile-cover", downloaded.bytes)
+                publicCover = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
             }
         } catch (_: Exception) { }
         profileLoading = false
@@ -611,9 +622,15 @@ fun HomeScreen(
         AlertDialog(
             onDismissRequest = { profileTarget = null },
             containerColor = PiColors.Surface,
-            title = { Text(profile?.optString("name")?.takeIf { !it.isNullOrBlank() } ?: target.name, color = PiColors.White) },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(profile?.optString("name")?.takeIf { !it.isNullOrBlank() } ?: target.name, color = PiColors.White)
+                    if (profile?.optBoolean("verified_badge") == true) VerifiedBadge()
+                }
+            },
             text = {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (publicCover != null) Image(bitmap = publicCover!!.asImageBitmap(), contentDescription = "Fotografia de capa", modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)
                     if (publicAvatar != null) Image(bitmap = publicAvatar!!.asImageBitmap(), contentDescription = "Fotografia do perfil", modifier = Modifier.size(88.dp).clip(CircleShape), contentScale = ContentScale.Crop)
                     else Box(Modifier.size(88.dp).clip(CircleShape).background(PiColors.SurfaceHigh), contentAlignment = Alignment.Center) {
                         Icon(androidx.compose.material.icons.Icons.Filled.Person, contentDescription = "Avatar", tint = PiColors.Gray, modifier = Modifier.size(46.dp))
@@ -624,7 +641,6 @@ fun HomeScreen(
                         val bio = profile.optString("bio")
                         if (bio.isNotBlank() && bio != "null") Text(bio, color = PiColors.TextSecondary)
                         if (profile.optBoolean("professional_profile")) Text("Perfil profissional", color = Color(0xFF8AB4F8), fontSize = 12.sp)
-                        if (profile.optBoolean("verified_badge")) Text("✓ Perfil verificado", color = Color(0xFF8AB4F8), fontSize = 12.sp)
                         val links = profile.optJSONArray("social_links") ?: JSONArray()
                         (0 until links.length()).forEach { index ->
                             val item = links.optJSONObject(index) ?: return@forEach
