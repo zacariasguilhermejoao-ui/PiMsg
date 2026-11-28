@@ -1309,6 +1309,26 @@ fun LinksScreen(onBack: () -> Unit) {
 
 
 // ---------------------------------------------------------------- Planos
+@Composable
+private fun PlanHeading(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, accent: Color, badge: String? = null) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(46.dp).background(accent.copy(alpha = 0.13f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = title, tint = accent, modifier = Modifier.size(24.dp))
+        }
+        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, color = PiColors.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                if (badge != null) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(badge, color = accent, fontSize = 9.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.background(accent.copy(alpha = 0.12f), RoundedCornerShape(6.dp)).padding(horizontal = 7.dp, vertical = 4.dp))
+                }
+            }
+            Text(subtitle, color = PiColors.TextSecondary, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 3.dp))
+        }
+    }
+}
+
 private fun formatPiStorage(bytes: Long): String {
     val mb = bytes.coerceAtLeast(0L) / (1024.0 * 1024.0)
     return if (mb >= 1024.0) String.format(java.util.Locale.US, "%.1f GB", mb / 1024.0)
@@ -1406,7 +1426,7 @@ fun PlansScreen(onBack: () -> Unit) {
     }
 
     ScreenFrame("Subscrições", onBack) {
-        Text("Escolhe o plano que acompanha a tua utilização. Os limites são aplicados no servidor e os preços são apresentados pela Google Play.", color = PiColors.TextSecondary, fontSize = 13.sp, lineHeight = 19.sp)
+        Text("Mais espaço, ferramentas e liberdade para comunicar. Escolhe o plano que combina contigo.", color = PiColors.TextSecondary, fontSize = 14.sp, lineHeight = 20.sp)
         Spacer(Modifier.height(14.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
             Text("O TEU PLANO", color = PiColors.Gray, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
@@ -1421,7 +1441,7 @@ fun PlansScreen(onBack: () -> Unit) {
                 if (date != null) Text("Válido até $date · ${if (status == "active") "Activo" else if (status == "grace") "Período de tolerância" else status}", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 5.dp))
                 Text("Bots personalizados: até $customBotLimit · Pi Business: ${if (businessTools) "incluído" else "não incluído"}", color = PiColors.TextSecondary, fontSize = 12.sp)
             }
-            TextButton(onClick = { billingManager?.restorePurchases() }, modifier = Modifier.fillMaxWidth()) { Text("Restaurar compras", color = PiColors.White) }
+            TextButton(onClick = { billingManager?.restorePurchases() }, modifier = Modifier.fillMaxWidth()) { Text("Restaurar subscrição", color = PiColors.White) }
         }
 
         Spacer(Modifier.height(18.dp))
@@ -1435,16 +1455,14 @@ fun PlansScreen(onBack: () -> Unit) {
         Text("PLANOS DISPONÍVEIS", color = PiColors.Gray, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
-            Text("Free", color = Color(0xFF9BE7A5), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Text("Para começar e manter contacto.", color = PiColors.TextSecondary, fontSize = 12.sp)
+            PlanHeading("PiMsg Free", "Essencial para começares e manteres contacto.", Icons.Filled.Person, Color(0xFF8EAAFF))
             listOf("Até 30 contactos", "30 mensagens por dia", "500 respostas de links personalizados por mês", "4 traduções por dia", "Conversas, grupos e partilha de ficheiros", "250 MB para ficheiros e multimédia", "Sem bots de IA pagos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             if (currentTier == "free") Text("Plano actual", color = PiColors.White, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
         }
 
         Spacer(Modifier.height(10.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
-            Text("PiMsg Plus", color = Color(0xFF9BE7A5), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Text("Para quem conversa e trabalha diariamente.", color = PiColors.TextSecondary, fontSize = 12.sp)
+            PlanHeading("PiMsg Plus", "Mais liberdade para conversar todos os dias.", Icons.Filled.Link, Color(0xFF65D6B2), "POPULAR")
             listOf("Mensagens sem limite diário", "Respostas ilimitadas através dos links personalizados", "Pi AI e Pi Reminder (até 20 lembretes activos)", "5 pedidos de IA por dia", "25 traduções por dia", "2 GB para ficheiros e multimédia", "Sem bots personalizados nem Pi Business").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
             if (currentTier != "plus") {
@@ -1456,8 +1474,7 @@ fun PlansScreen(onBack: () -> Unit) {
 
         Spacer(Modifier.height(10.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
-            Text("PiMsg Pro", color = Color(0xFF9BE7A5), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Text("Para utilizadores avançados e criadores.", color = PiColors.TextSecondary, fontSize = 12.sp)
+            PlanHeading("PiMsg Pro", "Para quem cria, produz e precisa de mais.", Icons.Filled.WorkspacePremium, Color(0xFFB89AFF))
             listOf("Mensagens e respostas de links sem limite mensal", "Todos os bots, excepto ferramentas exclusivas Business", "20 pedidos de IA por dia", "75 traduções por dia", "Até 5 bots personalizados", "Até 100 lembretes activos", "5 GB para ficheiros e multimédia", "Vídeo de apresentação no perfil").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
             if (currentTier != "pro") {
@@ -1470,8 +1487,7 @@ fun PlansScreen(onBack: () -> Unit) {
 
         Spacer(Modifier.height(10.dp))
         Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(15.dp)) {
-            Text("PiMsg Business", color = Color(0xFF9BE7A5), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Text("Para lojas, marcas, profissionais e equipas que vendem.", color = PiColors.TextSecondary, fontSize = 12.sp)
+            PlanHeading("PiMsg Business", "Ferramentas para negócios e equipas.", Icons.Filled.SmartToy, Color(0xFFFFC36A))
             listOf("Tudo do Pro", "Pi Business para preparar respostas comerciais", "50 pedidos de IA por dia", "150 traduções por dia", "Até 20 bots personalizados", "Até 500 lembretes activos", "20 GB para ficheiros e multimédia", "Ferramentas para organizar informações, produtos, preços e contactos").forEach { Text("•  $it", color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp)) }
             Spacer(Modifier.height(10.dp))
             if (currentTier != "business") {
@@ -1482,8 +1498,8 @@ fun PlansScreen(onBack: () -> Unit) {
         }
 
         purchaseMessage?.let { Text(it, color = PiColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp)) }
-        Text("Podes gerir ou cancelar uma subscrição na Google Play a qualquer momento.", color = PiColors.Gray, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 12.dp, bottom = 20.dp))
-        PiButton("Gerir subscrições na Google Play", { openUrl(context, "https://play.google.com/store/account/subscriptions") }, primary = false)
+        Text("Podes consultar, alterar ou cancelar a tua subscrição a qualquer momento.", color = PiColors.Gray, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 12.dp, bottom = 12.dp))
+        PiButton("Gerir subscrição", { openUrl(context, "https://play.google.com/store/account/subscriptions") }, primary = false)
         error?.let { Text(it, color = PiColors.Danger, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp)) }
         if (loading) Text("A consultar a tua conta…", color = PiColors.TextSecondary, fontSize = 12.sp)
     }
