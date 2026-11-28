@@ -266,6 +266,7 @@ export async function handlePublic(request, env) {
     if (g) return groupPage(env, g[1]);
     const u = path.match(/^\/u\/([a-z0-9]{6,16})$/);
     if (u) return linkPage(env, u[1]);
+    return html("Página não encontrada", `<div style="min-height:55vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:24px 0"><div style="font-size:clamp(88px,22vw,140px);font-weight:800;line-height:1;letter-spacing:-8px;color:#fff">404</div><h1 style="margin-top:22px">Esta página não foi encontrada</h1><p>O endereço que procuras não existe ou pode ter sido movido.</p><a class="btn w" href="/">Voltar ao início</a></div>`, 404);
   }
   if (method === "POST") {
     const r = path.match(/^\/u\/([a-z0-9]{6,16})\/request$/);
