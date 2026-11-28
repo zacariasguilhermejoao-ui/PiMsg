@@ -1,6 +1,8 @@
 package com.isabgroup.pimsg.chat
 
 import android.Manifest
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -47,6 +49,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Stop
@@ -101,6 +104,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.Calendar
 
 data class ChatRef(val id: String, val title: String, val otherId: String?, val inviteCode: String?)
 private data class ForwardTarget(val id: String, val title: String)
@@ -137,6 +141,12 @@ fun ChatScreen(
     }
     var attachOpen by remember { mutableStateOf(false) }
     var optionsOpen by remember { mutableStateOf(false) }
+    var scheduleDialogOpen by remember { mutableStateOf(false) }
+    var scheduledListOpen by remember { mutableStateOf(false) }
+    var scheduledItems by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var scheduling by remember { mutableStateOf(false) }
+    var scheduledError by remember { mutableStateOf<String?>(null) }
+    var scheduledAt by remember { mutableStateOf(System.currentTimeMillis() + 3600000L) }
     var reportOpen by remember { mutableStateOf(false) }
     var disappearingOpen by remember { mutableStateOf(false) }
     var disappearingSeconds by remember { mutableStateOf(0) }
@@ -424,6 +434,16 @@ fun ChatScreen(
                     if (recording) "Parar e enviar áudio" else "Gravar mensagem de voz",
                     tint = if (recording) PiColors.Danger else PiColors.White)
             }
+            if (isGroup) {
+                IconButton(onClick = {
+                    view.playClick()
+                    scheduledAt = System.currentTimeMillis() + 3600000L
+                    scheduleDialogOpen = true
+                    scheduledError = null
+                }, enabled = text.isNotBlank() && !state.busy) {
+                    Icon(Icons.Filled.Schedule, "Agendar mensagem", tint = if (text.isNotBlank()) PiColors.White else PiColors.Gray)
+                }
+            }
             Spacer(Modifier.size(8.dp))
             Box(
                 Modifier.size(46.dp).clip(CircleShape).background(PiColors.White)
@@ -436,6 +456,93 @@ fun ChatScreen(
                 contentAlignment = Alignment.Center,
             ) { Icon(PiIcons.Send, "Enviar", tint = Color.Black) }
         }
+    }
+
+    if (scheduleDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { if (!scheduling) scheduleDialogOpen = false },
+            containerColor = PiColors.Surface,
+            title = { Text("Agendar mensagem", color = PiColors.White) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("A mensagem será enviada automaticamente para este grupo na data e hora escolhidas.", color = PiColors.TextSecondary, fontSize = 13.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = {
+                            val cal = Calendar.getInstance().apply { timeInMillis = scheduledAt }
+                            DatePickerDialog(context, { _, y, m, d ->
+                                scheduledAt = Calendar.getInstance().apply {
+                                    timeInMillis = scheduledAt
+                                    set(Calendar.YEAR, y); set(Calendar.MONTH, m); set(Calendar.DAY_OF_MONTH, d)
+                                }.timeInMillis
+                            }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+                        }) { Text(SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(scheduledAt)), color = PiColors.White) }
+                        TextButton(onClick = {
+                            val cal = Calendar.getInstance().apply { timeInMillis = scheduledAt }
+                            TimePickerDialog(context, { _, h, min ->
+                                scheduledAt = Calendar.getInstance().apply {
+                                    timeInMillis = scheduledAt
+                                    set(Calendar.HOUR_OF_DAY, h); set(Calendar.MINUTE, min); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                                }.timeInMillis
+                            }, cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), true).show()
+                        }) { Text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(scheduledAt)), color = PiColors.White) }
+                    }
+                    scheduledError?.let { Text(it, color = PiColors.Danger, fontSize = 12.sp) }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = !scheduling, onClick = {
+                    scheduling = true
+                    scope.launch {
+                        try {
+                            Api.post("/v1/chats/$convId/scheduled", JSONObject().put("body", text.trim()).put("scheduled_at", scheduledAt))
+                            text = ""
+                            onShareConsumed()
+                            scheduleDialogOpen = false
+                            info = "Mensagem agendada com sucesso."
+                        } catch (e: Exception) {
+                            scheduledError = e.message ?: "Não foi possível agendar a mensagem."
+                        } finally { scheduling = false }
+                    }
+                }) { Text(if (scheduling) "A agendar..." else "Agendar", color = PiColors.White) }
+            },
+            dismissButton = { TextButton(enabled = !scheduling, onClick = { scheduleDialogOpen = false }) { Text("Cancelar", color = PiColors.TextSecondary) } },
+        )
+    }
+    if (scheduledListOpen) {
+        LaunchedEffect(scheduledListOpen) {
+            if (scheduledListOpen) runCatching {
+                val response = Api.get("/v1/chats/$convId/scheduled")
+                val rows = response.getJSONArray("scheduled")
+                scheduledItems = (0 until rows.length()).map { rows.getJSONObject(it) }
+            }.onFailure { scheduledError = it.message ?: "Não foi possível carregar os agendamentos." }
+        }
+        AlertDialog(
+            onDismissRequest = { scheduledListOpen = false },
+            containerColor = PiColors.Surface,
+            title = { Text("Mensagens agendadas", color = PiColors.White) },
+            text = {
+                Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    val pending = scheduledItems.filter { it.optString("status") == "pending" }
+                    if (pending.isEmpty()) Text("Ainda não tens mensagens agendadas neste grupo.", color = PiColors.TextSecondary)
+                    pending.forEach { item ->
+                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(PiColors.SurfaceHigh).padding(12.dp)) {
+                            Text(item.optString("body"), color = PiColors.White, fontSize = 14.sp)
+                            Text(SimpleDateFormat("dd/MM/yyyy 'às' HH:mm", Locale.getDefault()).format(Date(item.optLong("scheduled_at"))), color = PiColors.TextSecondary, fontSize = 12.sp)
+                            TextButton(onClick = {
+                                scope.launch {
+                                    runCatching {
+                                        Api.delete("/v1/chats/$convId/scheduled/${item.optString("id")}")
+                                        scheduledItems = scheduledItems.filterNot { it.optString("id") == item.optString("id") }
+                                    }.onFailure { scheduledError = it.message ?: "Não foi possível cancelar." }
+                                }
+                            }) { Text("Cancelar agendamento", color = PiColors.Danger) }
+                        }
+                    }
+                    scheduledError?.let { Text(it, color = PiColors.Danger, fontSize = 12.sp) }
+                }
+            },
+            confirmButton = { TextButton(onClick = { scheduledListOpen = false }) { Text("Fechar", color = PiColors.White) } },
+        )
     }
 
     if (peerProfileOpen) {
@@ -492,6 +599,11 @@ fun ChatScreen(
                         disappearingOpen = true
                     }
                     if (isGroup) {
+                        OptionRow("Mensagens agendadas") {
+                            optionsOpen = false
+                            scheduledError = null
+                            scheduledListOpen = true
+                        }
                         OptionRow("Convidar para o grupo") {
                             optionsOpen = false
                             val link = "https://pimsg.tchilopop.com/g/${ref.inviteCode}"
