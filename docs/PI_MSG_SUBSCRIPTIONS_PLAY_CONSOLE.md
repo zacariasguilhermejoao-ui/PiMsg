@@ -61,4 +61,4 @@ Annual prices equal ten monthly payments (about two months discounted). Keep the
 4. Confirm the Worker is bound to the secret and that the package name is `com.pimsg.isabstudio`.
 5. Test a purchase, restore, cancellation, expiry and account-switch scenario with Play license testers.
 
-The Worker currently has no `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` secret binding. Therefore the catalogue can be displayed, but purchase verification will remain disabled until step 3 is completed. Never place the service-account JSON in GitHub or Android source code.
+The Worker must have a Cloudflare secret binding named `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`. The `/v1/plan` response exposes `billing_ready` based on the presence of that binding; this confirms only that a secret exists, not that its JSON is valid or has Google Play Developer API access. Validate it with a real license-tester purchase before launch. Never place the service-account JSON in GitHub or Android source code.
