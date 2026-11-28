@@ -591,7 +591,7 @@ fun HomeScreen(
             profileAvatar = ownProfileAvatar,
             profileCover = ownProfileCover,
             profilePlan = ownPlan,
-            onPickCover = { menuOpen = false; pickProfileCover.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            onPickCover = { pickProfileCover.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onDismiss = { menuOpen = false },
             onItem = { key ->
                 when (key) {
