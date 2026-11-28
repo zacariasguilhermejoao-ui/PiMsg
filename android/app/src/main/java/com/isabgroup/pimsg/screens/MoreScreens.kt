@@ -771,24 +771,41 @@ fun ToolsScreen(
 
 // ---------------------------------------------------------------- PiMsg Business
 @Composable
-fun PiMsgBusinessScreen(
-    onBack: () -> Unit,
-    onPlans: () -> Unit,
-    onLinks: () -> Unit,
-    onBots: () -> Unit,
-) {
+private fun BusinessFeature(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, description: String) {
+    Row(Modifier.fillMaxWidth().background(PiColors.Surface, RoundedCornerShape(14.dp)).padding(14.dp), verticalAlignment = Alignment.Top) {
+        Box(Modifier.size(42.dp).background(PiColors.SurfaceHigh, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = title, tint = PiColors.Gray, modifier = Modifier.size(21.dp))
+        }
+        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+            Text(title, color = PiColors.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text(description, color = PiColors.TextSecondary, fontSize = 12.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 4.dp))
+        }
+    }
+}
+
+@Composable
+fun PiMsgBusinessScreen(onBack: () -> Unit, onPlans: () -> Unit, onLinks: () -> Unit, onBots: () -> Unit) {
     ScreenFrame("PiMsg Business", onBack) {
         Text("Transforma as tuas conversas em oportunidades de venda.", color = PiColors.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, lineHeight = 26.sp)
         Text("O PiMsg ajuda profissionais, lojas e pequenas empresas a apresentar produtos, conversar com clientes e atender pessoas dentro e fora de Angola.", color = PiColors.TextSecondary, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 8.dp))
         Section("VENDE E DIVULGA")
-        Text("• Cria links personalizados para cada produto, serviço ou campanha e partilha-os com clientes nas redes sociais e noutras aplicações.\n\n• Mantém o teu perfil profissional com descrição, contactos públicos, ligações sociais e vídeo de apresentação.\n\n• Centraliza as conversas com os clientes no PiMsg e acompanha os pedidos directamente.", color = PiColors.TextSecondary, fontSize = 13.sp, lineHeight = 20.sp)
-        Section("CHEGA A CLIENTES NO EXTERIOR")
-        Text("A tradução de mensagens ajuda-te a conversar com clientes que falam outros idiomas. O plano Free inclui 4 traduções por dia; os planos pagos oferecem limites superiores.", color = PiColors.TextSecondary, fontSize = 13.sp, lineHeight = 20.sp)
-        Section("POUPA TEMPO NO ATENDIMENTO")
-        Text("• Pi Business: guarda a descrição do negócio, horário, contactos, produtos, preços e perguntas frequentes para gerar respostas comerciais assistidas por IA.\n\n• Pi Reminder: organiza tarefas e acompanha compromissos.\n\n• Pi Bots: cria assistentes personalizados para tarefas específicas.", color = PiColors.TextSecondary, fontSize = 13.sp, lineHeight = 20.sp)
-        Column(Modifier.fillMaxWidth().background(PiColors.Surface, androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).padding(13.dp)) {
-            Text("Importante", color = PiColors.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            Text("O Pi Business actualmente prepara respostas com base nas informações que configurares e permite testá-las dentro da aplicação. A resposta ainda precisa de ser enviada por ti; não prometemos atendimento automático fora do PiMsg.", color = PiColors.TextSecondary, fontSize = 12.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 5.dp))
+        BusinessFeature(Icons.Filled.Link, "Links personalizados", "Cria links para produtos, serviços ou campanhas e partilha-os nas redes sociais e noutras aplicações.")
+        Spacer(Modifier.height(8.dp))
+        BusinessFeature(Icons.Filled.Person, "Perfil profissional", "Apresenta a descrição, contactos públicos, ligações sociais e vídeo de apresentação no teu perfil.")
+        Spacer(Modifier.height(8.dp))
+        BusinessFeature(Icons.Filled.QrCode2, "Conversas com clientes", "Centraliza as conversas com os clientes no PiMsg e acompanha os pedidos directamente.")
+        Section("COMUNICA SEM FRONTEIRAS")
+        BusinessFeature(Icons.Filled.DataUsage, "Tradução de mensagens", "Ajuda-te a conversar com clientes que falam outros idiomas. O plano Free inclui 4 traduções por dia; os planos pagos oferecem limites superiores.")
+        Section("ORGANIZA O ATENDIMENTO")
+        BusinessFeature(Icons.Filled.WorkspacePremium, "Pi Business", "Guarda a descrição do negócio, horário, contactos, produtos, preços e perguntas frequentes para preparar respostas comerciais assistidas por IA.")
+        Spacer(Modifier.height(8.dp))
+        BusinessFeature(Icons.Filled.FolderOpen, "Pi Reminder", "Organiza tarefas e acompanha compromissos.")
+        Spacer(Modifier.height(8.dp))
+        BusinessFeature(Icons.Filled.SmartToy, "Pi Bots", "Cria assistentes personalizados para tarefas específicas.")
+        Spacer(Modifier.height(12.dp))
+        Column(Modifier.fillMaxWidth().background(PiColors.Surface, RoundedCornerShape(14.dp)).padding(13.dp)) {
+            Text("Nota sobre o Pi Business", color = PiColors.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text("O Pi Business actualmente prepara respostas com base nas informações que configurares e permite testá-las dentro da aplicação. A resposta ainda precisa de ser enviada por ti; não existe promessa de atendimento automático fora do PiMsg.", color = PiColors.TextSecondary, fontSize = 12.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 5.dp))
         }
         Spacer(Modifier.height(14.dp))
         PiButton("Conhecer os planos Business", onPlans, primary = true)
