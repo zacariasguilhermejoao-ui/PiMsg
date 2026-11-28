@@ -56,6 +56,7 @@ import com.isabgroup.pimsg.data.Api
 import com.isabgroup.pimsg.data.ApiException
 import org.json.JSONObject
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.EmailAuthProvider
 import com.isabgroup.pimsg.R
 import com.isabgroup.pimsg.ui.PiColors
 import kotlinx.coroutines.launch
@@ -97,6 +98,9 @@ fun AuthScreen(onSignedIn: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var mfaResolver by remember { mutableStateOf<MultiFactorResolver?>(null) }
     var mfaCode by remember { mutableStateOf("") }
+    var showEmailLogin by remember { mutableStateOf(false) }
+    var loginEmail by remember { mutableStateOf("") }
+    var loginPassword by remember { mutableStateOf("") }
 
     suspend fun signIn(credential: AuthCredential) {
         try {
@@ -172,6 +176,32 @@ fun AuthScreen(onSignedIn: () -> Unit) {
                     is IllegalStateException -> detail ?: "Configuração do Google incompleta no Firebase."
                     else -> "Falha no Google (" + e.javaClass.simpleName + "): " + (detail ?: "sem detalhes do erro")
                 }
+            } finally {
+                busy = false
+            }
+        }
+    }
+
+    fun signInWithEmail() {
+        val address = loginEmail.trim()
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(address).matches() || loginPassword.isBlank()) {
+            error = "Introduza o e-mail e a palavra-passe."
+            return
+        }
+        scope.launch {
+            busy = true
+            error = null
+            try {
+                auth.signInWithEmailAndPassword(address, loginPassword).await()
+                if (auth.currentUser?.isEmailVerified != true) {
+                    auth.signOut()
+                    throw IllegalStateException("Este e-mail ainda não foi confirmado. Confirme-o antes de entrar.")
+                }
+                Api.post("/v1/legal/accept", JSONObject().put("terms_version", "1.3").put("privacy_version", "1.3"))
+                onSignedIn()
+            } catch (e: Exception) {
+                error = e.message?.takeIf { it.contains("confirmado") }
+                    ?: "Não foi possível entrar com este e-mail e palavra-passe. Verifique os dados."
             } finally {
                 busy = false
             }
@@ -277,6 +307,41 @@ fun AuthScreen(onSignedIn: () -> Unit) {
             modifier = Modifier.fillMaxWidth().height(52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = PiColors.SurfaceHigh, contentColor = PiColors.White),
         ) { Text("Criar conta com número", fontSize = 16.sp) }
+
+        TextButton(onClick = { showEmailLogin = !showEmailLogin; error = null }) {
+            Text(if (showEmailLogin) "Ocultar início de sessão por e-mail" else "Já tens uma conta? Entrar com e-mail", color = PiColors.White)
+        }
+        if (showEmailLogin) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                shape = RoundedCornerShape(22.dp),
+                value = loginEmail,
+                onValueChange = { loginEmail = it.take(180) },
+                singleLine = true,
+                placeholder = { Text("E-mail", color = PiColors.Gray) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                modifier = Modifier.fillMaxWidth(),
+                colors = fieldColors,
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                shape = RoundedCornerShape(22.dp),
+                value = loginPassword,
+                onValueChange = { loginPassword = it },
+                singleLine = true,
+                placeholder = { Text("Palavra-passe", color = PiColors.Gray) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                modifier = Modifier.fillMaxWidth(),
+                colors = fieldColors,
+            )
+            Spacer(Modifier.height(10.dp))
+            Button(
+                onClick = ::signInWithEmail,
+                enabled = !busy && loginEmail.isNotBlank() && loginPassword.isNotBlank(),
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = PiColors.SurfaceHigh, contentColor = PiColors.White),
+            ) { Text("Entrar com e-mail", fontSize = 16.sp) }
+        }
 
         if (mfaResolver != null) {
             Spacer(Modifier.height(18.dp))
