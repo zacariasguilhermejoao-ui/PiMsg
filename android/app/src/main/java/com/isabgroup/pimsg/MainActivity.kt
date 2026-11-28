@@ -216,6 +216,23 @@ private sealed interface Screen {
 private fun AppRoot(activity: MainActivity) {
     var signedIn by remember { mutableStateOf(FirebaseAuth.getInstance().currentUser != null) }
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
+    var backStack by remember { mutableStateOf<List<Screen>>(emptyList()) }
+
+    fun navigateTo(destination: Screen) {
+        if (destination != screen) {
+            backStack = backStack + screen
+            screen = destination
+        }
+    }
+
+    fun goBack() {
+        if (backStack.isNotEmpty()) {
+            screen = backStack.last()
+            backStack = backStack.dropLast(1)
+        } else {
+            screen = Screen.Home
+        }
+    }
     var splash by remember { mutableStateOf(true) }
     var invalidClock by remember { mutableStateOf(false) }
     var checkingClock by remember { mutableStateOf(false) }
@@ -250,7 +267,7 @@ private fun AppRoot(activity: MainActivity) {
         if (!splash) verifyClock()
     }
     LaunchedEffect(activity.pendingPiLink, signedIn) {
-        if (activity.pendingPiLink != null && signedIn) screen = Screen.Home
+        if (activity.pendingPiLink != null && signedIn) { screen = Screen.Home; backStack = emptyList() }
     }
 
     fun signOut() {
@@ -262,6 +279,7 @@ private fun AppRoot(activity: MainActivity) {
         activity.getSharedPreferences("pimsg_public_profiles", android.content.Context.MODE_PRIVATE).edit().clear().apply()
         signedIn = false
         screen = Screen.Home
+        backStack = emptyList()
         activity.clearShare()
     }
 
@@ -276,23 +294,23 @@ private fun AppRoot(activity: MainActivity) {
             )
             !signedIn -> AuthScreen(onSignedIn = { signedIn = true })
             else -> {
-                BackHandler(enabled = screen != Screen.Home) { screen = Screen.Home }
+                BackHandler(enabled = screen != Screen.Home || backStack.isNotEmpty()) { goBack() }
                 when (val s = screen) {
                     is Screen.Home -> HomeScreen(
                         onSignOut = ::signOut,
-                        onOpenChat = { screen = Screen.Chat(it) },
-                        onOpenStories = { screen = Screen.Stories(it) },
+                        onOpenChat = { navigateTo(Screen.Chat(it)) },
+                        onOpenStories = { navigateTo(Screen.Stories(it)) },
                         onNavigate = { key ->
                             when (key) {
-                                "profile" -> screen = Screen.Profile
-                                "qr" -> screen = Screen.QR
-                                "settings" -> screen = Screen.Settings
-                                "links" -> screen = Screen.Links
-                                "bot" -> screen = Screen.PiBot
-                                "plans" -> screen = Screen.Plans
-                                "business" -> screen = Screen.Business
-                                "tools" -> screen = Screen.Tools
-                                "accessibility" -> screen = Screen.Accessibility
+                                "profile" -> navigateTo(Screen.Profile)
+                                "qr" -> navigateTo(Screen.QR)
+                                "settings" -> navigateTo(Screen.Settings)
+                                "links" -> navigateTo(Screen.Links)
+                                "bot" -> navigateTo(Screen.PiBot)
+                                "plans" -> navigateTo(Screen.Plans)
+                                "business" -> navigateTo(Screen.Business)
+                                "tools" -> navigateTo(Screen.Tools)
+                                "accessibility" -> navigateTo(Screen.Accessibility)
                             }
                         },
                         initialContactCode = activity.pendingPiLink?.takeIf { it.type == "contact_code" }?.value,
@@ -303,44 +321,44 @@ private fun AppRoot(activity: MainActivity) {
                     is Screen.Chat -> ChatScreen(
                         ref = s.ref,
                         onBack = {
-                            screen = Screen.Home
+                            goBack()
                             activity.clearShare()
                         },
                         pendingShare = activity.pendingShare,
                         onShareConsumed = { activity.clearShare() },
-                        onOpenBots = { screen = Screen.PiBot },
+                        onOpenBots = { navigateTo(Screen.PiBot) },
                     )
                     is Screen.Profile -> ProfileScreen(
-                        onBack = { screen = Screen.Home },
-                        onOpenChat = { screen = Screen.Chat(it) },
+                        onBack = { goBack() },
+                        onOpenChat = { navigateTo(Screen.Chat(it)) },
                     )
                     is Screen.QR -> QrScreen(
-                        onBack = { screen = Screen.Home },
-                        onOpenChat = { screen = Screen.Chat(it) },
+                        onBack = { goBack() },
+                        onOpenChat = { navigateTo(Screen.Chat(it)) },
                     )
-                    is Screen.Settings -> SettingsScreen(onBack = { screen = Screen.Home }, onSignOut = ::signOut, onSecurity = { screen = Screen.Security })
-                    is Screen.Security -> SecurityScreen(onBack = { screen = Screen.Settings })
-                    is Screen.Links -> LinksScreen(onBack = { screen = Screen.Home })
-                    is Screen.PiBot -> PiBotScreen(onBack = { screen = Screen.Home }, onPlans = { screen = Screen.Plans })
-                    is Screen.Plans -> PlansScreen(onBack = { screen = Screen.Home })
+                    is Screen.Settings -> SettingsScreen(onBack = { goBack() }, onSignOut = ::signOut, onSecurity = { navigateTo(Screen.Security) })
+                    is Screen.Security -> SecurityScreen(onBack = { navigateTo(Screen.Settings) })
+                    is Screen.Links -> LinksScreen(onBack = { goBack() })
+                    is Screen.PiBot -> PiBotScreen(onBack = { goBack() }, onPlans = { navigateTo(Screen.Plans) })
+                    is Screen.Plans -> PlansScreen(onBack = { goBack() })
                     is Screen.Business -> PiMsgBusinessScreen(
-                        onBack = { screen = Screen.Home },
-                        onPlans = { screen = Screen.Plans },
-                        onLinks = { screen = Screen.Links },
-                        onBots = { screen = Screen.PiBot },
+                        onBack = { goBack() },
+                        onPlans = { navigateTo(Screen.Plans) },
+                        onLinks = { navigateTo(Screen.Links) },
+                        onBots = { navigateTo(Screen.PiBot) },
                     )
                     is Screen.Tools -> ToolsScreen(
-                        onBack = { screen = Screen.Home },
-                        onQr = { screen = Screen.QR },
-                        onPiBot = { screen = Screen.PiBot },
-                        onLinks = { screen = Screen.Links },
-                        onPlans = { screen = Screen.Plans },
+                        onBack = { goBack() },
+                        onQr = { navigateTo(Screen.QR) },
+                        onPiBot = { navigateTo(Screen.PiBot) },
+                        onLinks = { navigateTo(Screen.Links) },
+                        onPlans = { navigateTo(Screen.Plans) },
                     )
                     is Screen.Accessibility -> AccessibilityScreen(
-                        onBack = { screen = Screen.Home },
+                        onBack = { goBack() },
                         onLargeTextChanged = { largeText = it },
                     )
-                    is Screen.Stories -> StoryViewer(stories = s.items, onClose = { screen = Screen.Home })
+                    is Screen.Stories -> StoryViewer(stories = s.items, onClose = { goBack() })
                 }
             }
         }
