@@ -55,25 +55,25 @@ import com.isabgroup.pimsg.ui.playClick
 import androidx.compose.ui.platform.LocalView
 import kotlinx.coroutines.launch
 
-private data class MenuEntry(val key: String, val label: String)
+private data class MenuEntry(val key: String, val label: String, val description: String? = null)
 
 private val account = listOf(
-    MenuEntry("qr", "Código QR"),
-    MenuEntry("links", "Meus links"),
-    MenuEntry("plans", "Planos PiMsg"),
+    MenuEntry("qr", "Código QR", "Partilhe o seu perfil de forma simples e rápida."),
+    MenuEntry("links", "Meus links", "Crie links e acompanhe as respostas recebidas."),
+    MenuEntry("plans", "Planos PiMsg", "Conheça os benefícios e escolha o plano ideal para si."),
 )
 private val business = listOf(
-    MenuEntry("business", "PiMsg Business"),
+    MenuEntry("business", "PiMsg Business", "Organize a comunicação e as ferramentas do seu negócio."),
 )
 private val create = listOf(
     MenuEntry("newstory", "Criar story"),
     MenuEntry("newgroup", "Criar grupo"),
 )
 private val app = listOf(
-    MenuEntry("tools", "Ferramentas"),
-    MenuEntry("accessibility", "Acessibilidade"),
-    MenuEntry("bot", "PiBot"),
-    MenuEntry("settings", "Definições"),
+    MenuEntry("tools", "Ferramentas", "Aceda a recursos úteis para o seu dia a dia."),
+    MenuEntry("accessibility", "Acessibilidade", "Adapte a aplicação às suas necessidades."),
+    MenuEntry("bot", "PiBot", "Obtenha ajuda e respostas com o assistente do PiMsg."),
+    MenuEntry("settings", "Definições", "Gira a sua conta, privacidade e preferências."),
 )
 
 // O menu principal mostra o perfil no topo. Termos e políticas ficam dentro de Definições.
@@ -121,7 +121,21 @@ fun MenuSheet(
                 "accessibility" -> Icon(Icons.Filled.AccessibilityNew, contentDescription = "Acessibilidade", tint = PiColors.White, modifier = Modifier.size(24.dp))
                 else -> Spacer(Modifier.size(24.dp))
             }
-            Text(entry.label, color = PiColors.White, fontSize = 16.sp)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(entry.label, color = PiColors.White, fontSize = 16.sp)
+                entry.description?.let { description ->
+                    Text(
+                        description,
+                        color = PiColors.TextSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+            }
         }
     }
     ModalBottomSheet(
