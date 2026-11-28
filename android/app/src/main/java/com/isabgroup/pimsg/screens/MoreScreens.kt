@@ -136,7 +136,6 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var loading by remember { mutableStateOf(true) }
-    var productsLoading by remember { mutableStateOf(true) }
     var saving by remember { mutableStateOf(false) }
     var mediaUploading by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
@@ -1687,6 +1686,7 @@ fun PlansScreen(onBack: () -> Unit) {
     var products by remember { mutableStateOf<Map<String, ProductDetails>>(emptyMap()) }
     var purchaseMessage by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
+    var productsLoading by remember { mutableStateOf(true) }
     var currentTier by remember { mutableStateOf("free") }
     var billingReady by remember { mutableStateOf(false) }
     var emailVerified by remember { mutableStateOf(false) }
