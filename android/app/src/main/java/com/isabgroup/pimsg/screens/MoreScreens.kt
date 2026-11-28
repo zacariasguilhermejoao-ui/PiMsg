@@ -380,12 +380,14 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
             Image(
                 bitmap = profileCoverBitmap!!.asImageBitmap(),
                 contentDescription = "Fotografia de capa",
-                modifier = Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(14.dp)),
+                modifier = Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(14.dp))
+                    .clickable { coverPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop,
             )
         } else {
             Box(
-                Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(14.dp)).background(PiColors.SurfaceHigh),
+                Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(14.dp)).background(PiColors.SurfaceHigh)
+                    .clickable { coverPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                 contentAlignment = Alignment.Center,
             ) { Text("Ainda não adicionaste uma fotografia de capa.", color = PiColors.TextSecondary, fontSize = 13.sp) }
         }
