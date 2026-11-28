@@ -31,17 +31,17 @@ For each new product: create a subscription, add one auto-renewing base plan wit
 
 Existing Pro weekly/monthly purchases remain Pro entitlements.
 
-## Suggested launch prices for Angola (set manually in Play Console)
+## International launch prices (USD reference; configure by country in Play Console)
 
-These are starting prices to test, not values hard-coded in the app:
+These are the PiMsg reference prices in US dollars. Configure each base plan with these USD reference amounts, then use Google Play's country-specific pricing and currency conversion so customers see the localized price and currency available in their Play Store. Review regional prices before launch; do not hard-code USD prices in the Android app.
 
 | Tier | Weekly | Monthly | Annual |
 |---|---:|---:|---:|
-| Plus | — | 1,500 Kz | 15,000 Kz |
-| Pro | 1,000 Kz | 3,500 Kz | 35,000 Kz |
-| Business | — | 7,500 Kz | 75,000 Kz |
+| Plus | — | $2.99 | $29.99 |
+| Pro | $1.99 | $6.99 | $69.99 |
+| Business | — | $14.99 | $149.99 |
 
-Annual prices equal ten monthly payments (about two months discounted). Keep the Pro weekly product as a higher-cost short-term option. Review actual AI and storage usage after the first 30 days before changing prices.
+Annual prices are discounted compared with twelve monthly payments. Keep the Pro weekly product as a higher-cost short-term option. These are reference prices, not a guarantee that every country will display the exact USD amount; Google Play may display local currency and country-specific prices.
 
 ## Cost protection
 
