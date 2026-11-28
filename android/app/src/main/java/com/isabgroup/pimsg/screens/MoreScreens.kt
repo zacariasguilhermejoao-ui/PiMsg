@@ -113,6 +113,7 @@ import android.util.Base64
 import java.io.ByteArrayOutputStream
 import org.json.JSONObject
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.EmailAuthProvider
 import kotlinx.coroutines.tasks.await
 
 private const val SITE = "https://pimsg.tchilopop.com"
@@ -148,6 +149,7 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
     var avatarCropSource by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var email by remember { mutableStateOf("") }
     var emailVerified by remember { mutableStateOf(false) }
+    var emailPassword by remember { mutableStateOf("") }
     var introVideoKey by remember { mutableStateOf<String?>(null) }
     var socialLinks by remember { mutableStateOf<List<SocialLinkUi>>(emptyList()) }
     var addSocialOpen by remember { mutableStateOf(false) }
@@ -351,20 +353,65 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
 
         Section("E-mail e verificação")
         OutlinedTextField(
-            shape = RoundedCornerShape(22.dp),value = email, onValueChange = { email = it.take(180); if (it.trim() != FirebaseAuth.getInstance().currentUser?.email) emailVerified = false }, label = { Text("E-mail") }, singleLine = true, colors = piFieldColors(), modifier = Modifier.fillMaxWidth())
-        Text(if (emailVerified) "E-mail confirmado · Perfil profissional activo" else "Confirme o seu e-mail para activar o perfil profissional.", color = if (emailVerified) Color(0xFF8AB4F8) else PiColors.TextSecondary, fontSize = 12.sp)
+            shape = RoundedCornerShape(22.dp),
+            value = email,
+            onValueChange = { email = it.take(180); if (it.trim() != FirebaseAuth.getInstance().currentUser?.email) emailVerified = false },
+            label = { Text("E-mail") },
+            singleLine = true,
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Email),
+            colors = piFieldColors(),
+            modifier = Modifier.fillMaxWidth()
+        )
+        val currentFirebaseUser = FirebaseAuth.getInstance().currentUser
+        val needsEmailPassword = currentFirebaseUser?.isAnonymous == true
+        if (needsEmailPassword) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                shape = RoundedCornerShape(22.dp),
+                value = emailPassword,
+                onValueChange = { emailPassword = it },
+                label = { Text("Criar palavra-passe") },
+                supportingText = { Text("Use pelo menos 6 caracteres. Vai precisar dela para entrar com este e-mail noutro telefone.") },
+                singleLine = true,
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                colors = piFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        Text(
+            if (emailVerified) "E-mail confirmado · Conta protegida para recuperação"
+            else if (needsEmailPassword) "Associe e confirme o e-mail para poder recuperar esta mesma conta noutro telefone."
+            else "Confirme o seu e-mail para activar o perfil profissional.",
+            color = if (emailVerified) Color(0xFF8AB4F8) else PiColors.TextSecondary,
+            fontSize = 12.sp
+        )
         if (!emailVerified) {
-            PiButton("Enviar confirmação", {
+            PiButton(if (needsEmailPassword) "Associar e enviar confirmação" else "Enviar confirmação", {
                 scope.launch {
                     try {
                         val user = FirebaseAuth.getInstance().currentUser ?: throw IllegalStateException("Sessão indisponível")
-                        if (email.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) throw IllegalArgumentException("Introduza um e-mail válido.")
-                        if (user.email != email.trim()) user.updateEmail(email.trim()).await()
-                        user.sendEmailVerification().await()
-                        msg = "Enviámos uma ligação de confirmação para o seu e-mail."
-                    } catch (e: Exception) { msg = e.localizedMessage ?: "Não foi possível enviar a confirmação. Volte a iniciar sessão e tente novamente." }
+                        val address = email.trim()
+                        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(address).matches()) throw IllegalArgumentException("Introduza um e-mail válido.")
+                        if (user.isAnonymous) {
+                            if (emailPassword.length < 6) throw IllegalArgumentException("A palavra-passe deve ter pelo menos 6 caracteres.")
+                            val credential = EmailAuthProvider.getCredential(address, emailPassword)
+                            val linked = user.linkWithCredential(credential).await().user
+                                ?: throw IllegalStateException("Não foi possível associar o e-mail à conta.")
+                            linked.sendEmailVerification().await()
+                            email = linked.email.orEmpty()
+                        } else {
+                            if (user.email != address) user.updateEmail(address).await()
+                            user.sendEmailVerification().await()
+                        }
+                        msg = "E-mail associado à mesma conta. Enviámos uma ligação de confirmação. Não termine a sessão antes de confirmar."
+                    } catch (e: Exception) {
+                        msg = when (e) {
+                            is com.google.firebase.auth.FirebaseAuthUserCollisionException -> "Este e-mail já pertence a outra conta. Use um e-mail diferente para não perder os dados desta conta."
+                            else -> e.localizedMessage ?: "Não foi possível associar o e-mail. Tente novamente."
+                        }
+                    }
                 }
-            }, primary = false)
+            }, primary = false, enabled = email.isNotBlank() && (!needsEmailPassword || emailPassword.length >= 6))
             TextButton(onClick = {
                 scope.launch {
                     try {
