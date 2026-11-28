@@ -41,6 +41,7 @@ import com.isabgroup.pimsg.home.StoryViewer
 import com.isabgroup.pimsg.screens.LinksScreen
 import com.isabgroup.pimsg.screens.PiBotScreen
 import com.isabgroup.pimsg.screens.PlansScreen
+import com.isabgroup.pimsg.screens.BillingOrdersScreen
 import com.isabgroup.pimsg.screens.PiMsgBusinessScreen
 import com.isabgroup.pimsg.screens.ProfileScreen
 import com.isabgroup.pimsg.screens.QrScreen
@@ -217,6 +218,7 @@ private sealed interface Screen {
     data object Links : Screen
     data object PiBot : Screen
     data object Plans : Screen
+    data object BillingOrders : Screen
     data object Business : Screen
     data object Tools : Screen
     data object Accessibility : Screen
@@ -319,6 +321,7 @@ private fun AppRoot(activity: MainActivity) {
                                 "links" -> navigateTo(Screen.Links)
                                 "bot" -> navigateTo(Screen.PiBot)
                                 "plans" -> navigateTo(Screen.Plans)
+                                "payments" -> navigateTo(Screen.BillingOrders)
                                 "business" -> navigateTo(Screen.Business)
                                 "tools" -> navigateTo(Screen.Tools)
                                 "accessibility" -> navigateTo(Screen.Accessibility)
@@ -353,6 +356,7 @@ private fun AppRoot(activity: MainActivity) {
                     is Screen.Links -> LinksScreen(onBack = { goBack() })
                     is Screen.PiBot -> PiBotScreen(onBack = { goBack() }, onPlans = { navigateTo(Screen.Plans) })
                     is Screen.Plans -> PlansScreen(onBack = { goBack() })
+                    is Screen.BillingOrders -> BillingOrdersScreen(onBack = { goBack() })
                     is Screen.Business -> PiMsgBusinessScreen(
                         onBack = { goBack() },
                         onPlans = { navigateTo(Screen.Plans) },
