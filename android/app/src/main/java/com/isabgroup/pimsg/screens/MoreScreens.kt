@@ -1314,26 +1314,21 @@ fun LinksScreen(onBack: () -> Unit) {
                 Text("Ainda não criaste nenhum link.", color = PiColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
             }
         }
-        links.forEach { l ->
-            Column(Modifier.fillMaxWidth().background(PiColors.Surface, RoundedCornerShape(16.dp)).padding(14.dp)) {
+        links.forEachIndexed { index, l ->
+            Column(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(38.dp).background(PiColors.SurfaceHigh, RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.Link, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(20.dp))
-                    }
-                    Column(Modifier.weight(1f).padding(start = 11.dp)) {
-                        Text(l.subject, color = PiColors.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                        Text("${l.opens} aberturas", color = PiColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
-                    }
+                    Text(l.subject, color = PiColors.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text("${l.opens} aberturas", color = PiColors.TextSecondary, fontSize = 11.sp)
                 }
-                Text(l.url, color = PiColors.TextSecondary, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 11.dp))
+                Text(l.url, color = PiColors.TextSecondary, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 5.dp))
                 if (l.imageMediaId != null) {
                     Text("Fotografia personalizada", color = PiColors.Gray, fontSize = 11.sp, modifier = Modifier.padding(top = 5.dp))
                 }
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = { copy(context, "link", l.url); msg = "Link copiado." }) {
                         Icon(Icons.Filled.ContentCopy, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(5.dp))
-                        Text("Copiar", color = PiColors.White, fontSize = 12.sp)
+                        Text("Copiar", color = PiColors.TextSecondary, fontSize = 12.sp)
                     }
                     TextButton(onClick = {
                         val send = Intent(Intent.ACTION_SEND).setType("text/plain")
@@ -1342,7 +1337,7 @@ fun LinksScreen(onBack: () -> Unit) {
                     }) {
                         Icon(Icons.Filled.Share, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(5.dp))
-                        Text("Partilhar", color = PiColors.White, fontSize = 12.sp)
+                        Text("Partilhar", color = PiColors.TextSecondary, fontSize = 12.sp)
                     }
                     TextButton(onClick = { scope.launch { runCatching { Api.delete("/v1/links/${l.id}") }; load() } }) {
                         Icon(Icons.Filled.Delete, contentDescription = null, tint = PiColors.Gray, modifier = Modifier.size(16.dp))
@@ -1351,7 +1346,9 @@ fun LinksScreen(onBack: () -> Unit) {
                     }
                 }
             }
-            Spacer(Modifier.height(9.dp))
+            if (index < links.lastIndex) {
+                Box(Modifier.fillMaxWidth().height(1.dp).background(PiColors.GrayDark))
+            }
         }
         Spacer(Modifier.height(24.dp))
     }
