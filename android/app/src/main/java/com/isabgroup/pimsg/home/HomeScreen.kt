@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.awaitPointerEventScope
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -414,7 +415,17 @@ fun HomeScreen(
 
     val myStories = state.myId?.let { state.stories[it] }.orEmpty()
 
-    Column(Modifier.fillMaxSize().background(PiColors.Background).systemBarsPadding()) {
+    Column(
+        Modifier.fillMaxSize().background(PiColors.Background).systemBarsPadding()
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        if (event.changes.any { it.pressed }) lastUserInteractionAt = System.currentTimeMillis()
+                    }
+                }
+            }
+    ) {
         Row(
             Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -556,12 +567,12 @@ fun HomeScreen(
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(0.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Box(Modifier.size(42.dp).clickable { onNavigate("bot") }, contentAlignment = Alignment.Center) {
-                    RoboMascoteAnimado(estaEscrevendo = false, tamanho = 40.dp)
+                Box(Modifier.size(58.dp).clickable { onNavigate("bot") }, contentAlignment = Alignment.Center) {
+                    RoboMascoteAnimado(estaEscrevendo = false, tamanho = 54.dp, idleTrigger = robotIdleTrigger)
                 }
-                PresenteAnimado(tamanho = 38.dp, aoTocar = { opened -> if (opened) onNavigate("plans") })
+                PresenteAnimado(tamanho = 50.dp, aoTocar = { opened -> if (opened) onNavigate("plans") }, idleTrigger = giftIdleTrigger)
             }
         }
 
