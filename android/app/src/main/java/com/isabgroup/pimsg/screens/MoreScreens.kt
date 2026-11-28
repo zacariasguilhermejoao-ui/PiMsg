@@ -508,10 +508,10 @@ fun ProfileScreen(onBack: () -> Unit, onOpenChat: (ChatRef) -> Unit) {
                                 val serverVerified = Api.get("/v1/me").optBoolean("email_verified")
                                 emailVerified = (FirebaseAuth.getInstance().currentUser?.isEmailVerified == true) || serverVerified
                                 msg = if (emailVerified) "E-mail confirmado. O selo da conta já está activo." else "Ainda não recebemos a confirmação. Abre a ligação enviada por e-mail e tenta novamente."
-                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                                android.widget.Toast.makeText(context, msg.orEmpty(), android.widget.Toast.LENGTH_LONG).show()
                             } catch (_: Exception) {
                                 msg = "Não foi possível consultar a confirmação. Verifique a ligação e tente novamente."
-                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                                android.widget.Toast.makeText(context, msg.orEmpty(), android.widget.Toast.LENGTH_LONG).show()
                             } finally {
                                 emailChecking = false
                             }
