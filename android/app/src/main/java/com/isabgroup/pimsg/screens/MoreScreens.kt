@@ -1753,6 +1753,12 @@ fun PlansScreen(onBack: () -> Unit) {
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                     .padding(start = if (selected == null) 16.dp else 20.dp, end = if (selected == null) 16.dp else 20.dp, top = 8.dp, bottom = if (selected == null) 32.dp else 190.dp)
             ) {
+                error?.let {
+                    androidx.compose.material3.Text(it, color = Color(0xFFFF8A80), fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(bottom = 8.dp))
+                    TextButton(onClick = { scope.launch { refreshPlan() } }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Tentar consultar o plano novamente", color = PiModelLink)
+                    }
+                }
                 if (selected == null) {
                     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         androidx.compose.material3.Text("PiMsg", color = PiModelText, fontSize = 32.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp, modifier = Modifier.padding(bottom = 8.dp))
